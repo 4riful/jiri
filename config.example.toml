@@ -1,0 +1,42 @@
+[display]
+driver = "pygame"
+width = 480
+height = 320
+fullscreen = true
+fps = 15
+rotate_seconds = 20
+
+[assistant]
+name = "JIRI"
+personality = "funny_sarcastic"
+rage_mode_enabled = true
+
+[weather]
+provider = "wttr"
+location = "Dhaka"
+refresh_minutes = 30
+timeout_seconds = 3
+
+[database]
+path = "data/jiri.db"
+backup_dir = "backups"
+
+[web]
+host = "0.0.0.0"
+port = 5000
+
+[worker]
+enabled = false
+base_url = "http://pi-worker.local:5050"
+timeout_seconds = 1
+
+[performance]
+max_ui_ram_mb = 250
+max_web_ram_mb = 150
+target_fps = 15
+min_acceptable_fps = 10
+
+[llm]
+enabled = false
+provider = "none"
+model_path = ""

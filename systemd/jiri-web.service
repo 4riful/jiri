@@ -1,0 +1,15 @@
+[Unit]
+Description=JIRI Web Dashboard
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/jiri
+Environment=PYTHONPATH=src
+ExecStart=/home/pi/jiri/.venv/bin/python -m jiri.web.app
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

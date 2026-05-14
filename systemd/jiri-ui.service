@@ -1,0 +1,14 @@
+[Unit]
+Description=JIRI UI
+After=graphical.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/jiri
+Environment=PYTHONPATH=src
+ExecStart=/home/pi/jiri/.venv/bin/python -m jiri.ui.pygame_app
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical.target

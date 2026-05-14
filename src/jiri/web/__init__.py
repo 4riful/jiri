@@ -1,0 +1,1 @@
+"""JIRI Flask web package."""
