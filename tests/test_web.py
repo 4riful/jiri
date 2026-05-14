@@ -30,6 +30,12 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     assert screen_api.is_json
     assert screen_api.json["app_name"] == "JIRI"
 
+    display_api = client.get("/api/display")
+    assert display_api.status_code == 200
+    assert display_api.is_json
+    assert display_api.json["panel"]
+    assert display_api.json["face"]["state"]
+
     todo_page = client.post(
         "/todos",
         data={"title": "Browser todo", "due_at": "2026-05-14 21:00", "description": "From the web", "priority": "2"},

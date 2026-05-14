@@ -253,6 +253,10 @@ a {
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 18px rgba(255, 255, 255, 0.08), 0 0 24px var(--accent);
+  color: #07111f;
+  display: grid;
+  font-weight: 800;
+  place-items: center;
 }
 
 .mouth {
@@ -260,6 +264,9 @@ a {
   height: 2rem;
   border-bottom: 4px solid var(--accent);
   border-radius: 0 0 999px 999px;
+  color: var(--accent);
+  display: grid;
+  place-items: center;
 }
 
 .screen-rage .mouth,

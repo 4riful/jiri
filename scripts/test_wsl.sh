@@ -26,6 +26,7 @@ rm -f "$JIRI_DB_PATH"
 "$PYTHON_BIN" -m jiri.cli focus pause
 "$PYTHON_BIN" -m jiri.cli focus resume
 "$PYTHON_BIN" -m jiri.cli focus complete
+"$PYTHON_BIN" -m jiri.ui.pygame_app
 "$PYTHON_BIN" -m jiri.cli location set-coords --name "WSL Smoke" --lat 26.1167 --lon 88.85
 "$PYTHON_BIN" -m jiri.cli location current
 "$PYTHON_BIN" -m jiri.cli weather refresh

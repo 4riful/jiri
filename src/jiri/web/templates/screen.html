@@ -27,10 +27,10 @@
         <article class="card face-card">
           <div class="face face-{{ snapshot.face_state }}">
             <div class="eye-row">
-              <span class="eye"></span>
-              <span class="eye"></span>
+              <span class="eye">{{ display.face.eye_left }}</span>
+              <span class="eye">{{ display.face.eye_right }}</span>
             </div>
-            <div class="mouth"></div>
+            <div class="mouth">{{ display.face.mouth }}</div>
           </div>
           <div class="face-copy">
             <h2>{{ snapshot.headline }}</h2>

@@ -7,6 +7,7 @@ from flask import Flask, jsonify, redirect, render_template, request, url_for
 from jiri import __version__
 from jiri.config import AppConfig
 from jiri.runtime import JiriRuntime
+from jiri.ui.view_model import build_display_view_model
 
 
 def create_app(config: AppConfig | None = None, db_path: str | None = None) -> Flask:
@@ -26,9 +27,11 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None) -> F
     def screen():
         panel = request.args.get("panel", "auto")
         snapshot = runtime.screen_snapshot(panel=panel)
+        display = build_display_view_model(snapshot)
         return render_template(
             "screen.html",
             snapshot=snapshot,
+            display=display,
             requested_panel=panel,
             notice=request.args.get("notice", ""),
             error=request.args.get("error", ""),
@@ -284,6 +287,11 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None) -> F
     def api_screen():
         panel = request.args.get("panel", "auto")
         return jsonify(asdict(runtime.screen_snapshot(panel=panel)))
+
+    @app.get("/api/display")
+    def api_display():
+        panel = request.args.get("panel", "auto")
+        return jsonify(asdict(build_display_view_model(runtime.screen_snapshot(panel=panel))))
 
     @app.get("/api/todos")
     def api_todos_list():
