@@ -128,6 +128,39 @@ def delete_todo(todo_id: int, db_path: str | None = None) -> Todo:
     return todo
 
 
+def update_todo(
+    todo_id: int,
+    title: str,
+    due_at: str | datetime | None = None,
+    description: str | None = None,
+    priority: int = 2,
+    db_path: str | None = None,
+) -> Todo:
+    clean_title = title.strip()
+    if not clean_title:
+        raise ValueError("Todo title cannot be empty")
+    due_iso = _normalize_due_at(due_at)
+    now = _now_iso()
+    db.init_db(db_path)
+    try:
+        with db.connect(db_path) as conn:
+            cur = conn.execute(
+                """
+                UPDATE todos
+                SET title = ?, description = ?, due_at = ?, priority = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (clean_title, description, due_iso, priority, now, todo_id),
+            )
+            if cur.rowcount == 0:
+                raise ValueError(f"Todo {todo_id} not found")
+    except sqlite3.OperationalError as exc:
+        if "locked" in str(exc).lower():
+            raise RuntimeError("Database is busy. Try again in a moment.") from exc
+        raise
+    return get_todo(todo_id, db_path=db_path)
+
+
 def get_overdue_todos(now: datetime, db_path: str | None = None) -> list[Todo]:
     db.init_db(db_path)
     with db.connect(db_path) as conn:

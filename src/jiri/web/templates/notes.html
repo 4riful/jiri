@@ -31,6 +31,12 @@
                 <strong>#{{ note.id }} {{ note.title }}</strong>
                 <p>{{ note.body }}</p>
                 <div class="meta-line">{{ note.tags or 'untagged' }}</div>
+                <form class="inline-edit" method="post" action="{{ url_for('note_update', note_id=note.id) }}">
+                  <input name="title" required maxlength="160" value="{{ note.title }}" aria-label="Note title">
+                  <textarea name="body" rows="3" required aria-label="Note body">{{ note.body }}</textarea>
+                  <input name="tags" value="{{ note.tags or '' }}" placeholder="Tags" aria-label="Note tags">
+                  <button class="button button-soft" type="submit">Save</button>
+                </form>
               </div>
               <div class="row-actions">
                 <form method="post" action="{{ url_for('note_delete', note_id=note.id) }}"><button class="button button-danger" type="submit">Delete</button></form>

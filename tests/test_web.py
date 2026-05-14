@@ -42,6 +42,14 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     assert done_page.status_code == 200
     assert b"done" in done_page.data
 
+    update_page = client.post(
+        "/todos/1/update",
+        data={"title": "Updated browser todo", "due_at": "2026-05-15 09:30", "description": "Edited from the web", "priority": "1"},
+        follow_redirects=True,
+    )
+    assert update_page.status_code == 200
+    assert b"Updated browser todo" in update_page.data
+
     note_page = client.post(
         "/notes",
         data={"title": "Browser note", "body": "Keep the Pi footprint small.", "tags": "browser,pi"},
@@ -49,6 +57,14 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     )
     assert note_page.status_code == 200
     assert b"Browser note" in note_page.data
+
+    note_update = client.post(
+        "/notes/1/update",
+        data={"title": "Updated browser note", "body": "Still keep the Pi footprint small.", "tags": "edited,pi"},
+        follow_redirects=True,
+    )
+    assert note_update.status_code == 200
+    assert b"Updated browser note" in note_update.data
 
     monkeypatch.setattr(
         weather,
@@ -89,3 +105,85 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     weather_page = client.get("/weather")
     assert weather_page.status_code == 200
     assert b"Current Weather" in weather_page.data
+
+
+def test_json_api_crud_surface(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+    monkeypatch.setenv("JIRI_WEATHER_FAKE", "true")
+
+    app = create_app()
+    client = app.test_client()
+
+    created_todo = client.post("/api/todos", json={"title": "API todo", "priority": 2})
+    assert created_todo.status_code == 201
+    assert created_todo.json["title"] == "API todo"
+
+    updated_todo = client.put(
+        "/api/todos/1",
+        json={"title": "API todo edited", "due_at": "2026-05-15 10:00", "description": "API edit", "priority": 1},
+    )
+    assert updated_todo.status_code == 200
+    assert updated_todo.json["title"] == "API todo edited"
+    assert updated_todo.json["priority"] == 1
+
+    todo_list = client.get("/api/todos?all=true")
+    assert todo_list.status_code == 200
+    assert todo_list.json[0]["title"] == "API todo edited"
+
+    done_todo = client.post("/api/todos/1/done")
+    assert done_todo.status_code == 200
+    assert done_todo.json["status"] == "done"
+
+    created_note = client.post("/api/notes", json={"title": "API note", "body": "Plain API note", "tags": "api"})
+    assert created_note.status_code == 201
+    assert created_note.json["title"] == "API note"
+
+    updated_note = client.put("/api/notes/1", json={"title": "API note edited", "body": "Edited note", "tags": "api,edited"})
+    assert updated_note.status_code == 200
+    assert updated_note.json["title"] == "API note edited"
+
+    notes = client.get("/api/notes")
+    assert notes.status_code == 200
+    assert notes.json[0]["title"] == "API note edited"
+
+    client.post("/weather/set-coords", data={"name": "Home", "lat": "26.1167", "lon": "88.85"})
+    weather_refresh = client.post("/api/weather/refresh")
+    assert weather_refresh.status_code == 200
+    assert weather_refresh.json["condition"] == "Fake partly cloudy"
+
+    weather_snapshot = client.get("/api/weather")
+    assert weather_snapshot.status_code == 200
+    assert weather_snapshot.json["location"] == "Home"
+
+    deleted_note = client.delete("/api/notes/1")
+    assert deleted_note.status_code == 200
+    assert deleted_note.json["title"] == "API note edited"
+
+    deleted_todo = client.delete("/api/todos/1")
+    assert deleted_todo.status_code == 200
+    assert deleted_todo.json["title"] == "API todo edited"
+
+
+def test_json_api_validation_errors(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+
+    app = create_app()
+    client = app.test_client()
+
+    bad_todo = client.post("/api/todos", json={"title": "   "})
+    assert bad_todo.status_code == 400
+    assert "title" in bad_todo.json["error"]
+
+    bad_note = client.post("/api/notes", json={"title": "Note", "body": "   "})
+    assert bad_note.status_code == 400
+    assert "body" in bad_note.json["error"]

@@ -62,6 +62,34 @@ def delete_note(note_id: int, db_path: str | None = None) -> Note:
     return note
 
 
+def update_note(note_id: int, title: str, body: str, tags: str | None = None, db_path: str | None = None) -> Note:
+    clean_title = title.strip()
+    clean_body = body.strip()
+    if not clean_title:
+        raise ValueError("Note title cannot be empty")
+    if not clean_body:
+        raise ValueError("Note body cannot be empty")
+    now = datetime.now().replace(microsecond=0).isoformat()
+    db.init_db(db_path)
+    try:
+        with db.connect(db_path) as conn:
+            cur = conn.execute(
+                """
+                UPDATE notes
+                SET title = ?, body = ?, tags = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (clean_title, clean_body, tags, now, note_id),
+            )
+            if cur.rowcount == 0:
+                raise ValueError(f"Note {note_id} not found")
+    except sqlite3.OperationalError as exc:
+        if "locked" in str(exc).lower():
+            raise RuntimeError("Database is busy. Try again in a moment.") from exc
+        raise
+    return get_note(note_id, db_path=db_path)
+
+
 def _row_to_note(row) -> Note:
     return Note(
         id=int(row["id"]),

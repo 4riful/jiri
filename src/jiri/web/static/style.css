@@ -373,6 +373,13 @@ a {
   gap: 0.8rem;
 }
 
+.inline-edit {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  max-width: 34rem;
+}
+
 .stack-form label {
   display: grid;
   gap: 0.35rem;

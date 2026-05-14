@@ -35,6 +35,13 @@
                 <strong>#{{ todo.id }} {{ todo.title }}</strong>
                 <p>{{ todo.description or 'No description' }}</p>
                 <div class="meta-line">{{ todo.status }} · p{{ todo.priority }}{% if todo.due_at %} · {{ todo.due_at }}{% endif %}</div>
+                <form class="inline-edit" method="post" action="{{ url_for('todo_update', todo_id=todo.id) }}">
+                  <input name="title" required maxlength="160" value="{{ todo.title }}" aria-label="Todo title">
+                  <input name="due_at" value="{{ todo.due_at or '' }}" placeholder="Due at" aria-label="Todo due date">
+                  <input name="priority" type="number" min="1" max="5" value="{{ todo.priority }}" aria-label="Todo priority">
+                  <textarea name="description" rows="2" placeholder="Description" aria-label="Todo description">{{ todo.description or '' }}</textarea>
+                  <button class="button button-soft" type="submit">Save</button>
+                </form>
               </div>
               <div class="row-actions">
                 {% if todo.status == 'pending' %}

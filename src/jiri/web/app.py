@@ -84,6 +84,20 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None) -> F
         except (ValueError, RuntimeError) as exc:
             return redirect(url_for("todos_view", error=str(exc)))
 
+    @app.post("/todos/<int:todo_id>/update")
+    def todo_update(todo_id: int):
+        try:
+            todo = runtime.update_todo(
+                todo_id,
+                request.form.get("title", ""),
+                due_at=request.form.get("due_at") or None,
+                description=request.form.get("description") or None,
+                priority=_int_form(request.form.get("priority"), default=2),
+            )
+            return redirect(url_for("todos_view", notice=f"Updated todo #{todo.id}: {todo.title}"))
+        except (ValueError, RuntimeError) as exc:
+            return redirect(url_for("todos_view", error=str(exc)))
+
     @app.post("/todos/<int:todo_id>/delete")
     def todo_delete(todo_id: int):
         try:
@@ -119,6 +133,19 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None) -> F
         try:
             note = runtime.delete_note(note_id)
             return redirect(url_for("notes_view", notice=f"Deleted note #{note.id}: {note.title}"))
+        except (ValueError, RuntimeError) as exc:
+            return redirect(url_for("notes_view", error=str(exc)))
+
+    @app.post("/notes/<int:note_id>/update")
+    def note_update(note_id: int):
+        try:
+            note = runtime.update_note(
+                note_id,
+                request.form.get("title", ""),
+                request.form.get("body", ""),
+                tags=request.form.get("tags") or None,
+            )
+            return redirect(url_for("notes_view", notice=f"Updated note #{note.id}: {note.title}"))
         except (ValueError, RuntimeError) as exc:
             return redirect(url_for("notes_view", error=str(exc)))
 
@@ -206,6 +233,101 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None) -> F
         panel = request.args.get("panel", "auto")
         return jsonify(asdict(runtime.screen_snapshot(panel=panel)))
 
+    @app.get("/api/todos")
+    def api_todos_list():
+        include_done = request.args.get("all", "false").lower() in {"1", "true", "yes", "on"}
+        return jsonify([asdict(todo) for todo in runtime.list_todos(include_done=include_done)])
+
+    @app.post("/api/todos")
+    def api_todos_create():
+        payload = _json_payload()
+        try:
+            todo = runtime.add_todo(
+                str(payload.get("title") or ""),
+                due_at=payload.get("due_at") or None,
+                description=payload.get("description") or None,
+                priority=_int_value(payload.get("priority"), default=2),
+            )
+            return jsonify(asdict(todo)), 201
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.put("/api/todos/<int:todo_id>")
+    def api_todos_update(todo_id: int):
+        payload = _json_payload()
+        try:
+            todo = runtime.update_todo(
+                todo_id,
+                str(payload.get("title") or ""),
+                due_at=payload.get("due_at") or None,
+                description=payload.get("description") or None,
+                priority=_int_value(payload.get("priority"), default=2),
+            )
+            return jsonify(asdict(todo))
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.post("/api/todos/<int:todo_id>/done")
+    def api_todos_done(todo_id: int):
+        try:
+            return jsonify(asdict(runtime.mark_todo_done(todo_id)))
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.post("/api/todos/<int:todo_id>/cancel")
+    def api_todos_cancel(todo_id: int):
+        try:
+            return jsonify(asdict(runtime.cancel_todo(todo_id)))
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.delete("/api/todos/<int:todo_id>")
+    def api_todos_delete(todo_id: int):
+        try:
+            return jsonify(asdict(runtime.delete_todo(todo_id)))
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.get("/api/notes")
+    def api_notes_list():
+        return jsonify([asdict(note) for note in runtime.list_notes()])
+
+    @app.post("/api/notes")
+    def api_notes_create():
+        payload = _json_payload()
+        try:
+            note = runtime.add_note(str(payload.get("title") or ""), str(payload.get("body") or ""), tags=payload.get("tags") or None)
+            return jsonify(asdict(note)), 201
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.put("/api/notes/<int:note_id>")
+    def api_notes_update(note_id: int):
+        payload = _json_payload()
+        try:
+            note = runtime.update_note(note_id, str(payload.get("title") or ""), str(payload.get("body") or ""), tags=payload.get("tags") or None)
+            return jsonify(asdict(note))
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.delete("/api/notes/<int:note_id>")
+    def api_notes_delete(note_id: int):
+        try:
+            return jsonify(asdict(runtime.delete_note(note_id)))
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.get("/api/weather")
+    def api_weather():
+        return jsonify(runtime.screen_snapshot(panel="weather").weather)
+
+    @app.post("/api/weather/refresh")
+    def api_weather_refresh():
+        try:
+            return jsonify(runtime.refresh_weather())
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
     return app
 
 
@@ -213,6 +335,19 @@ def _int_form(value: str | None, default: int) -> int:
     if value is None or value.strip() == "":
         return default
     return int(value)
+
+
+def _int_value(value: object, default: int) -> int:
+    if value is None or value == "":
+        return default
+    return int(value)
+
+
+def _json_payload() -> dict[str, object]:
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return {}
+    return payload
 
 
 if __name__ == "__main__":

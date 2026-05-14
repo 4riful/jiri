@@ -44,6 +44,16 @@ class JiriRuntime:
     def delete_todo(self, todo_id: int):
         return todos.delete_todo(todo_id, db_path=self.db_path)
 
+    def update_todo(
+        self,
+        todo_id: int,
+        title: str,
+        due_at: str | datetime | None = None,
+        description: str | None = None,
+        priority: int = 2,
+    ):
+        return todos.update_todo(todo_id, title, due_at=due_at, description=description, priority=priority, db_path=self.db_path)
+
     def add_note(self, title: str, body: str, tags: str | None = None):
         return notes.add_note(title, body, tags=tags, db_path=self.db_path)
 
@@ -52,6 +62,9 @@ class JiriRuntime:
 
     def delete_note(self, note_id: int):
         return notes.delete_note(note_id, db_path=self.db_path)
+
+    def update_note(self, note_id: int, title: str, body: str, tags: str | None = None):
+        return notes.update_note(note_id, title, body, tags=tags, db_path=self.db_path)
 
     def search_locations(self, query: str, country: str | None = None):
         return weather.search_locations(query, country=country, timeout_seconds=self.config.weather.timeout_seconds)
