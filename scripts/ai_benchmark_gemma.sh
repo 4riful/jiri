@@ -11,7 +11,7 @@ MAX_SWAP_MB=${JIRI_AI_MAX_SWAP_MB:-100}
 MAX_TEMP_C=${JIRI_AI_MAX_TEMP_C:-75}
 
 print_host_mode
-require_real_pi
+require_real_pi_or_local_dev
 
 if ! command_exists curl; then
   echo "curl not found" >&2
@@ -56,5 +56,10 @@ if test "$temp_c" != "unknown"; then
   awk "BEGIN {exit !($temp_c <= $MAX_TEMP_C)}"
 fi
 
-echo "benchmark_gate: passed_on_this_run"
-echo "Reminder: Gemma is accepted only after this passes on real Raspberry Pi 3B with SSH responsive."
+if is_raspberry_pi; then
+  echo "benchmark_gate: passed_on_real_pi_candidate"
+  echo "Reminder: Gemma is accepted only after this passes on real Raspberry Pi 3B with SSH responsive."
+else
+  echo "local_dev_benchmark: passed_on_this_machine"
+  echo "benchmark_gate: not_accepted_requires_real_pi_3b"
+fi

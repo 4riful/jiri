@@ -27,10 +27,28 @@ def test_required_ai_scripts_exist_and_are_guarded():
     run_text = (SCRIPTS / "ai_run_gemma_512.sh").read_text(encoding="utf-8")
     benchmark_text = (SCRIPTS / "ai_benchmark_gemma.sh").read_text(encoding="utf-8")
     debloat_text = (SCRIPTS / "ai_safe_debloat.sh").read_text(encoding="utf-8")
-    assert "require_real_pi" in run_text
-    assert "require_real_pi" in benchmark_text
+    common_text = (SCRIPTS / "ai_common.sh").read_text(encoding="utf-8")
+    assert "JIRI_LOCAL_DEV" in common_text
+    assert "require_real_pi_or_local_dev" in run_text
+    assert "require_real_pi_or_local_dev" in benchmark_text
+    assert "not_accepted_requires_real_pi_3b" in benchmark_text
+    assert "require_real_pi" in debloat_text
     assert "JIRI_CONFIRM_DEBLOAT" in debloat_text
     assert "SSH" in debloat_text
+
+
+def test_local_dev_bypass_is_explicit_and_non_accepting():
+    script = f'. "{SCRIPTS / "ai_common.sh"}"; is_raspberry_pi() {{ return 1; }}; JIRI_LOCAL_DEV=1 require_real_pi_or_local_dev'
+    result = subprocess.run(["bash", "-c", script], cwd=ROOT, check=True, text=True, capture_output=True)
+    assert "JIRI_LOCAL_DEV=1" in result.stderr
+    assert "does not satisfy Raspberry Pi 3B" in result.stderr
+
+
+def test_strict_real_pi_guard_ignores_local_dev():
+    script = f'. "{SCRIPTS / "ai_common.sh"}"; is_raspberry_pi() {{ return 1; }}; JIRI_LOCAL_DEV=1 require_real_pi'
+    result = subprocess.run(["bash", "-c", script], cwd=ROOT, text=True, capture_output=True)
+    assert result.returncode == 2
+    assert "requires real Raspberry Pi hardware" in result.stderr
 
 
 def test_ai_baseline_runs_in_wsl_without_modifying_system():

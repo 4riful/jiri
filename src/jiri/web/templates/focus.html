@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-head">
+    <div>
+      <p class="eyebrow">FOCUS</p>
+      <h1>Focus Sessions</h1>
+      <p>Explicit state transitions only. No per-second SQLite writes.</p>
+    </div>
+  </section>
+
+  <section class="dashboard-grid">
+    <article class="card">
+      <h2><span aria-hidden="true">⏱</span> Current Focus</h2>
+      {% if snapshot.focus.active %}
+        <div class="metric-large">{{ snapshot.focus.remaining_text }}</div>
+        <p><strong>{{ snapshot.focus.title }}</strong></p>
+        <p>{{ snapshot.focus.kind }} · {{ snapshot.focus.status }} · {{ (snapshot.focus.progress * 100)|round|int }}%</p>
+        <div class="inline-actions">
+          {% if snapshot.focus.status == 'running' %}
+            <form method="post" action="{{ url_for('focus_pause') }}"><button class="button button-soft" type="submit">Pause</button></form>
+          {% elif snapshot.focus.status == 'paused' %}
+            <form method="post" action="{{ url_for('focus_resume') }}"><button class="button button-soft" type="submit">Resume</button></form>
+          {% endif %}
+          <form method="post" action="{{ url_for('focus_complete') }}"><button class="button" type="submit">Complete</button></form>
+          <form method="post" action="{{ url_for('focus_cancel') }}"><button class="button button-danger" type="submit">Cancel</button></form>
+        </div>
+      {% else %}
+        <div class="metric-large">Idle</div>
+        <p>No active focus session.</p>
+      {% endif %}
+    </article>
+
+    <article class="card">
+      <h2><span aria-hidden="true">▶</span> Start Focus</h2>
+      <form class="stack-form" method="post" action="{{ url_for('focus_start') }}">
+        <label>Title<input name="title" value="Focus session"></label>
+        <label>Minutes<input name="minutes" type="number" min="1" value="25"></label>
+        <label>Todo ID<input name="todo_id" type="number" min="1" placeholder="optional"></label>
+        <button class="button" type="submit">Start focus</button>
+      </form>
+    </article>
+
+    <article class="card">
+      <h2><span aria-hidden="true">☕</span> Start Break</h2>
+      <form class="stack-form" method="post" action="{{ url_for('focus_break') }}">
+        <label>Break minutes<input name="minutes" type="number" min="1" value="5"></label>
+        <button class="button button-soft" type="submit">Start break</button>
+      </form>
+    </article>
+
+    <article class="card">
+      <h2><span aria-hidden="true">📊</span> Focus Stats</h2>
+      <div class="stat-grid compact-stats">
+        <div><strong>{{ snapshot.focus.status if snapshot.focus.active else 'idle' }}</strong><span>Status</span></div>
+        <div><strong>{{ snapshot.focus.kind if snapshot.focus.active else 'none' }}</strong><span>Kind</span></div>
+        <div><strong>{{ snapshot.focus.todo_id or 'none' }}</strong><span>Todo link</span></div>
+      </div>
+    </article>
+  </section>
+{% endblock %}

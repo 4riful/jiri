@@ -1,77 +1,66 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <section class="dashboard-grid">
-    <article class="card">
-      <h2>Control Center</h2>
-      <p>Current screen mode: <strong>{{ snapshot.screen.panel_title }}</strong></p>
-      <p>{{ snapshot.screen.headline }}</p>
-      <div class="inline-actions">
-        <a class="button" href="{{ url_for('screen') }}">Open Screen</a>
-        <a class="button" href="{{ url_for('todos_view') }}">Manage Todos</a>
-        <a class="button" href="{{ url_for('notes_view') }}">Manage Notes</a>
-        <a class="button" href="{{ url_for('weather_view') }}">Weather</a>
+  <section class="page-head">
+    <div>
+      <p class="eyebrow">DASHBOARD</p>
+      <h1>JIRI Status</h1>
+      <p>Snapshot-only overview. Management lives on its own pages.</p>
+    </div>
+  </section>
+
+  <section class="stats-dashboard">
+    <article class="stat-card weather-card">
+      <div class="stat-icon" aria-hidden="true">☁</div>
+      <div>
+        <span class="stat-label">Weather</span>
+        <strong>{{ snapshot.weather.temperature_c ~ 'C' if snapshot.weather.temperature_c is not none else 'unknown' }}</strong>
+        <p>{{ snapshot.weather.location }} · {{ snapshot.weather.condition }}</p>
       </div>
     </article>
 
-    <article class="card">
-      <h2>System Health</h2>
-      <dl class="details stacked">
-        <div><dt>Database</dt><dd>{{ snapshot.health.database_path }}</dd></div>
-        <div><dt>Writable</dt><dd>{{ 'yes' if snapshot.health.database_writable else 'no' }}</dd></div>
-        <div><dt>Todos</dt><dd>{{ snapshot.health.todos_count }}</dd></div>
-        <div><dt>Overdue</dt><dd>{{ snapshot.health.overdue_count }}</dd></div>
-        <div><dt>Weather</dt><dd>{{ snapshot.health.weather_cache_status }}</dd></div>
-        <div><dt>RAM</dt><dd>{{ snapshot.health.free_ram_mb if snapshot.health.free_ram_mb is not none else 'unknown' }}</dd></div>
-        <div><dt>CPU</dt><dd>{{ snapshot.health.cpu_temperature_c ~ 'C' if snapshot.health.cpu_temperature_c is not none else 'unknown' }}</dd></div>
-      </dl>
+    <article class="stat-card">
+      <div class="stat-icon" aria-hidden="true">☂</div>
+      <div>
+        <span class="stat-label">Rain</span>
+        <strong>{{ snapshot.weather.rain_chance if snapshot.weather.rain_chance is not none else 'unknown' }}%</strong>
+        <p>Wind {{ snapshot.weather.wind_kmh if snapshot.weather.wind_kmh is not none else 'unknown' }} km/h</p>
+      </div>
     </article>
 
-    <article class="card">
-      <h2>Weather Snapshot</h2>
-      <p><strong>{{ snapshot.weather.location }}</strong></p>
-      <p>{{ snapshot.weather.condition }}</p>
-      <p>{{ snapshot.weather.temperature_c ~ 'C' if snapshot.weather.temperature_c is not none else 'unknown' }}, feels like {{ snapshot.weather.feels_like_c ~ 'C' if snapshot.weather.feels_like_c is not none else 'unknown' }}</p>
-      <p>Source: {{ snapshot.weather.source }}</p>
+    <article class="stat-card">
+      <div class="stat-icon" aria-hidden="true">✓</div>
+      <div>
+        <span class="stat-label">Todos</span>
+        <strong>{{ snapshot.screen.pending_count }}</strong>
+        <p>{{ snapshot.screen.overdue_count }} overdue · {{ snapshot.todos|length }} total</p>
+      </div>
     </article>
 
-    <article class="card">
-      <h2>Focus Assist</h2>
-      {% if snapshot.focus.active %}
-        <p><strong>{{ snapshot.focus.title }}</strong></p>
-        <p>{{ snapshot.focus.kind }} · {{ snapshot.focus.status }} · {{ snapshot.focus.remaining_text }} left</p>
-        <div class="inline-actions">
-          {% if snapshot.focus.status == 'running' %}
-            <form method="post" action="{{ url_for('focus_pause') }}"><button class="button button-soft" type="submit">Pause</button></form>
-          {% elif snapshot.focus.status == 'paused' %}
-            <form method="post" action="{{ url_for('focus_resume') }}"><button class="button button-soft" type="submit">Resume</button></form>
-          {% endif %}
-          <form method="post" action="{{ url_for('focus_complete') }}"><button class="button" type="submit">Complete</button></form>
-          <form method="post" action="{{ url_for('focus_cancel') }}"><button class="button button-danger" type="submit">Cancel</button></form>
-        </div>
-      {% else %}
-        <p>No active focus session.</p>
-      {% endif %}
-      <form class="stack-form" method="post" action="{{ url_for('focus_start') }}">
-        <label>Title<input name="title" value="Focus session"></label>
-        <label>Minutes<input name="minutes" type="number" min="1" value="25"></label>
-        <label>Todo ID<input name="todo_id" type="number" min="1" placeholder="optional"></label>
-        <button class="button" type="submit">Start focus</button>
-      </form>
-      <form class="stack-form compact-form" method="post" action="{{ url_for('focus_break') }}">
-        <label>Break minutes<input name="minutes" type="number" min="1" value="5"></label>
-        <button class="button button-soft" type="submit">Start break</button>
-      </form>
+    <article class="stat-card">
+      <div class="stat-icon" aria-hidden="true">⏱</div>
+      <div>
+        <span class="stat-label">Focus</span>
+        <strong>{{ snapshot.focus.remaining_text if snapshot.focus.active else 'idle' }}</strong>
+        <p>{{ snapshot.focus.title if snapshot.focus.active else 'No active session' }}</p>
+      </div>
     </article>
 
-    <article class="card">
-      <h2>Counts</h2>
-      <div class="stat-grid">
-        <div><strong>{{ snapshot.screen.pending_count }}</strong><span>Open todos</span></div>
-        <div><strong>{{ snapshot.screen.overdue_count }}</strong><span>Overdue</span></div>
-        <div><strong>{{ snapshot.notes|length }}</strong><span>Notes</span></div>
-        <div><strong>{{ snapshot.todos|length }}</strong><span>Total todos</span></div>
-        <div><strong>{{ snapshot.focus.remaining_text if snapshot.focus.active else 'none' }}</strong><span>Focus</span></div>
+    <article class="stat-card">
+      <div class="stat-icon" aria-hidden="true">✎</div>
+      <div>
+        <span class="stat-label">Notes</span>
+        <strong>{{ snapshot.notes|length }}</strong>
+        <p>{{ snapshot.notes[0].title if snapshot.notes else 'No notes yet' }}</p>
+      </div>
+    </article>
+
+    <article class="stat-card">
+      <div class="stat-icon" aria-hidden="true">▣</div>
+      <div>
+        <span class="stat-label">System</span>
+        <strong>{{ 'OK' if snapshot.health.database_writable else 'BAD' }}</strong>
+        <p>RAM {{ snapshot.health.free_ram_mb if snapshot.health.free_ram_mb is not none else 'unknown' }} MB · weather {{ snapshot.health.weather_cache_status }}</p>
       </div>
     </article>
   </section>

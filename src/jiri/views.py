@@ -52,6 +52,7 @@ class DashboardSnapshot:
     todos: tuple[Todo, ...]
     notes: tuple[Note, ...]
     active_location: dict[str, object] | None
+    recent_locations: tuple[dict[str, object], ...]
     weather: dict[str, object]
     focus: dict[str, object]
     search_results: tuple[dict[str, object], ...] = ()
@@ -122,6 +123,7 @@ def build_dashboard_snapshot(
     all_todos = tuple(todos.list_todos(include_done=True, db_path=db_path))
     all_notes = tuple(notes.list_notes(db_path=db_path))
     active_location = screen.active_location
+    recent_locations = tuple(weather.get_recent_locations(db_path=db_path))
     weather_state = screen.weather
     focus_state = screen.focus
     stored_results = tuple(search_results or [])
@@ -140,6 +142,7 @@ def build_dashboard_snapshot(
         todos=all_todos,
         notes=all_notes,
         active_location=active_location,
+        recent_locations=recent_locations,
         weather=weather_state,
         focus=focus_state,
         search_results=stored_results,

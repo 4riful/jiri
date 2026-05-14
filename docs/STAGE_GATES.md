@@ -69,12 +69,13 @@ Status: passed in WSL. Pi response/RAM confirmation still required.
 Pass condition:
 
 - Flask dashboard runs locally and on Pi by IP.
+- Admin dashboard and screen preview use distinct ports/surfaces.
 - Todo CRUD works from phone browser.
 - Notes CRUD works from phone browser.
 - Weather location search/set/current works from dashboard.
 - `/api/status` responds below 500 ms locally.
-- `GET /todos` responds below 500 ms locally.
-- `POST /todos` responds below 800 ms locally.
+- `GET /admin/todos` responds below 500 ms locally after admin login.
+- `POST /admin/todos` responds below 800 ms locally after admin login.
 - Web process RAM target below 100 MB, hard limit 150 MB.
 - No React, Node, Electron, browser kiosk, CDN-required core behavior, or heavy frontend toolchain.
 - Web survives weather unavailable.
@@ -107,6 +108,8 @@ Status: scaffolded in WSL. Real display/touch acceptance still required.
 
 Status: scripts ready. Real Raspberry Pi 3B benchmark still required.
 
+WSL/local Gemma ctx512 runs are allowed only as opt-in compatibility preflight. They do not satisfy this gate.
+
 - Gemma 3 270M Q4_K_M loads on real Pi 3B.
 - Free RAM after load above 150 MB.
 - Swap after idle load below 100 MB.
@@ -118,6 +121,8 @@ Status: scripts ready. Real Raspberry Pi 3B benchmark still required.
 - Benchmark on a real Raspberry Pi 3B, not WSL.
 
 ### Stage F: AI Integration
+
+Status: blocked for production acceptance until Stage E passes on real Raspberry Pi 3B. Local development must stay disabled by default, timeout-protected, fallback-safe, and Pi-compatible.
 
 - AI requests run outside render path.
 - Fallback templates remain immediate.

@@ -1,308 +1,308 @@
-<p align="center">
-  <img src="./jirie.png" alt="JIRI icon" width="180">
-</p>
+# JIRI Methodology
 
-<h1 align="center">JIRI</h1>
+JIRI is a Raspberry Pi-first desk assistant project. This repository is not organized around feature hype; it is organized around constraints, gates, and small reversible implementation steps.
 
-<p align="center">
-  A two-Pi AI-assisted Raspberry Pi desk companion built to be reliable first, lightweight second, funny third, and AI-controlled never.
-</p>
+The project target is weak hardware: Raspberry Pi 3B+/3B, 1GB RAM, SD-card storage, small display, unreliable network, and long idle runtime. Every implementation decision is judged against that environment even when development happens in WSL.
 
-<p align="center">
-  <a href="https://github.com/4riful/jiri"><img alt="Repo" src="https://img.shields.io/badge/GitHub-4riful%2Fjiri-181717?logo=github"></a>
-  <img alt="Target" src="https://img.shields.io/badge/Target-Raspberry%20Pi%203B%2B%20%2F%203B-c51a4a?logo=raspberrypi">
-  <img alt="Runtime" src="https://img.shields.io/badge/Runtime-Python%203-3776ab?logo=python&logoColor=white">
-  <img alt="Database" src="https://img.shields.io/badge/State-SQLite-003b57?logo=sqlite">
-  <img alt="Frontend" src="https://img.shields.io/badge/Frontend-No%20React%20%2F%20No%20Node-2ea44f">
-  <img alt="Stage" src="https://img.shields.io/badge/Stage-0%20to%203%20passed-blue">
-</p>
+## Core Method
 
-## The Story
-
-JIRI started as a hands-on lab revival project: an 8-year-old Raspberry Pi 3B+ and a Raspberry Pi 3B were sitting idle, waiting for a reason to boot again.
-
-Instead of turning them into another overbuilt cloud-connected demo, this project aims to make them useful as a small Jarvis-style desk assistant that respects their limits. The Pi 3B+ is the main assistant. The Pi 3B may become an optional worker later. The goal is to get hands dirty again with real Raspberry Pi hardware: SSH, SQLite, Pygame, systemd, thermals, SD card safety, tiny displays, and all the practical constraints that make embedded projects fun.
-
-JIRI is intentionally not a desktop app. It is not an Electron dashboard. It is not a React frontend strapped to a tiny board. It is a low-power Raspberry Pi assistant that should survive reboots, weak hardware, network failures, and long idle sessions.
-
-## What JIRI Will Become
-
-- Persistent ASCII/Unicode face on a 3.5-inch touch display.
-- Clock/date and glance panel.
-- Weather with Open-Meteo, location search, SQLite cache, and wttr.in fallback.
-- Todos with funny or angry reminder behavior.
-- Shared notes.
-- Focus countdown timer with countdown eyes.
-- Phone/laptop web dashboard.
-- SSH-friendly CLI.
-- Later Telegram admin control.
-- Dedicated AI sidecar on Raspberry Pi 3B after benchmark acceptance.
-
-## Design Philosophy
+JIRI is built with this rule:
 
 ```text
-Reliable first.
-Lightweight second.
-Funny third.
-AI-assisted only after benchmark gates.
-AI-controlled never.
-```
-
-Important state is deterministic:
-
-- SQLite stores todos, notes, weather cache, settings, and event logs.
-- Python business logic manages due dates, reminders, angry levels, health, and state transitions.
-- The UI only displays small state snapshots.
-- Weather has cache and fallback behavior.
-- Gemma may only rewrite/summarize from Python-supplied facts after AI worker benchmark acceptance.
-- Gemma must never manage todos, reminders, due dates, focus timers, database writes, weather facts, weather cache, system state, shell commands, or systemd.
-
-## Source Of Truth
-
-The source-of-truth architecture and gate document is [`docs/ENGINEERING_HANDBOOK.md`](docs/ENGINEERING_HANDBOOK.md).
-
-Core rule:
-
-```text
-JIRI is AI-assisted, not AI-controlled.
+AI-assisted, not AI-controlled.
 Python owns truth, timing, state, and actions.
-Gemma owns wording, summaries, and personality.
+Optional AI owns wording only.
 ```
 
-## Target Hardware
+That means:
 
-Production target:
+- SQLite is the source of truth.
+- Python owns todos, notes, focus sessions, weather cache, location settings, display state, and safety rules.
+- UI surfaces read snapshots; they do not become business logic owners.
+- AI can rewrite or summarize Python-supplied facts only after benchmark gates pass.
+- If AI is offline, slow, or rejected, deterministic Python behavior remains available.
 
-- Raspberry Pi 3B+ as `jiri-main.local`, the body/controller/source of truth.
-- Raspberry Pi 3B as `jiri-ai.local`, the AI/persona sidecar after benchmark acceptance.
-- Raspberry Pi OS.
-- 1GB RAM class hardware.
-- 3.5-inch GPIO display on the Pi 3B+.
-- Phone/laptop dashboard and SSH as control methods.
-- No USB mic or speaker required for v1.
+## Design Constraints
 
-Hardware assumptions:
+The system is intentionally small.
 
-- ARM Cortex-A53 class CPU.
-- No GPU compute.
-- SD card storage, slower than SSD.
-- Weak thermal headroom.
-- Power instability is possible.
-- Small 480x320 class display.
+Allowed stack:
 
-## Hard Limits
+- Python
+- SQLite
+- Flask
+- Pygame
+- `requests`
+- pytest
+- shell scripts for deployment/checks
 
-JIRI is designed around Raspberry Pi 3 limits, not desktop development hardware.
+Rejected for v1:
 
-| Area | Target | Hard Limit |
-| --- | ---: | ---: |
-| UI idle RAM | under 180MB | 250MB |
-| Web idle RAM | under 100MB | 150MB |
-| Total non-LLM RAM | under 350MB | measure on Pi |
-| CPU idle average | under 15% | 30% |
-| UI FPS | 10 to 15 FPS | no high-FPS UI |
-| Weather timeout | max 3s | fail to cache/fallback |
-| Worker timeout | max 1s | worker optional |
-| Local web API | under 500ms | keep handlers simple |
-| Boot-to-ready | under 90s | systemd later |
-| v1 database size | under 50MB | avoid noisy writes |
+- React
+- Node.js
+- Electron
+- Docker
+- Kubernetes
+- Redis
+- Celery
+- PostgreSQL
+- MongoDB
+- Browser kiosk as the Pi display
+- Cloud AI dependency
 
-## What Is Explicitly Not Used In v1
+This is not about purity. It is about keeping the system understandable, portable to old Pi hardware, and easy to debug over SSH.
 
-- Electron.
-- React.
-- Node.js.
-- Docker.
-- Kubernetes.
-- PostgreSQL.
-- MongoDB.
-- Redis.
-- Celery.
-- OpenAI API.
-- Browser kiosk as the main Pi display UI.
-- 7B LLMs.
-- Continuous weather polling.
-- Continuous database writes every frame.
+## Surface Separation
 
-## Stack
+JIRI has separate surfaces because they serve different jobs.
 
-- Python 3.
-- SQLite.
-- Pygame for the future local display UI.
-- Flask for the future phone dashboard.
-- `requests` for weather fetching.
-- TOML config.
-- pytest.
-- systemd service files later.
+### Admin Surface
 
-## Current Status
+The admin surface is for human control.
 
-Current implemented level: Stage B and Stage C passed in WSL; Stage D and Stage E are scaffolded but require real hardware gates.
+- Runs on its own port.
+- Requires password login.
+- Manages todos, notes, weather location, weather refresh, and focus controls.
+- Uses minimal terminal-style HTML/CSS.
+- Must remain light enough for Pi hardware.
 
-| Gate | Status | Notes |
-| --- | --- | --- |
-| Stage 0 | Passed | Repo structure, docs, guardrails, config, requirements. |
-| Stage 1 | Passed | Config, SQLite, todos, notes, mood, messages, health, tests. |
-| Stage 2 | Passed | Open-Meteo weather, location search, wttr fallback, SQLite cache. |
-| Stage 3 | Passed | SSH-friendly CLI for init-db, todos, notes, location, weather, status, and health. |
-| Stage A | Passed in WSL | Main app stable: todos, notes, weather/location, CLI, tests. |
-| Stage B | Passed in WSL | Flask web admin, browser screen preview, CRUD, weather controls, JSON APIs. |
-| Stage C | Passed in WSL | Focus sessions with CLI/web/API controls and no per-second SQLite writes. |
-| Stage D | Scaffolded | Shared display model, mock-safe Pygame entrypoint, touch zones; real display confirmation required. |
-| Stage E | Scripts ready | AI worker benchmark scripts; real Pi 3B measurements required before acceptance. |
-| Stage F+ | Blocked | AI integration waits for Stage E acceptance; Telegram happens later. |
-
-Display confirmation, real AI worker benchmark acceptance, AI integration, Telegram, and production systemd installation are intentionally not completed yet.
-
-## Repository Layout
+Default local route:
 
 ```text
-jiri/
-├── docs/                  Project architecture, gates, deployment notes
-├── scripts/               WSL and Pi helper scripts
-├── src/jiri/              Python package
-│   ├── ui/                Future Pygame UI code
-│   └── web/               Future Flask dashboard code
-├── systemd/               Future service units
-├── tests/                 WSL-safe pytest suite
-├── AGENTS.md              Guardrails for future coding agents
-├── config.example.toml    Safe example config
-└── README.md              This file
+http://127.0.0.1:5000/admin
 ```
 
-## WSL Development
+Default dev password:
 
-Development happens in WSL, but production decisions prioritize Raspberry Pi OS.
-
-Recommended WSL setup:
-
-```bash
-cd /root/Project/jiri
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-dev.txt
-export PYTHONPATH=src
-export JIRI_DISPLAY_DRIVER=mock
-export JIRI_FULLSCREEN=false
-export JIRI_WIDTH=480
-export JIRI_HEIGHT=320
-export JIRI_WEATHER_FAKE=true
-export JIRI_WEATHER_LOCATION=auto
-export JIRI_DB_PATH=data/jiri_dev.db
+```text
+test
 ```
 
-Run the full current WSL check:
+### Screen Surface
+
+The screen surface is a preview/simulator for the Pi display.
+
+- Runs on a different port.
+- Shows the face/display model.
+- Does not expose admin pages.
+- Does not become the admin dashboard.
+- Mirrors what the small Pi display should care about: glanceable state, not full CRUD.
+
+Default local route:
+
+```text
+http://127.0.0.1:5001/screen
+```
+
+This separation is intentional. A phone/laptop admin dashboard and a 3.5-inch Pi display are not the same product surface.
+
+## Data Method
+
+JIRI persists important state in SQLite.
+
+State currently includes:
+
+- Todos
+- Notes
+- Focus sessions
+- Weather cache
+- Selected weather location
+- Recent weather locations
+- Settings
+- Events
+
+Rules:
+
+- No direct SQLite writes from render loops.
+- No per-second focus countdown writes.
+- No UI-owned truth.
+- No AI-owned truth.
+- Schema changes must stay simple and easy to reason about.
+- Back up real Pi data before future migrations.
+
+## Weather Method
+
+Weather must be real-world and credible.
+
+Provider model:
+
+- Open-Meteo is primary.
+- wttr.in is fallback.
+- SQLite cache is final fallback.
+
+Location model:
+
+- Geocoding happens only when the user explicitly searches.
+- Selected coordinates are saved.
+- Refresh uses saved coordinates.
+- Recent selected locations are saved and deduped.
+- Refresh does not geocode automatically.
+
+Dashboard method:
+
+- Admin weather page shows current weather.
+- Admin weather page shows hourly forecast from cached provider data.
+- If provider fails, cached weather is shown with a clear message.
+
+Testing note:
+
+- Fake weather is allowed for deterministic automated tests only.
+- Real dashboard checks should run with fake weather disabled.
+
+## Focus Method
+
+Focus Assist is stateful but low-write.
+
+Rules:
+
+- Start, pause, resume, complete, and cancel are explicit state transitions.
+- Countdown can update visually every second.
+- SQLite writes happen on transitions/checkpoints, not every tick.
+- Display and dashboard read snapshots of focus state.
+
+## AI Method
+
+AI is not part of the trusted core.
+
+Current AI status:
+
+- Local Gemma ctx512 preflight is allowed in WSL.
+- Raspberry Pi acceptance is not complete.
+- Production AI integration remains blocked until real Pi benchmark acceptance.
+
+AI is allowed to do later:
+
+- Rewrite short messages.
+- Summarize todos or notes from Python-supplied facts.
+- Add personality to deterministic state.
+- Produce weather commentary from API facts.
+
+AI must never:
+
+- Write SQLite.
+- Mark todos done.
+- Change due dates.
+- Start or stop focus timers.
+- Decide weather facts.
+- Run shell commands.
+- Control systemd.
+- Become required for boot.
+
+Benchmark method:
+
+- Default context target is 512.
+- Short outputs only.
+- Strict timeouts.
+- Fallback templates always remain.
+- WSL results are development evidence only.
+- Real Raspberry Pi 3B measurements decide acceptance.
+
+## Build Gates
+
+Work moves through gates, not vibes.
+
+Current gate status:
+
+| Area | Status | Acceptance Notes |
+| --- | --- | --- |
+| Core app | Passed in WSL | Config, SQLite, todos, notes, health, CLI. |
+| Weather/location | Passed in WSL | Real provider path exists; tests mock network. |
+| Web admin | Passed in WSL | Admin and screen surfaces are split. |
+| Focus Assist | Passed in WSL | No per-second DB writes. |
+| Display foundation | Scaffolded | Needs real Pi display/touch confirmation. |
+| AI worker benchmark | Local preflight only | Needs real Pi 3B benchmark. |
+| AI integration | Blocked for production | Depends on benchmark acceptance. |
+| Telegram | Not started | Later admin surface. |
+
+No stage is accepted from WSL when the gate requires hardware.
+
+## Development Method
+
+The development loop is:
+
+1. Keep changes small.
+2. Preserve Pi constraints.
+3. Update tests with behavior.
+4. Run WSL gate.
+5. Do not claim hardware acceptance until hardware is tested.
+
+Primary local gate:
 
 ```bash
 scripts/test_wsl.sh
 ```
 
-Manual CLI smoke path:
-
-```bash
-python -m jiri.cli init-db
-python -m jiri.cli todo add "Test JIRI" --due "2026-05-14 21:00"
-python -m jiri.cli todo list
-python -m jiri.cli todo done 1
-python -m jiri.cli note add "Lab note" --body "Pi revival project."
-python -m jiri.cli note list
-python -m jiri.cli weather refresh
-python -m jiri.cli status
-python -m jiri.cli health
-```
-
-## Raspberry Pi Direction
-
-Do not start display integration until the earlier gates pass.
-
-On Raspberry Pi later:
-
-```bash
-export JIRI_DISPLAY_DRIVER=pygame
-export JIRI_FULLSCREEN=true
-export JIRI_WIDTH=480
-export JIRI_HEIGHT=320
-export JIRI_DB_PATH=data/jiri.db
-```
-
-Headless Pi work comes before display work. Display work comes before final fullscreen UI. AI work comes only after a 24-hour stability test.
-
-## Mission Control
-
-Future work should start with [`docs/MISSION_CONTROL.md`](docs/MISSION_CONTROL.md).
-
-It summarizes:
-
-- Main mission.
-- Current gate.
-- Raspberry Pi 3B/3B+ constraints.
-- Safe parallel work lanes.
-- Immediate next tasks.
-- Manual Pi confirmations.
-- Stop conditions for risky work.
-
-For full architecture and gates, read [`docs/ENGINEERING_HANDBOOK.md`](docs/ENGINEERING_HANDBOOK.md).
-
-## Weather CLI
-
-Weather uses Open-Meteo as the primary provider with Open-Meteo Geocoding for location search. wttr.in is retained only as a fallback provider if Open-Meteo weather fetch fails.
-
-Normal weather refresh uses saved latitude/longitude from SQLite settings or config. It does not geocode automatically. This avoids repeated network calls and keeps the Pi 3B+ predictable.
-
-Search and select a place:
-
-```bash
-python -m jiri.cli location search "panchagarh" --country BD
-python -m jiri.cli location set 1
-python -m jiri.cli location current
-python -m jiri.cli weather refresh
-```
-
-Set coordinates directly:
-
-```bash
-python -m jiri.cli location set-coords --name "Home" --lat 26.1167 --lon 88.85
-python -m jiri.cli location current
-python -m jiri.cli weather refresh
-```
-
-Manual provider diagnostic:
-
-```bash
-python -m jiri.cli weather test-providers
-```
-
-`weather test-providers` may use real internet. Automated tests mock provider requests and do not require internet.
-
-## Next Engineering Task
-
-Hardware-gate preparation and confirmation.
-
-Expected scope:
-
-- Confirm Stage D display/touch behavior on the Raspberry Pi 3B+.
-- Run Stage E AI baseline and Gemma benchmark scripts on the Raspberry Pi 3B.
-- Keep WSL as the test environment and Pi constraints as the production target.
-- Do not implement AI integration until benchmark acceptance passes.
-
-Do not claim Gemma works on Pi 3B until the benchmark gate passes on real hardware.
-
-## GitHub
-
-Repository:
+Latest known WSL gate in this workspace:
 
 ```text
-https://github.com/4riful/jiri
+71 passed
 ```
 
-Normal update flow:
+Run surfaces locally:
 
 ```bash
-git status
-git add .
-git commit -m "Describe the change"
-git push
+scripts/run_admin.sh
+scripts/run_screen.sh
 ```
+
+Admin password can be changed with:
+
+```bash
+export JIRI_ADMIN_PASSWORD='change-this'
+```
+
+## Raspberry Pi Method
+
+Production target:
+
+- `jiri-main.local`: Raspberry Pi 3B+ main controller.
+- `jiri-ai.local`: Raspberry Pi 3B optional AI sidecar after benchmark acceptance.
+
+Main Pi owns:
+
+- SQLite
+- CLI
+- Admin dashboard
+- Screen/display state
+- Weather cache
+- Focus/todo/note state
+- Health checks
+- Later Telegram control
+
+AI Pi, if accepted later, owns only:
+
+- llama-server
+- Message rewriting
+- Summaries
+- AI health/benchmark scripts
+
+Hardware gates still required:
+
+- Confirm real display resolution, rotation, framebuffer, and touch behavior.
+- Confirm UI RAM/CPU/temperature on Pi.
+- Confirm Gemma load, RAM, swap, temperature, latency, SSH responsiveness, and fallback behavior on Pi 3B.
+
+## Repository Structure
+
+```text
+docs/                  Methodology, gates, deployment notes
+scripts/               Dev, WSL, Pi, and AI helper scripts
+src/jiri/              Application package
+src/jiri/web/          Flask admin and screen surfaces
+src/jiri/ui/           Display view model and Pygame entrypoint
+tests/                 WSL-safe automated tests
+systemd/               Future service units
+config.example.toml    Example runtime configuration
+AGENTS.md              Mandatory rules for coding agents
+```
+
+## Source Documents
+
+- `docs/ENGINEERING_HANDBOOK.md`: source-of-truth architecture and gate document.
+- `docs/MISSION_CONTROL.md`: current operating state.
+- `docs/STAGE_GATES.md`: acceptance gates.
+- `docs/WSL_DEVELOPMENT.md`: WSL workflow.
+- `AGENTS.md`: implementation guardrails.
 
 ## License
 

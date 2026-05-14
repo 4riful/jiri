@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="login-shell">
+    <article class="card login-card">
+      <div class="eyebrow">ADMIN AUTH</div>
+      <h2>Unlock JIRI Admin</h2>
+      <p>Local LAN control surface. Default dev password is <code>test</code>.</p>
+      <form class="stack-form" method="post">
+        <label>
+          Password
+          <input name="password" type="password" autocomplete="current-password" autofocus required>
+        </label>
+        <button class="button" type="submit">Login</button>
+      </form>
+    </article>
+  </section>
+{% endblock %}

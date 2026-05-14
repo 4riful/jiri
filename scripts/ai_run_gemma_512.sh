@@ -7,7 +7,7 @@ MODEL_PATH=${JIRI_GEMMA_MODEL:-$HOME/models/gemma-3-270m-q4_k_m.gguf}
 PORT=${JIRI_AI_PORT:-8080}
 
 print_host_mode
-require_real_pi
+require_real_pi_or_local_dev
 
 if ! command_exists llama-server; then
   echo "llama-server not found in PATH" >&2

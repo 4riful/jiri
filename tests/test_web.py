@@ -6,6 +6,10 @@ from jiri import weather
 from jiri.web import create_app
 
 
+def login(client):
+    return client.post("/admin/login", data={"password": "test"}, follow_redirects=True)
+
+
 def test_browser_driven_web_surface(tmp_path, monkeypatch):
     db_path = tmp_path / "jiri.db"
     monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
@@ -17,6 +21,16 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
 
     app = create_app()
     client = app.test_client()
+
+    locked = client.get("/admin")
+    assert locked.status_code == 302
+    assert "/admin/login" in locked.headers["Location"]
+
+    logged_in = login(client)
+    assert logged_in.status_code == 200
+    assert b"JIRI Status" in logged_in.data
+    assert b"Dashboard" in logged_in.data
+    assert b"Focus" in logged_in.data
 
     screen = client.get("/screen")
     assert screen.status_code == 200
@@ -39,19 +53,19 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     assert display_api.json["face"]["state"]
 
     todo_page = client.post(
-        "/todos",
+        "/admin/todos",
         data={"title": "Browser todo", "due_at": "2026-05-14 21:00", "description": "From the web", "priority": "2"},
         follow_redirects=True,
     )
     assert todo_page.status_code == 200
     assert b"Browser todo" in todo_page.data
 
-    done_page = client.post("/todos/1/done", follow_redirects=True)
+    done_page = client.post("/admin/todos/1/done", follow_redirects=True)
     assert done_page.status_code == 200
     assert b"done" in done_page.data
 
     update_page = client.post(
-        "/todos/1/update",
+        "/admin/todos/1/update",
         data={"title": "Updated browser todo", "due_at": "2026-05-15 09:30", "description": "Edited from the web", "priority": "1"},
         follow_redirects=True,
     )
@@ -59,7 +73,7 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     assert b"Updated browser todo" in update_page.data
 
     note_page = client.post(
-        "/notes",
+        "/admin/notes",
         data={"title": "Browser note", "body": "Keep the Pi footprint small.", "tags": "browser,pi"},
         follow_redirects=True,
     )
@@ -67,7 +81,7 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     assert b"Browser note" in note_page.data
 
     note_update = client.post(
-        "/notes/1/update",
+        "/admin/notes/1/update",
         data={"title": "Updated browser note", "body": "Still keep the Pi footprint small.", "tags": "edited,pi"},
         follow_redirects=True,
     )
@@ -94,25 +108,27 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
         ],
     )
 
-    search_page = client.post("/weather/search", data={"query": "panchagarh", "country": "BD"}, follow_redirects=True)
+    search_page = client.post("/admin/weather/search", data={"query": "panchagarh", "country": "BD"}, follow_redirects=True)
     assert search_page.status_code == 200
     assert b"Panchagarh" in search_page.data
 
     coords_page = client.post(
-        "/weather/set-coords",
+        "/admin/weather/set-coords",
         data={"name": "Home", "lat": "26.1167", "lon": "88.85"},
         follow_redirects=True,
     )
     assert coords_page.status_code == 200
     assert b"Home" in coords_page.data
 
-    refresh_page = client.post("/weather/refresh", follow_redirects=True)
+    refresh_page = client.post("/admin/weather/refresh", follow_redirects=True)
     assert refresh_page.status_code == 200
     assert b"Fake partly cloudy" in refresh_page.data
 
-    weather_page = client.get("/weather")
+    weather_page = client.get("/admin/weather")
     assert weather_page.status_code == 200
     assert b"Current Weather" in weather_page.data
+    assert b"Hourly Forecast" in weather_page.data
+    assert b"Saved Locations" in weather_page.data
 
 
 def test_json_api_crud_surface(tmp_path, monkeypatch):
@@ -126,6 +142,11 @@ def test_json_api_crud_surface(tmp_path, monkeypatch):
 
     app = create_app()
     client = app.test_client()
+
+    locked_api = client.post("/api/todos", json={"title": "blocked"})
+    assert locked_api.status_code == 302
+
+    login(client)
 
     created_todo = client.post("/api/todos", json={"title": "API todo", "priority": 2})
     assert created_todo.status_code == 201
@@ -159,7 +180,7 @@ def test_json_api_crud_surface(tmp_path, monkeypatch):
     assert notes.status_code == 200
     assert notes.json[0]["title"] == "API note edited"
 
-    client.post("/weather/set-coords", data={"name": "Home", "lat": "26.1167", "lon": "88.85"})
+    client.post("/admin/weather/set-coords", data={"name": "Home", "lat": "26.1167", "lon": "88.85"})
     weather_refresh = client.post("/api/weather/refresh")
     assert weather_refresh.status_code == 200
     assert weather_refresh.json["condition"] == "Fake partly cloudy"
@@ -209,15 +230,18 @@ def test_browser_focus_controls_render_on_admin_and_screen(tmp_path, monkeypatch
     app = create_app()
     client = app.test_client()
 
-    admin_start = client.post("/focus/start", data={"title": "Browser focus", "minutes": "1"}, follow_redirects=True)
+    login(client)
+
+    admin_start = client.post("/admin/focus/start", data={"title": "Browser focus", "minutes": "1"}, follow_redirects=True)
     assert admin_start.status_code == 200
     assert b"Browser focus" in admin_start.data
+    assert b"Focus Sessions" in admin_start.data
 
     screen = client.get("/screen?panel=focus")
     assert screen.status_code == 200
     assert b"Browser focus" in screen.data
 
-    admin_cancel = client.post("/focus/cancel", follow_redirects=True)
+    admin_cancel = client.post("/admin/focus/cancel", follow_redirects=True)
     assert admin_cancel.status_code == 200
     assert b"Cancelled focus" in admin_cancel.data
 
@@ -232,6 +256,7 @@ def test_json_api_validation_errors(tmp_path, monkeypatch):
 
     app = create_app()
     client = app.test_client()
+    login(client)
 
     bad_todo = client.post("/api/todos", json={"title": "   "})
     assert bad_todo.status_code == 400
@@ -240,6 +265,35 @@ def test_json_api_validation_errors(tmp_path, monkeypatch):
     bad_note = client.post("/api/notes", json={"title": "Note", "body": "   "})
     assert bad_note.status_code == 400
     assert "body" in bad_note.json["error"]
+
+
+def test_admin_and_screen_surfaces_are_distinct(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+
+    admin_client = create_app(surface="admin").test_client()
+    admin_root = admin_client.get("/")
+    assert admin_root.status_code == 302
+    assert admin_root.headers["Location"].endswith("/admin")
+    assert admin_client.get("/screen").status_code == 404
+    assert admin_client.get("/api/display").status_code == 404
+    assert admin_client.get("/admin").status_code == 302
+    assert login(admin_client).status_code == 200
+    assert admin_client.get("/admin").status_code == 200
+    assert admin_client.get("/admin/focus").status_code == 200
+
+    screen_client = create_app(surface="screen").test_client()
+    screen_root = screen_client.get("/")
+    assert screen_root.status_code == 302
+    assert screen_root.headers["Location"].endswith("/screen")
+    assert screen_client.get("/screen").status_code == 200
+    assert screen_client.get("/api/display").status_code == 200
+    assert screen_client.get("/admin").status_code == 404
+    assert screen_client.post("/api/todos", json={"title": "blocked"}).status_code == 404
 
 
 def test_web_response_budget_smoke(tmp_path, monkeypatch):
@@ -253,10 +307,11 @@ def test_web_response_budget_smoke(tmp_path, monkeypatch):
 
     app = create_app()
     client = app.test_client()
+    login(client)
 
     budget_ms = {
         "/api/status": 500,
-        "/todos": 500,
+        "/admin/todos": 500,
         "/screen?panel=system": 500,
         "/api/display?panel=system": 500,
     }

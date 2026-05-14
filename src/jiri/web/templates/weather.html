@@ -8,13 +8,49 @@
         <div><strong>{{ snapshot.weather.location }}</strong><span>Location</span></div>
         <div><strong>{{ snapshot.weather.condition }}</strong><span>Condition</span></div>
         <div><strong>{{ snapshot.weather.temperature_c ~ 'C' if snapshot.weather.temperature_c is not none else 'unknown' }}</strong><span>Temperature</span></div>
+        <div><strong>{{ snapshot.weather.feels_like_c ~ 'C' if snapshot.weather.feels_like_c is not none else 'unknown' }}</strong><span>Feels like</span></div>
         <div><strong>{{ snapshot.weather.rain_chance if snapshot.weather.rain_chance is not none else 'unknown' }}%</strong><span>Rain chance</span></div>
+        <div><strong>{{ snapshot.weather.wind_kmh if snapshot.weather.wind_kmh is not none else 'unknown' }} km/h</strong><span>Wind</span></div>
       </div>
       <p>{{ snapshot.weather.message }}</p>
       <div class="inline-actions">
         <form method="post" action="{{ url_for('weather_refresh') }}"><button class="button" type="submit">Refresh weather</button></form>
         <form method="post" action="{{ url_for('weather_providers') }}"><button class="button button-soft" type="submit">Test providers</button></form>
       </div>
+    </article>
+
+    <article class="card">
+      <h2>Hourly Forecast</h2>
+      {% if snapshot.weather.hourly_forecast %}
+        <div class="table-wrap">
+          <table class="terminal-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Temp</th>
+                <th>Rain</th>
+                <th>mm</th>
+                <th>Humidity</th>
+                <th>Condition</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for hour in snapshot.weather.hourly_forecast[:12] %}
+                <tr>
+                  <td>{{ hour.time }}</td>
+                  <td>{{ hour.temperature_c ~ 'C' if hour.temperature_c is not none else '-' }}</td>
+                  <td>{{ hour.rain_chance ~ '%' if hour.rain_chance is not none else '-' }}</td>
+                  <td>{{ hour.rain_mm if hour.rain_mm is not none else '-' }}</td>
+                  <td>{{ hour.humidity ~ '%' if hour.humidity is not none else '-' }}</td>
+                  <td>{{ hour.condition or '-' }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>No hourly forecast cached yet. Refresh real weather after selecting a location.</p>
+      {% endif %}
     </article>
 
     <article class="card">
@@ -29,6 +65,29 @@
         </dl>
       {% else %}
         <p>No active weather location yet.</p>
+      {% endif %}
+    </article>
+
+    <article class="card">
+      <h2>Saved Locations</h2>
+      {% if snapshot.recent_locations %}
+        <div class="search-results">
+          {% for result in snapshot.recent_locations %}
+            <article class="search-card">
+              <div>
+                <strong>{{ loop.index }}. {{ result.name }}</strong>
+                <p>{{ result.country or 'unknown' }} ({{ result.country_code or 'unknown' }}) · {{ result.latitude }}, {{ result.longitude }}</p>
+                <p>{{ result.admin1 or 'unknown' }} / {{ result.admin2 or 'unknown' }} / {{ result.admin3 or 'unknown' }}</p>
+              </div>
+              <form method="post" action="{{ url_for('weather_select_recent') }}">
+                <input type="hidden" name="index" value="{{ loop.index }}">
+                <button class="button button-soft" type="submit">Use</button>
+              </form>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>No saved locations yet. Search or save coordinates once.</p>
       {% endif %}
     </article>
 

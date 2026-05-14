@@ -25,12 +25,16 @@ def test_env_overrides_for_wsl(tmp_path, monkeypatch):
     monkeypatch.setenv("JIRI_DB_PATH", "data/jiri_dev.db")
     monkeypatch.setenv("JIRI_WEATHER_LOCATION", "Narayanganj")
     monkeypatch.setenv("JIRI_WEATHER_FAKE", "true")
+    monkeypatch.setenv("JIRI_WEB_HOST", "127.0.0.1")
+    monkeypatch.setenv("JIRI_WEB_PORT", "5001")
     cfg = load_config()
     assert cfg.display.driver == "mock"
     assert cfg.display.fullscreen is False
     assert cfg.database.path == "data/jiri_dev.db"
     assert cfg.weather.location == "Narayanganj"
     assert cfg.weather.fake is True
+    assert cfg.web.host == "127.0.0.1"
+    assert cfg.web.port == 5001
 
 
 def test_invalid_weather_timeout_rejected(tmp_path):

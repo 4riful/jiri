@@ -23,6 +23,20 @@ Python owns truth, timing, state, and actions.
 Gemma owns wording, summaries, and personality.
 ```
 
+## WSL-First Pi Compatibility Rule
+
+DESIGN DECISION: development may happen WSL-first, including local Gemma 3 270M Q4_K_M experiments, but production decisions remain Raspberry Pi 3B/3B+ decisions.
+
+Local Gemma development is permitted only as a compatibility preflight:
+
+- Use the same Pi-oriented shape: 512 context, short prompts, short outputs, strict timeouts, and deterministic fallback.
+- Keep `ai_worker.enabled = false` by default until the real Pi benchmark passes.
+- Use explicit opt-in such as `JIRI_LOCAL_DEV=1` for off-Pi Gemma run/benchmark scripts.
+- Do not add desktop-only dependencies, desktop-sized context windows, or features that assume WSL CPU/RAM.
+- Treat WSL/local benchmark results as development evidence only.
+- Compare the same behavior later on Raspberry Pi 3B/3B+ for RAM, swap, temperature, latency, responsiveness, and offline fallback.
+- Never mark Stage E, Stage F, or Gemma acceptance as passed from WSL/local results.
+
 ## Product Description
 
 JIRI is a tiny AI-assisted Raspberry Pi desk companion. It is designed to feel alive while remaining reliable on weak hardware.
@@ -136,6 +150,7 @@ DESIGN DECISION:
 ```text
 Gemma 3 270M Q4_K_M is the selected benchmark candidate for the dedicated Raspberry Pi 3B AI worker.
 It becomes accepted only if the real Pi 3B passes RAM, swap, temperature, latency, and fallback gates.
+WSL/local Gemma ctx512 runs are allowed for development only and never count as acceptance.
 ```
 
 Do not write:
@@ -675,9 +690,11 @@ DESIGN DECISION: the web dashboard is separate from the 3.5-inch display.
 URLs:
 
 ```text
-http://jiri-main.local:5000
-http://<pi-ip>:5000
+Admin dashboard: http://jiri-main.local:5000/admin
+Screen preview:   http://jiri-main.local:5001/screen
 ```
+
+Admin and screen preview run as distinct web surfaces. The admin surface must not serve `/screen`; the screen surface must not serve `/admin/*`.
 
 Dashboard responsibilities:
 
@@ -693,8 +710,8 @@ Dashboard responsibilities:
 Performance gate:
 
 - `GET /api/status` below 500 ms.
-- `GET /todos` below 500 ms.
-- `POST /todos` below 800 ms.
+- `GET /admin/todos` below 500 ms after admin login.
+- `POST /admin/todos` below 800 ms after admin login.
 - Web process RAM below 150 MB.
 - Works from phone by IP.
 - Survives weather unavailable.
@@ -892,10 +909,12 @@ Stage E: AI Worker Benchmark.
 - Run Gemma 3 270M Q4_K_M at 512 context.
 - Benchmark RAM/swap/temp/latency.
 - Test main Pi fallback when AI worker is offline.
+- Optional WSL/local preflight with `JIRI_LOCAL_DEV=1`; not an acceptance gate.
 
 Stage F: AI Integration.
 
-- Only after benchmark passes.
+- Production acceptance only after the real Pi benchmark passes.
+- Local development must remain disabled by default and Pi-compatible.
 - Main Pi AI client.
 - Background requests only.
 - No render-loop waiting.
@@ -937,6 +956,8 @@ llama-server \
 
 `ai_benchmark_gemma.sh` should test `/health`, short rewrite, todo/behavior summary, and response time.
 
+`ai_run_gemma_512.sh` and `ai_benchmark_gemma.sh` may allow `JIRI_LOCAL_DEV=1` for WSL/local Gemma ctx512 preflight. This bypass must print that local results are not Pi acceptance. `ai_safe_debloat.sh` must stay real-Pi-only when applying changes.
+
 ## System Acceptance Gates
 
 Display gate passes if:
@@ -957,13 +978,13 @@ Display gate passes if:
 Web gate passes if:
 
 - `GET /api/status` below 500 ms.
-- `GET /todos` below 500 ms.
-- `POST /todos` below 800 ms.
+- `GET /admin/todos` below 500 ms after admin login.
+- `POST /admin/todos` below 800 ms after admin login.
 - Web RAM below 150 MB.
 - Works from phone by IP.
 - Survives weather unavailable.
 
-AI gate passes only if Gemma acceptance gate passes.
+AI gate passes only if Gemma acceptance gate passes on the real Raspberry Pi 3B. WSL/local Gemma runs are compatibility preflight only.
 
 Telegram gate passes if:
 

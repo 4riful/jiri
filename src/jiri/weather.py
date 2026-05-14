@@ -28,6 +28,9 @@ LOCATION_SETTING_KEYS = (
     "weather.admin4",
 )
 
+RECENT_LOCATIONS_KEY = "weather.recent_locations_json"
+RECENT_LOCATION_LIMIT = 8
+
 WEATHER_CODE_MAP = {
     0: "Clear sky",
     1: "Mainly clear",
@@ -99,6 +102,17 @@ def select_location(index: int, db_path: str | None = None) -> dict[str, object]
     return selected
 
 
+def select_recent_location(index: int, db_path: str | None = None) -> dict[str, object]:
+    results = get_recent_locations(db_path=db_path)
+    if not results:
+        raise ValueError("No recent weather locations saved yet.")
+    if index < 1 or index > len(results):
+        raise ValueError(f"Recent location index must be between 1 and {len(results)}")
+    selected = results[index - 1]
+    save_selected_location(selected, db_path=db_path)
+    return selected
+
+
 def save_selected_location(location: dict[str, object], db_path: str | None = None) -> None:
     lat = _required_float(location.get("latitude"), "latitude")
     lon = _required_float(location.get("longitude"), "longitude")
@@ -117,6 +131,34 @@ def save_selected_location(location: dict[str, object], db_path: str | None = No
     }
     for key, value in values.items():
         db.set_setting(key, value, db_path=db_path)
+    save_recent_location(location, db_path=db_path)
+
+
+def get_recent_locations(db_path: str | None = None) -> list[dict[str, object]]:
+    raw = db.get_setting(RECENT_LOCATIONS_KEY, db_path=db_path)
+    if not raw:
+        return []
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(decoded, list):
+        return []
+    locations: list[dict[str, object]] = []
+    for item in decoded:
+        if isinstance(item, dict) and item.get("latitude") is not None and item.get("longitude") is not None:
+            locations.append(item)
+    return locations[:RECENT_LOCATION_LIMIT]
+
+
+def save_recent_location(location: dict[str, object], db_path: str | None = None) -> None:
+    normalized = _normalize_saved_location(location)
+    recent = [item for item in get_recent_locations(db_path=db_path) if _location_key(item) != _location_key(normalized)]
+    db.set_setting(
+        RECENT_LOCATIONS_KEY,
+        json.dumps([normalized, *recent][:RECENT_LOCATION_LIMIT], separators=(",", ":"), sort_keys=True),
+        db_path=db_path,
+    )
 
 
 def set_coordinates(name: str, latitude: float, longitude: float, db_path: str | None = None) -> dict[str, object]:
@@ -176,7 +218,7 @@ def fetch_open_meteo_weather(location: dict[str, object], timeout_seconds: int =
             "latitude": lat,
             "longitude": lon,
             "current": "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,wind_speed_10m",
-            "hourly": "temperature_2m,precipitation_probability,rain,relative_humidity_2m",
+            "hourly": "temperature_2m,precipitation_probability,rain,relative_humidity_2m,weather_code",
             "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum",
             "timezone": "auto",
             "forecast_days": 3,
@@ -232,28 +274,24 @@ def get_cached_weather(location_name: str | None = None, db_path: str | None = N
     except json.JSONDecodeError:
         cached_raw = {}
     if isinstance(cached_raw, dict):
-        for key in ("feels_like_c", "wind_kmh"):
-            if key in cached_raw:
-                data[key] = cached_raw[key]
-            location_meta = cached_raw.get("location_meta")
-            if isinstance(location_meta, dict):
-                data["location_meta"] = location_meta
+        cache_extra = cached_raw.get("_jiri_cache")
+        if isinstance(cache_extra, dict):
+            _apply_cached_extra(data, cache_extra)
+        _apply_cached_extra(data, cached_raw)
+        _hydrate_provider_cache_fields(data, cached_raw)
     return data
 
 
 def save_weather_cache(location_name: str, weather_data: dict[str, object], db_path: str | None = None) -> dict[str, object]:
     clean_location = location_name.strip() or str(weather_data.get("location") or "Selected location")
     fetched_at = str(weather_data.get("fetched_at") or _now_iso())
-    raw_json = weather_data.get("raw_json")
     extra = {
         "feels_like_c": weather_data.get("feels_like_c"),
         "wind_kmh": weather_data.get("wind_kmh"),
         "location_meta": weather_data.get("location_meta"),
+        "hourly_forecast": weather_data.get("hourly_forecast"),
     }
-    if raw_json is None:
-        raw_json = json.dumps(extra, separators=(",", ":"), sort_keys=True)
-    elif not isinstance(raw_json, str):
-        raw_json = json.dumps(raw_json, separators=(",", ":"), sort_keys=True)
+    raw_json = _cache_raw_json(weather_data.get("raw_json"), extra)
 
     db.init_db(db_path)
     with db.connect(db_path) as conn:
@@ -275,6 +313,55 @@ def save_weather_cache(location_name: str, weather_data: dict[str, object], db_p
     cached = get_cached_weather(clean_location, db_path=db_path)
     assert cached is not None
     return cached
+
+
+def _cache_raw_json(raw_json: object, extra: dict[str, object]) -> str:
+    if raw_json is None:
+        return json.dumps(extra, separators=(",", ":"), sort_keys=True)
+    if isinstance(raw_json, str):
+        try:
+            payload = json.loads(raw_json)
+        except json.JSONDecodeError:
+            return raw_json
+    else:
+        payload = raw_json
+    if isinstance(payload, dict):
+        enriched = dict(payload)
+        enriched["_jiri_cache"] = extra
+        return json.dumps(enriched, separators=(",", ":"), sort_keys=True)
+    return json.dumps(payload, separators=(",", ":"), sort_keys=True)
+
+
+def _apply_cached_extra(data: dict[str, object], cached_raw: dict[str, object]) -> None:
+    for key in ("feels_like_c", "wind_kmh"):
+        if key in cached_raw and cached_raw[key] is not None:
+            data[key] = cached_raw[key]
+    location_meta = cached_raw.get("location_meta")
+    if isinstance(location_meta, dict):
+        data["location_meta"] = location_meta
+    hourly = cached_raw.get("hourly_forecast")
+    if isinstance(hourly, list):
+        data["hourly_forecast"] = hourly[:12]
+
+
+def _hydrate_provider_cache_fields(data: dict[str, object], cached_raw: dict[str, object]) -> None:
+    current = cached_raw.get("current")
+    if isinstance(current, dict):
+        if data.get("feels_like_c") is None:
+            data["feels_like_c"] = _optional_float(current.get("apparent_temperature"))
+        if data.get("wind_kmh") is None:
+            data["wind_kmh"] = _optional_float(current.get("wind_speed_10m"))
+        if not data.get("hourly_forecast"):
+            data["hourly_forecast"] = _open_meteo_hourly_forecast(cached_raw)
+
+    wttr_current = _first(cached_raw.get("current_condition"))
+    if isinstance(wttr_current, dict):
+        if data.get("feels_like_c") is None:
+            data["feels_like_c"] = _optional_float(wttr_current.get("FeelsLikeC"))
+        if data.get("wind_kmh") is None:
+            data["wind_kmh"] = _optional_float(wttr_current.get("windspeedKmph"))
+        if not data.get("hourly_forecast"):
+            data["hourly_forecast"] = _wttr_hourly_forecast(cached_raw)
 
 
 def refresh_weather(db_path: str | None = None) -> dict[str, object]:
@@ -430,6 +517,7 @@ def _parse_open_meteo_response(location: dict[str, object], raw: dict[str, Any])
             "humidity": _optional_int(current.get("relative_humidity_2m")),
             "rain_chance": _optional_int(rain_chance),
             "wind_kmh": _optional_float(current.get("wind_speed_10m")),
+            "hourly_forecast": _open_meteo_hourly_forecast(raw),
             "fetched_at": _now_iso(),
             "raw_json": json.dumps(raw, separators=(",", ":"), sort_keys=True),
             "location_meta": _location_meta(location),
@@ -455,6 +543,7 @@ def _parse_wttr_response(location: dict[str, object], raw: dict[str, Any]) -> di
             "humidity": _optional_int(current.get("humidity")),
             "rain_chance": _optional_int(_wttr_rain_chance(raw)),
             "wind_kmh": _optional_float(current.get("windspeedKmph")),
+            "hourly_forecast": _wttr_hourly_forecast(raw),
             "fetched_at": _now_iso(),
             "raw_json": json.dumps(raw, separators=(",", ":"), sort_keys=True),
             "location_meta": _location_meta(location),
@@ -475,6 +564,11 @@ def _fake_open_meteo_weather(location: dict[str, object]) -> dict[str, object]:
             "humidity": 70,
             "rain_chance": 20,
             "wind_kmh": 12.0,
+            "hourly_forecast": [
+                {"time": "now", "temperature_c": 31.0, "rain_chance": 20, "rain_mm": 0.0, "humidity": 70, "condition": "Fake partly cloudy"},
+                {"time": "+1h", "temperature_c": 31.2, "rain_chance": 18, "rain_mm": 0.0, "humidity": 69, "condition": "Fake partly cloudy"},
+                {"time": "+2h", "temperature_c": 31.5, "rain_chance": 15, "rain_mm": 0.0, "humidity": 68, "condition": "Fake partly cloudy"},
+            ],
             "fetched_at": _now_iso(),
             "raw_json": json.dumps({"fake": True}, separators=(",", ":"), sort_keys=True),
             "location_meta": _location_meta(location),
@@ -499,6 +593,32 @@ def _normalize_location_result(item: dict[str, Any]) -> dict[str, object]:
         "admin4": str(item.get("admin4") or ""),
         "population": item.get("population"),
     }
+
+
+def _normalize_saved_location(location: dict[str, object]) -> dict[str, object]:
+    lat = _required_float(location.get("latitude"), "latitude")
+    lon = _required_float(location.get("longitude"), "longitude")
+    _validate_coordinates(lat, lon)
+    return {
+        "name": str(location.get("name") or location.get("location_name") or "Selected location"),
+        "latitude": lat,
+        "longitude": lon,
+        "timezone": str(location.get("timezone") or ""),
+        "country": str(location.get("country") or ""),
+        "country_code": str(location.get("country_code") or ""),
+        "admin1": str(location.get("admin1") or ""),
+        "admin2": str(location.get("admin2") or ""),
+        "admin3": str(location.get("admin3") or ""),
+        "admin4": str(location.get("admin4") or ""),
+    }
+
+
+def _location_key(location: dict[str, object]) -> tuple[str, str, str]:
+    return (
+        str(location.get("name") or "").strip().lower(),
+        f"{_required_float(location.get('latitude'), 'latitude'):.5f}",
+        f"{_required_float(location.get('longitude'), 'longitude'):.5f}",
+    )
 
 
 def _settings_location(db_path: str | None = None) -> dict[str, object]:
@@ -527,11 +647,94 @@ def _base_weather(location: str, source: str) -> dict[str, object]:
         "humidity": None,
         "rain_chance": None,
         "wind_kmh": None,
+        "hourly_forecast": [],
         "fetched_at": None,
         "raw_json": None,
         "location_meta": None,
         "message": "Weather online.",
     }
+
+
+def _open_meteo_hourly_forecast(raw: dict[str, Any], limit: int = 12) -> list[dict[str, object]]:
+    hourly = raw.get("hourly")
+    if not isinstance(hourly, dict):
+        return []
+    times = hourly.get("time")
+    if not isinstance(times, list):
+        return []
+    rows: list[dict[str, object]] = []
+    temperatures = hourly.get("temperature_2m") if isinstance(hourly.get("temperature_2m"), list) else []
+    rain_prob = hourly.get("precipitation_probability") if isinstance(hourly.get("precipitation_probability"), list) else []
+    rain = hourly.get("rain") if isinstance(hourly.get("rain"), list) else []
+    humidity = hourly.get("relative_humidity_2m") if isinstance(hourly.get("relative_humidity_2m"), list) else []
+    codes = hourly.get("weather_code") if isinstance(hourly.get("weather_code"), list) else []
+    for index, timestamp in enumerate(times[:limit]):
+        rows.append(
+            {
+                "time": _short_hour(timestamp),
+                "temperature_c": _at_float(temperatures, index),
+                "rain_chance": _at_int(rain_prob, index),
+                "rain_mm": _at_float(rain, index),
+                "humidity": _at_int(humidity, index),
+                "condition": WEATHER_CODE_MAP.get(_at_int(codes, index), ""),
+            }
+        )
+    return rows
+
+
+def _wttr_hourly_forecast(raw: dict[str, Any], limit: int = 8) -> list[dict[str, object]]:
+    days = raw.get("weather")
+    if not isinstance(days, list):
+        return []
+    rows: list[dict[str, object]] = []
+    for day in days:
+        if not isinstance(day, dict):
+            continue
+        date = str(day.get("date") or "")
+        hourly = day.get("hourly")
+        if not isinstance(hourly, list):
+            continue
+        for item in hourly:
+            if not isinstance(item, dict):
+                continue
+            desc = _first(item.get("weatherDesc"))
+            rows.append(
+                {
+                    "time": _wttr_hour(date, item.get("time")),
+                    "temperature_c": _optional_float(item.get("tempC")),
+                    "rain_chance": _optional_int(item.get("chanceofrain")),
+                    "rain_mm": _optional_float(item.get("precipMM")),
+                    "humidity": _optional_int(item.get("humidity")),
+                    "condition": str(desc.get("value")) if isinstance(desc, dict) and desc.get("value") else "",
+                }
+            )
+            if len(rows) >= limit:
+                return rows
+    return rows
+
+
+def _short_hour(value: object) -> str:
+    text = str(value)
+    if "T" in text:
+        return text.split("T", 1)[1][:5]
+    return text[:5]
+
+
+def _wttr_hour(date: str, value: object) -> str:
+    digits = str(value or "0").zfill(4)
+    return f"{date} {digits[:-2]}:{digits[-2:]}" if date else f"{digits[:-2]}:{digits[-2:]}"
+
+
+def _at_float(values: object, index: int) -> float | None:
+    if isinstance(values, list) and index < len(values):
+        return _optional_float(values[index])
+    return None
+
+
+def _at_int(values: object, index: int) -> int | None:
+    if isinstance(values, list) and index < len(values):
+        return _optional_int(values[index])
+    return None
 
 
 def _location_meta(location: dict[str, object]) -> dict[str, object]:

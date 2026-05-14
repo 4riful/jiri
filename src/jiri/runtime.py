@@ -78,6 +78,9 @@ class JiriRuntime:
     def select_location(self, index: int):
         return weather.select_location(index, db_path=self.db_path)
 
+    def select_recent_location(self, index: int):
+        return weather.select_recent_location(index, db_path=self.db_path)
+
     def set_coordinates(self, name: str, latitude: float, longitude: float):
         return weather.set_coordinates(name, latitude, longitude, db_path=self.db_path)
 

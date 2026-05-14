@@ -102,6 +102,21 @@ def test_selected_location_saved_with_admin_fields(tmp_path):
     assert selected["admin1"] == "Rangpur Division"
     assert db.get_setting("weather.admin2", db_path=db_path) == "Panchagarh District"
     assert db.get_setting("weather.latitude", db_path=db_path) == "26.1167"
+    assert weather.get_recent_locations(db_path=db_path)[0]["name"] == "Panchagarh"
+
+
+def test_recent_locations_are_saved_deduped_and_selectable(tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    weather.set_coordinates("Home", 26.1167, 88.85, db_path=db_path)
+    weather.set_coordinates("Office", 26.2, 88.9, db_path=db_path)
+    weather.set_coordinates("Home", 26.1167, 88.85, db_path=db_path)
+
+    recent = weather.get_recent_locations(db_path=db_path)
+
+    assert [item["name"] for item in recent] == ["Home", "Office"]
+    selected = weather.select_recent_location(2, db_path=db_path)
+    assert selected["name"] == "Office"
+    assert weather.get_active_location(db_path=db_path)["name"] == "Office"
 
 
 def test_location_current_prefers_sqlite_settings_over_config(tmp_path):
@@ -158,8 +173,24 @@ def test_open_meteo_weather_success_parse(monkeypatch):
     assert result["humidity"] == 70
     assert result["rain_chance"] == 40
     assert result["wind_kmh"] == 12.0
+    assert result["hourly_forecast"][0]["time"] == "03:00"
+    assert result["hourly_forecast"][0]["temperature_c"] == 31.0
     assert result["location_meta"]["latitude"] == 26.1167
     assert result["location_meta"]["country"] == "Bangladesh"
+
+
+def test_cached_open_meteo_weather_preserves_secondary_fields(tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    live = weather._parse_open_meteo_response(location(), open_meteo_payload())
+    weather.save_weather_cache("Home", live, db_path=db_path)
+
+    cached = weather.get_cached_weather("Home", db_path=db_path)
+
+    assert cached is not None
+    assert cached["feels_like_c"] == 35.0
+    assert cached["wind_kmh"] == 12.0
+    assert cached["hourly_forecast"][0]["rain_chance"] == 35
+    assert cached["location_meta"]["latitude"] == 26.1167
 
 
 def test_fake_weather_mode_does_not_require_network(monkeypatch):
@@ -261,7 +292,14 @@ def open_meteo_payload():
             "weather_code": 2,
             "wind_speed_10m": 12.0,
         },
-        "hourly": {"precipitation_probability": [35]},
+        "hourly": {
+            "time": ["2026-05-15T03:00", "2026-05-15T04:00"],
+            "temperature_2m": [31.0, 31.5],
+            "precipitation_probability": [35, 40],
+            "rain": [0.0, 0.2],
+            "relative_humidity_2m": [70, 71],
+            "weather_code": [2, 3],
+        },
         "daily": {"precipitation_probability_max": [40]},
     }
 

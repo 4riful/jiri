@@ -135,6 +135,7 @@ def _apply_env(cfg: AppConfig) -> AppConfig:
     display = cfg.display
     database = cfg.database
     weather = cfg.weather
+    web = cfg.web
 
     if "JIRI_DISPLAY_DRIVER" in os.environ:
         display = replace(display, driver=os.environ["JIRI_DISPLAY_DRIVER"])
@@ -150,8 +151,12 @@ def _apply_env(cfg: AppConfig) -> AppConfig:
         weather = replace(weather, location=os.environ["JIRI_WEATHER_LOCATION"])
     if "JIRI_WEATHER_FAKE" in os.environ:
         weather = replace(weather, fake=_parse_bool(os.environ["JIRI_WEATHER_FAKE"], "JIRI_WEATHER_FAKE"))
+    if "JIRI_WEB_HOST" in os.environ:
+        web = replace(web, host=os.environ["JIRI_WEB_HOST"])
+    if "JIRI_WEB_PORT" in os.environ:
+        web = replace(web, port=_parse_int(os.environ["JIRI_WEB_PORT"], "JIRI_WEB_PORT"))
 
-    return replace(cfg, display=display, database=database, weather=weather)
+    return replace(cfg, display=display, database=database, weather=weather, web=web)
 
 
 def _parse_bool(value: str, name: str) -> bool:

@@ -12,14 +12,25 @@
     <header class="topbar">
       <div>
         <div class="brand">{{ app_name }}</div>
-        <div class="tagline">Browser-driven Pi workspace</div>
+        <div class="tagline">Pi-first admin</div>
       </div>
       <nav class="nav">
-        <a href="{{ url_for('screen') }}">Screen</a>
-        <a href="{{ url_for('admin') }}">Admin</a>
-        <a href="{{ url_for('todos_view') }}">Todos</a>
-        <a href="{{ url_for('notes_view') }}">Notes</a>
-        <a href="{{ url_for('weather_view') }}">Weather</a>
+        {% if web_surface in ('screen', 'all') %}
+          <a href="{{ url_for('screen') }}"><span aria-hidden="true">▣</span> Screen</a>
+        {% endif %}
+        {% if web_surface in ('admin', 'all') %}
+          <a href="{{ url_for('admin') }}"><span aria-hidden="true">⌂</span> Dashboard</a>
+          <a href="{{ url_for('todos_view') }}"><span aria-hidden="true">✓</span> Todos</a>
+          <a href="{{ url_for('notes_view') }}"><span aria-hidden="true">✎</span> Notes</a>
+          <a href="{{ url_for('weather_view') }}"><span aria-hidden="true">☁</span> Weather</a>
+          <a href="{{ url_for('focus_view') }}"><span aria-hidden="true">⏱</span> Focus</a>
+          <button class="nav-button theme-toggle" type="button" data-theme-toggle><span aria-hidden="true">◐</span> Theme</button>
+          {% if admin_authenticated %}
+            <form method="post" action="{{ url_for('admin_logout') }}"><button class="nav-button" type="submit"><span aria-hidden="true">↩</span> Logout</button></form>
+          {% else %}
+            <a href="{{ url_for('admin_login') }}"><span aria-hidden="true">↪</span> Login</a>
+          {% endif %}
+        {% endif %}
       </nav>
     </header>
 
@@ -37,5 +48,18 @@
       <span>WSL testbed, Pi-first constraints</span>
     </footer>
   </div>
+  <script>
+    (function () {
+      var saved = localStorage.getItem('jiri-theme') || 'light';
+      document.documentElement.classList.toggle('dark', saved === 'dark');
+      document.querySelectorAll('[data-theme-toggle]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          var dark = !document.documentElement.classList.contains('dark');
+          document.documentElement.classList.toggle('dark', dark);
+          localStorage.setItem('jiri-theme', dark ? 'dark' : 'light');
+        });
+      });
+    }());
+  </script>
 </body>
 </html>

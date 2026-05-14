@@ -21,6 +21,8 @@ The main Pi owns SQLite, todos, notes, focus sessions, weather cache, emotion ru
 
 The AI Pi may only rewrite, summarize, and add personality from facts supplied by Python. It must never own state, write SQLite, run shell commands, control systemd, mark todos done, change due dates, or be required for boot.
 
+WSL/local Gemma ctx512 development is allowed only as an explicit compatibility preflight. It must keep the same Pi-oriented limits and must not be treated as Stage E or Stage F acceptance.
+
 ## Current Implementation Status
 
 Implemented in code:
@@ -41,7 +43,7 @@ Implemented but still hardware-gated:
 
 Not yet implemented:
 
-- Stage F AI integration. Blocked until Stage E passes on real hardware.
+- Stage F AI integration acceptance. Blocked until Stage E passes on real hardware.
 - Stage G Telegram admin.
 
 ## Active Build Order
@@ -54,18 +56,19 @@ Use the handbook build order from now on:
 | B | Web Admin | Passed in WSL | Confirm response/RAM budgets on Pi later. |
 | C | Focus Assist | Passed in WSL | No SQLite writes every second. |
 | D | ASCII/Touch Display | Scaffolded in WSL | Needs Pi display/touch confirmation before acceptance. |
-| E | AI Worker Benchmark | Scripts ready | Benchmark only, no claims before real Pi measurement. |
-| F | AI Integration | Blocked | Only after benchmark passes. |
+| E | AI Worker Benchmark | Scripts ready | Local ctx512 preflight allowed; no claims before real Pi measurement. |
+| F | AI Integration | Blocked for acceptance | Disabled-by-default local work only; production only after benchmark passes. |
 | G | Telegram Admin | Later | Polling first, whitelist users. |
 
 ## Immediate Next Engineering Task
 
-Hardware confirmation and gate alignment before Stage F.
+WSL-local Gemma preflight setup plus hardware confirmation and gate alignment before Stage F acceptance.
 
 Scope:
 
 - Run Stage D display/touch checks on the real Pi 3B+.
 - Run Stage E AI baseline and Gemma benchmark scripts on the real Pi 3B.
+- Use `JIRI_LOCAL_DEV=1` only for local Gemma ctx512 preflight; do not count it as acceptance.
 - Keep WSL tests green while preparing Telegram/admin work.
 - Do not implement AI integration until benchmark acceptance exists.
 
@@ -87,6 +90,7 @@ Hard limits:
 - Do not geocode every weather refresh.
 - Do not write SQLite every frame or every focus countdown tick.
 - Do not implement Gemma as accepted. It is selected for benchmark only.
+- Do not treat WSL/local Gemma results as acceptance; compare against real Pi measurements later.
 - Do not add AI worker code before the deterministic main app and relevant gates are stable.
 - If hardware behavior is unknown, create a Pi confirmation checklist instead of guessing.
 
