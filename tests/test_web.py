@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from jiri import weather
 from jiri.web import create_app
 
@@ -238,3 +240,29 @@ def test_json_api_validation_errors(tmp_path, monkeypatch):
     bad_note = client.post("/api/notes", json={"title": "Note", "body": "   "})
     assert bad_note.status_code == 400
     assert "body" in bad_note.json["error"]
+
+
+def test_web_response_budget_smoke(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+    monkeypatch.setenv("JIRI_WEATHER_FAKE", "true")
+
+    app = create_app()
+    client = app.test_client()
+
+    budget_ms = {
+        "/api/status": 500,
+        "/todos": 500,
+        "/screen?panel=system": 500,
+        "/api/display?panel=system": 500,
+    }
+    for path, max_ms in budget_ms.items():
+        start = time.perf_counter()
+        response = client.get(path)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        assert response.status_code == 200
+        assert elapsed_ms < max_ms, f"{path} took {elapsed_ms:.2f}ms"

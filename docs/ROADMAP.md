@@ -8,17 +8,21 @@
 - Stage 1: Core deterministic logic. Status: passed.
 - Stage 2: Weather and location. Status: passed.
 - Stage 3: CLI completion. Status: passed.
+- Stage B: Web Admin. Status: passed in WSL.
+- Stage C: Focus Assist. Status: passed in WSL.
+- Stage D: ASCII/Touch Display foundation. Status: scaffolded in WSL, hardware confirmation required.
+- Stage E: AI Worker Benchmark scripts. Status: scaffolded in WSL, real Pi benchmark required.
 
 ## New Handbook Build Order
 
 | Stage | Name | Status | Summary |
 | --- | --- | --- | --- |
-| A | Main App Stable | Mostly complete | Todos, notes, weather, location search, CLI, tests. |
-| B | Web Admin | Next | Flask dashboard by IP, todo CRUD, notes CRUD, weather location control. |
-| C | Focus Assist | Pending | Focus timer, pause/resume/complete, no DB writes every second. |
-| D | ASCII/Touch Display | Pending | Persistent face, right info panel, typed mouth, touch zones, focus eyes. |
-| E | AI Worker Benchmark | Pending | Safe debloat, llama.cpp, Gemma 3 270M Q4_K_M benchmark at 512 ctx. |
-| F | AI Integration | Pending | Main Pi AI client, background requests only, deterministic fallback. |
+| A | Main App Stable | Passed in WSL | Todos, notes, weather, location search, CLI, tests. |
+| B | Web Admin | Passed in WSL | Flask dashboard by IP, todo CRUD, notes CRUD, weather location control, JSON APIs. |
+| C | Focus Assist | Passed in WSL | Focus timer, pause/resume/complete, no DB writes every second. |
+| D | ASCII/Touch Display | Scaffolded | Persistent face, right info panel, touch zones, focus eyes; needs real display confirmation. |
+| E | AI Worker Benchmark | Scripts ready | Safe debloat, llama.cpp, Gemma 3 270M Q4_K_M benchmark at 512 ctx; real Pi required. |
+| F | AI Integration | Blocked | Main Pi AI client only after benchmark acceptance. |
 | G | Telegram Admin | Pending | Polling bot, CRUD/control commands, user whitelist. |
 
 ## Blockers Before Hardware Stages

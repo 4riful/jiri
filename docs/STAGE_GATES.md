@@ -53,7 +53,7 @@ Pass condition:
 
 ### Stage A: Main App Stable
 
-Status: mostly complete.
+Status: passed in WSL.
 
 Pass condition:
 
@@ -64,7 +64,7 @@ Pass condition:
 
 ### Stage B: Web Admin
 
-Status: next.
+Status: passed in WSL. Pi response/RAM confirmation still required.
 
 Pass condition:
 
@@ -81,6 +81,8 @@ Pass condition:
 
 ### Stage C: Focus Assist
 
+Status: passed in WSL.
+
 - Focus timer start/pause/resume/complete/cancel.
 - Optional todo link.
 - No SQLite writes every second.
@@ -88,6 +90,8 @@ Pass condition:
 - Focus milestones emitted once.
 
 ### Stage D: ASCII/Touch Display
+
+Status: scaffolded in WSL. Real display/touch acceptance still required.
 
 - Actual display resolution or 480x320 fallback renders.
 - Face remains visible.
@@ -100,6 +104,8 @@ Pass condition:
 - Confirm real display behavior on Raspberry Pi before finalizing the UI.
 
 ### Stage E: AI Worker Benchmark
+
+Status: scripts ready. Real Raspberry Pi 3B benchmark still required.
 
 - Gemma 3 270M Q4_K_M loads on real Pi 3B.
 - Free RAM after load above 150 MB.

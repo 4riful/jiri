@@ -29,14 +29,19 @@ Implemented in code:
 - Stage 1: config, SQLite schema, todos, notes, mood, deterministic messages, health, tests.
 - Stage 2: Open-Meteo weather, Open-Meteo Geocoding location search, wttr.in fallback, SQLite weather cache, selected coordinates in settings.
 - Stage 3: SSH-friendly CLI for init-db, todos, notes, location, weather, status, health.
+- Stage B: WSL browser-driven Flask admin, todo/note CRUD, weather/location controls, JSON APIs, `/screen` preview.
+- Stage C: Focus Assist core, CLI, web/API controls, no per-second SQLite writes.
+- Stage D: WSL-safe display foundation, shared display view model, touch zones, critical face guardrails, mock-safe Pygame entrypoint.
+- Stage E: AI worker benchmark scaffolding scripts and WSL safety tests.
+
+Implemented but still hardware-gated:
+
+- Stage D ASCII/touch display final acceptance requires real 3.5-inch display confirmation.
+- Stage E AI worker benchmark final acceptance requires real Raspberry Pi 3B measurements.
 
 Not yet implemented:
 
-- Stage B Web Admin dashboard.
-- Stage C Focus Assist.
-- Stage D ASCII/touch display.
-- Stage E AI worker benchmark.
-- Stage F AI integration.
+- Stage F AI integration. Blocked until Stage E passes on real hardware.
 - Stage G Telegram admin.
 
 ## Active Build Order
@@ -45,26 +50,24 @@ Use the handbook build order from now on:
 
 | Stage | Name | Status | Next Rule |
 | --- | --- | --- | --- |
-| A | Main App Stable | Mostly complete | Keep hardening tests and CLI as needed. |
-| B | Web Admin | Next | Plain Flask/HTML only, no React/Node. |
-| C | Focus Assist | Later | No SQLite writes every second. |
-| D | ASCII/Touch Display | Later | Needs Pi display confirmation first. |
-| E | AI Worker Benchmark | Later | Benchmark only, no claims before measurement. |
-| F | AI Integration | Later | Only after benchmark passes. |
+| A | Main App Stable | Passed in WSL | Keep hardening tests and CLI as needed. |
+| B | Web Admin | Passed in WSL | Confirm response/RAM budgets on Pi later. |
+| C | Focus Assist | Passed in WSL | No SQLite writes every second. |
+| D | ASCII/Touch Display | Scaffolded in WSL | Needs Pi display/touch confirmation before acceptance. |
+| E | AI Worker Benchmark | Scripts ready | Benchmark only, no claims before real Pi measurement. |
+| F | AI Integration | Blocked | Only after benchmark passes. |
 | G | Telegram Admin | Later | Polling first, whitelist users. |
 
 ## Immediate Next Engineering Task
 
-Stage B: Web Admin.
+Hardware confirmation and gate alignment before Stage F.
 
 Scope:
 
-- Flask dashboard by IP.
-- Todo CRUD.
-- Notes CRUD.
-- Weather location search/control.
-- `/api/status`, `/api/todos`, `/api/weather`.
-- Phone-friendly plain HTML/CSS.
+- Run Stage D display/touch checks on the real Pi 3B+.
+- Run Stage E AI baseline and Gemma benchmark scripts on the real Pi 3B.
+- Keep WSL tests green while preparing Telegram/admin work.
+- Do not implement AI integration until benchmark acceptance exists.
 
 Hard limits:
 

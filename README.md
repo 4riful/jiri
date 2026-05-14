@@ -137,7 +137,7 @@ JIRI is designed around Raspberry Pi 3 limits, not desktop development hardware.
 
 ## Current Status
 
-Current implemented level: Stage 0 through Stage 3.
+Current implemented level: Stage B and Stage C passed in WSL; Stage D and Stage E are scaffolded but require real hardware gates.
 
 | Gate | Status | Notes |
 | --- | --- | --- |
@@ -145,11 +145,14 @@ Current implemented level: Stage 0 through Stage 3.
 | Stage 1 | Passed | Config, SQLite, todos, notes, mood, messages, health, tests. |
 | Stage 2 | Passed | Open-Meteo weather, location search, wttr fallback, SQLite cache. |
 | Stage 3 | Passed | SSH-friendly CLI for init-db, todos, notes, location, weather, status, and health. |
-| Stage A | Mostly complete | Main app stable: todos, notes, weather/location, CLI, tests. |
-| Stage B | Next | Web Admin: Flask dashboard by IP, plain HTML/CSS, no heavy frontend. |
-| Stage C+ | Blocked | Focus, display, AI benchmark, AI integration, Telegram happen later. |
+| Stage A | Passed in WSL | Main app stable: todos, notes, weather/location, CLI, tests. |
+| Stage B | Passed in WSL | Flask web admin, browser screen preview, CRUD, weather controls, JSON APIs. |
+| Stage C | Passed in WSL | Focus sessions with CLI/web/API controls and no per-second SQLite writes. |
+| Stage D | Scaffolded | Shared display model, mock-safe Pygame entrypoint, touch zones; real display confirmation required. |
+| Stage E | Scripts ready | AI worker benchmark scripts; real Pi 3B measurements required before acceptance. |
+| Stage F+ | Blocked | AI integration waits for Stage E acceptance; Telegram happens later. |
 
-Web Admin, Focus Assist, ASCII/touch display, Pi smoke tests, display confirmation, AI worker benchmark, AI integration, Telegram, and production systemd installation are intentionally not implemented yet.
+Display confirmation, real AI worker benchmark acceptance, AI integration, Telegram, and production systemd installation are intentionally not completed yet.
 
 ## Repository Layout
 
@@ -273,17 +276,16 @@ python -m jiri.cli weather test-providers
 
 ## Next Engineering Task
 
-Stage B: Web Admin.
+Hardware-gate preparation and confirmation.
 
 Expected scope:
 
-- Plain HTML/CSS only.
-- Phone-friendly todo and note management.
-- Weather location search and selection.
-- Local JSON status APIs.
-- No React, Node.js, CDN dependency, or heavy frontend tooling.
+- Confirm Stage D display/touch behavior on the Raspberry Pi 3B+.
+- Run Stage E AI baseline and Gemma benchmark scripts on the Raspberry Pi 3B.
+- Keep WSL as the test environment and Pi constraints as the production target.
+- Do not implement AI integration until benchmark acceptance passes.
 
-Do not start UI, Pygame, Pi display, AI worker, Gemma, Telegram, or systemd installation work for Stage B.
+Do not claim Gemma works on Pi 3B until the benchmark gate passes on real hardware.
 
 ## GitHub
 
