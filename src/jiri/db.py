@@ -6,7 +6,7 @@ import sqlite3
 from .config import load_config
 
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 
 
 def get_db_path(db_path: str | None = None) -> str:
@@ -72,9 +72,27 @@ def init_db(db_path: str | None = None) -> None:
                 created_at TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS focus_sessions (
+                id INTEGER PRIMARY KEY,
+                kind TEXT NOT NULL CHECK (kind IN ('focus', 'break')),
+                status TEXT NOT NULL CHECK (status IN ('running', 'paused', 'completed', 'cancelled')),
+                title TEXT NOT NULL,
+                todo_id INTEGER,
+                duration_seconds INTEGER NOT NULL,
+                elapsed_seconds INTEGER NOT NULL DEFAULT 0,
+                started_at TEXT,
+                paused_at TEXT,
+                completed_at TEXT,
+                cancelled_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(todo_id) REFERENCES todos(id) ON DELETE SET NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_todos_status_due ON todos(status, due_at);
             CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at);
             CREATE INDEX IF NOT EXISTS idx_weather_location_fetched ON weather_cache(location, fetched_at);
+            CREATE INDEX IF NOT EXISTS idx_focus_status_updated ON focus_sessions(status, updated_at);
             """
         )
         conn.execute(
@@ -84,7 +102,7 @@ def init_db(db_path: str | None = None) -> None:
 
 
 def count_rows(table: str, db_path: str | None = None) -> int:
-    if table not in {"todos", "notes", "weather_cache", "settings", "events_log"}:
+    if table not in {"todos", "notes", "weather_cache", "settings", "events_log", "focus_sessions"}:
         raise ValueError("Unsupported table")
     init_db(db_path)
     with connect(db_path) as conn:

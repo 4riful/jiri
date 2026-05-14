@@ -23,6 +23,8 @@ def main(argv: list[str] | None = None) -> int:
             return _note(args, runtime)
         if args.command == "location":
             return _location(args, runtime)
+        if args.command == "focus":
+            return _focus(args, runtime)
         if args.command == "weather":
             if args.weather_command == "test-providers":
                 print(_format_provider_tests(runtime.weather_test_providers()))
@@ -94,6 +96,21 @@ def build_parser() -> argparse.ArgumentParser:
     weather_sub = weather_parser.add_subparsers(dest="weather_command", required=True)
     weather_sub.add_parser("refresh", help="Refresh weather using cache/fallback")
     weather_sub.add_parser("test-providers", help="Manually test Open-Meteo and wttr.in providers")
+
+    focus_parser = sub.add_parser("focus", help="Manage focus sessions")
+    focus_sub = focus_parser.add_subparsers(dest="focus_command", required=True)
+    focus_start = focus_sub.add_parser("start", help="Start a focus session")
+    focus_start.add_argument("--minutes", type=int)
+    focus_start.add_argument("--title", default="Focus session")
+    focus_start.add_argument("--todo-id", type=int)
+    break_start = focus_sub.add_parser("break", help="Start a break session")
+    break_start.add_argument("--minutes", type=int)
+    break_start.add_argument("--title", default="Break")
+    focus_sub.add_parser("pause", help="Pause the active focus session")
+    focus_sub.add_parser("resume", help="Resume the active focus session")
+    focus_sub.add_parser("complete", help="Complete the active focus session")
+    focus_sub.add_parser("cancel", help="Cancel the active focus session")
+    focus_sub.add_parser("status", help="Show active focus status")
 
     return parser
 
@@ -172,6 +189,51 @@ def _location(args: argparse.Namespace, runtime: JiriRuntime) -> int:
         print(weather.format_active_location({**selected, "source": "settings"}))
         return 0
     return 1
+
+
+def _focus(args: argparse.Namespace, runtime: JiriRuntime) -> int:
+    if args.focus_command == "start":
+        session = runtime.start_focus(minutes=args.minutes, title=args.title, todo_id=args.todo_id)
+        print(f"Started focus #{session.id}: {session.title} ({session.duration_seconds // 60}m)")
+        return 0
+    if args.focus_command == "break":
+        session = runtime.start_break(minutes=args.minutes, title=args.title)
+        print(f"Started break #{session.id}: {session.title} ({session.duration_seconds // 60}m)")
+        return 0
+    if args.focus_command == "pause":
+        session = runtime.pause_focus()
+        print(f"Paused focus #{session.id}: {session.title}")
+        return 0
+    if args.focus_command == "resume":
+        session = runtime.resume_focus()
+        print(f"Resumed focus #{session.id}: {session.title}")
+        return 0
+    if args.focus_command == "complete":
+        session = runtime.complete_focus()
+        print(f"Completed focus #{session.id}: {session.title}")
+        return 0
+    if args.focus_command == "cancel":
+        session = runtime.cancel_focus()
+        print(f"Cancelled focus #{session.id}: {session.title}")
+        return 0
+    if args.focus_command == "status":
+        print(_format_focus(runtime.focus_snapshot()))
+        return 0
+    return 1
+
+
+def _format_focus(snapshot: dict[str, object]) -> str:
+    if not snapshot.get("active"):
+        return str(snapshot.get("message") or "No active focus session.")
+    return "\n".join(
+        [
+            f"focus #{snapshot.get('id')}: {snapshot.get('title')}",
+            f"kind: {snapshot.get('kind')}",
+            f"status: {snapshot.get('status')}",
+            f"remaining: {snapshot.get('remaining_text')}",
+            f"progress: {snapshot.get('progress')}",
+        ]
+    )
 
 
 def _format_weather(snapshot: dict[str, object]) -> str:

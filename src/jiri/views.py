@@ -3,15 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from . import health, messages, mood, notes, todos, weather
+from . import focus, health, messages, mood, notes, todos, weather
 from .config import AppConfig, load_config
 from .models import Note, Todo
 
 
-SCREEN_PANELS = ("weather", "todos", "notes", "system")
+SCREEN_PANELS = ("weather", "focus", "todos", "notes", "system")
 
 PANEL_TITLES = {
     "weather": "Weather",
+    "focus": "Focus",
     "todos": "Todos",
     "notes": "Notes",
     "system": "System",
@@ -29,6 +30,7 @@ class ScreenSnapshot:
     headline: str
     subheadline: str
     weather: dict[str, object]
+    focus: dict[str, object]
     active_location: dict[str, object] | None
     pending_todos: tuple[Todo, ...]
     recent_notes: tuple[Note, ...]
@@ -51,6 +53,7 @@ class DashboardSnapshot:
     notes: tuple[Note, ...]
     active_location: dict[str, object] | None
     weather: dict[str, object]
+    focus: dict[str, object]
     search_results: tuple[dict[str, object], ...] = ()
     provider_results: tuple[dict[str, object], ...] = ()
     notice: str = ""
@@ -67,14 +70,15 @@ def build_screen_snapshot(
     current = now or datetime.now()
     active_location = weather.get_active_location(db_path=db_path, config=cfg)
     weather_state = weather.peek_weather(db_path=db_path, config=cfg)
+    focus_state = focus.active_snapshot(db_path=db_path, now=current)
     pending_todos = tuple(todos.list_todos(include_done=False, db_path=db_path))
     all_notes = tuple(notes.list_notes(db_path=db_path))
     recent_notes = all_notes[:3]
     overdue_todos = todos.get_overdue_todos(current, db_path=db_path)
     face_state = mood.calculate_mood(current, db_path=db_path)
     selected_panel = _resolve_panel(panel, current, cfg.display.rotate_seconds)
-    headline = _headline_for(face_state, selected_panel, pending_todos, weather_state, recent_notes)
-    subheadline = _subheadline_for(selected_panel, pending_todos, weather_state, recent_notes, overdue_todos)
+    headline = _headline_for(face_state, selected_panel, pending_todos, weather_state, focus_state, recent_notes)
+    subheadline = _subheadline_for(selected_panel, pending_todos, weather_state, focus_state, recent_notes, overdue_todos)
     system_snapshot = health.health_snapshot(db_path=db_path, config=cfg)
 
     return ScreenSnapshot(
@@ -87,6 +91,7 @@ def build_screen_snapshot(
         headline=headline,
         subheadline=subheadline,
         weather=weather_state,
+        focus=focus_state,
         active_location=active_location,
         pending_todos=pending_todos,
         recent_notes=recent_notes,
@@ -118,6 +123,7 @@ def build_dashboard_snapshot(
     all_notes = tuple(notes.list_notes(db_path=db_path))
     active_location = screen.active_location
     weather_state = screen.weather
+    focus_state = screen.focus
     stored_results = tuple(search_results or [])
     provider_rows = tuple(provider_results or [])
 
@@ -135,6 +141,7 @@ def build_dashboard_snapshot(
         notes=all_notes,
         active_location=active_location,
         weather=weather_state,
+        focus=focus_state,
         search_results=stored_results,
         provider_results=provider_rows,
         notice=notice,
@@ -157,8 +164,13 @@ def _headline_for(
     panel: str,
     pending_todos: tuple[Todo, ...],
     weather_state: dict[str, object],
+    focus_state: dict[str, object],
     recent_notes: tuple[Note, ...],
 ) -> str:
+    if panel == "focus":
+        if focus_state.get("active"):
+            return f"{focus_state.get('title')} · {focus_state.get('remaining_text')}"
+        return "No active focus session."
     if panel == "weather":
         message = str(weather_state.get("message") or "Weather ready.")
         return message
@@ -173,6 +185,7 @@ def _subheadline_for(
     panel: str,
     pending_todos: tuple[Todo, ...],
     weather_state: dict[str, object],
+    focus_state: dict[str, object],
     recent_notes: tuple[Note, ...],
     overdue_todos: list[Todo],
 ) -> str:
@@ -180,6 +193,10 @@ def _subheadline_for(
         location = str(weather_state.get("location") or "No location selected")
         condition = str(weather_state.get("condition") or "Unknown")
         return f"{location} · {condition}"
+    if panel == "focus":
+        if focus_state.get("active"):
+            return f"{focus_state.get('kind')} · {focus_state.get('status')} · {int(float(focus_state.get('progress') or 0) * 100)}%"
+        return "Start a focus session from the web dashboard or CLI."
     if panel == "todos":
         if overdue_todos:
             return f"{len(overdue_todos)} overdue task(s) need attention."

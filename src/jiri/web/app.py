@@ -45,6 +45,58 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None) -> F
             error=request.args.get("error", ""),
         )
 
+    @app.post("/focus/start")
+    def focus_start():
+        try:
+            session = runtime.start_focus(
+                minutes=_optional_int_form(request.form.get("minutes")),
+                title=request.form.get("title", "Focus session"),
+                todo_id=_optional_int_form(request.form.get("todo_id")),
+            )
+            return redirect(url_for("admin", notice=f"Started focus #{session.id}: {session.title}"))
+        except (ValueError, RuntimeError) as exc:
+            return redirect(url_for("admin", error=str(exc)))
+
+    @app.post("/focus/break")
+    def focus_break():
+        try:
+            session = runtime.start_break(minutes=_optional_int_form(request.form.get("minutes")), title=request.form.get("title", "Break"))
+            return redirect(url_for("admin", notice=f"Started break #{session.id}: {session.title}"))
+        except (ValueError, RuntimeError) as exc:
+            return redirect(url_for("admin", error=str(exc)))
+
+    @app.post("/focus/pause")
+    def focus_pause():
+        try:
+            session = runtime.pause_focus()
+            return redirect(url_for("admin", notice=f"Paused focus #{session.id}: {session.title}"))
+        except (ValueError, RuntimeError) as exc:
+            return redirect(url_for("admin", error=str(exc)))
+
+    @app.post("/focus/resume")
+    def focus_resume():
+        try:
+            session = runtime.resume_focus()
+            return redirect(url_for("admin", notice=f"Resumed focus #{session.id}: {session.title}"))
+        except (ValueError, RuntimeError) as exc:
+            return redirect(url_for("admin", error=str(exc)))
+
+    @app.post("/focus/complete")
+    def focus_complete():
+        try:
+            session = runtime.complete_focus()
+            return redirect(url_for("admin", notice=f"Completed focus #{session.id}: {session.title}"))
+        except (ValueError, RuntimeError) as exc:
+            return redirect(url_for("admin", error=str(exc)))
+
+    @app.post("/focus/cancel")
+    def focus_cancel():
+        try:
+            session = runtime.cancel_focus()
+            return redirect(url_for("admin", notice=f"Cancelled focus #{session.id}: {session.title}"))
+        except (ValueError, RuntimeError) as exc:
+            return redirect(url_for("admin", error=str(exc)))
+
     @app.get("/todos")
     def todos_view():
         snapshot = runtime.dashboard_snapshot(panel="todos")
@@ -328,6 +380,60 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None) -> F
         except (ValueError, RuntimeError) as exc:
             return jsonify({"error": str(exc)}), 400
 
+    @app.get("/api/focus")
+    def api_focus():
+        return jsonify(runtime.focus_snapshot())
+
+    @app.post("/api/focus/start")
+    def api_focus_start():
+        payload = _json_payload()
+        try:
+            session = runtime.start_focus(
+                minutes=_optional_int_value(payload.get("minutes")),
+                title=str(payload.get("title") or "Focus session"),
+                todo_id=_optional_int_value(payload.get("todo_id")),
+            )
+            return jsonify(asdict(session)), 201
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.post("/api/focus/break")
+    def api_focus_break():
+        payload = _json_payload()
+        try:
+            session = runtime.start_break(minutes=_optional_int_value(payload.get("minutes")), title=str(payload.get("title") or "Break"))
+            return jsonify(asdict(session)), 201
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.post("/api/focus/pause")
+    def api_focus_pause():
+        try:
+            return jsonify(asdict(runtime.pause_focus()))
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.post("/api/focus/resume")
+    def api_focus_resume():
+        try:
+            return jsonify(asdict(runtime.resume_focus()))
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.post("/api/focus/complete")
+    def api_focus_complete():
+        try:
+            return jsonify(asdict(runtime.complete_focus()))
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
+    @app.post("/api/focus/cancel")
+    def api_focus_cancel():
+        try:
+            return jsonify(asdict(runtime.cancel_focus()))
+        except (ValueError, RuntimeError) as exc:
+            return jsonify({"error": str(exc)}), 400
+
     return app
 
 
@@ -340,6 +446,18 @@ def _int_form(value: str | None, default: int) -> int:
 def _int_value(value: object, default: int) -> int:
     if value is None or value == "":
         return default
+    return int(value)
+
+
+def _optional_int_form(value: str | None) -> int | None:
+    if value is None or value.strip() == "":
+        return None
+    return int(value)
+
+
+def _optional_int_value(value: object) -> int | None:
+    if value is None or value == "":
+        return None
     return int(value)
 
 

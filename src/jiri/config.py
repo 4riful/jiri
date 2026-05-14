@@ -40,6 +40,14 @@ class WeatherConfig:
 
 
 @dataclass(frozen=True)
+class FocusConfig:
+    enabled: bool = True
+    default_minutes: int = 25
+    break_minutes: int = 5
+    checkpoint_seconds: int = 60
+
+
+@dataclass(frozen=True)
 class DatabaseConfig:
     path: str = "data/jiri.db"
     backup_dir: str = "backups"
@@ -78,6 +86,7 @@ class AppConfig:
     display: DisplayConfig = field(default_factory=DisplayConfig)
     assistant: AssistantConfig = field(default_factory=AssistantConfig)
     weather: WeatherConfig = field(default_factory=WeatherConfig)
+    focus: FocusConfig = field(default_factory=FocusConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     web: WebConfig = field(default_factory=WebConfig)
     worker: WorkerConfig = field(default_factory=WorkerConfig)
@@ -102,6 +111,7 @@ def load_config(path: str | os.PathLike[str] | None = None) -> AppConfig:
         display=_section(DisplayConfig, data.get("display", {})),
         assistant=_section(AssistantConfig, data.get("assistant", {})),
         weather=_section(WeatherConfig, data.get("weather", {})),
+        focus=_section(FocusConfig, data.get("focus", {})),
         database=_section(DatabaseConfig, data.get("database", {})),
         web=_section(WebConfig, data.get("web", {})),
         worker=_section(WorkerConfig, data.get("worker", {})),
@@ -177,6 +187,12 @@ def _validate(cfg: AppConfig) -> None:
         raise ConfigError("Weather latitude must be between -90 and 90")
     if cfg.weather.longitude is not None and not -180 <= cfg.weather.longitude <= 180:
         raise ConfigError("Weather longitude must be between -180 and 180")
+    if cfg.focus.default_minutes < 1:
+        raise ConfigError("Focus default minutes must be at least 1")
+    if cfg.focus.break_minutes < 1:
+        raise ConfigError("Focus break minutes must be at least 1")
+    if cfg.focus.checkpoint_seconds < 10:
+        raise ConfigError("Focus checkpoint seconds must be at least 10")
     if cfg.worker.timeout_seconds > 1:
         raise ConfigError("Worker timeout must not exceed 1 second")
     if cfg.web.port <= 0 or cfg.web.port > 65535:

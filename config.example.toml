@@ -23,6 +23,12 @@ timeout_seconds = 3
 # Run `python -m jiri.cli location search "your place" --country BD` then `location set 1`.
 # Or run `python -m jiri.cli location set-coords --name "Home" --lat 26.1167 --lon 88.85`.
 
+[focus]
+enabled = true
+default_minutes = 25
+break_minutes = 5
+checkpoint_seconds = 60
+
 [database]
 path = "data/jiri.db"
 backup_dir = "backups"

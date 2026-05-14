@@ -19,6 +19,7 @@
         <span>{{ snapshot.pending_count }} open todo(s)</span>
         <span>{{ snapshot.overdue_count }} overdue</span>
         <span>{{ snapshot.note_count }} note(s)</span>
+        <span>{{ snapshot.focus.remaining_text if snapshot.focus.active else 'focus idle' }}</span>
         <span>{{ snapshot.weather.source }}</span>
       </div>
 
@@ -49,6 +50,20 @@
               <div><dt>Rain</dt><dd>{{ snapshot.weather.rain_chance if snapshot.weather.rain_chance is not none else 'unknown' }}%</dd></div>
               <div><dt>Wind</dt><dd>{{ snapshot.weather.wind_kmh if snapshot.weather.wind_kmh is not none else 'unknown' }} km/h</dd></div>
             </dl>
+          {% elif snapshot.panel == 'focus' %}
+            <h3>Focus</h3>
+            {% if snapshot.focus.active %}
+              <dl class="details">
+                <div><dt>Title</dt><dd>{{ snapshot.focus.title }}</dd></div>
+                <div><dt>Kind</dt><dd>{{ snapshot.focus.kind }}</dd></div>
+                <div><dt>Status</dt><dd>{{ snapshot.focus.status }}</dd></div>
+                <div><dt>Remaining</dt><dd>{{ snapshot.focus.remaining_text }}</dd></div>
+                <div><dt>Progress</dt><dd>{{ (snapshot.focus.progress * 100)|round|int }}%</dd></div>
+                <div><dt>Todo</dt><dd>{{ snapshot.focus.todo_id or 'none' }}</dd></div>
+              </dl>
+            {% else %}
+              <p>No active focus session.</p>
+            {% endif %}
           {% elif snapshot.panel == 'todos' %}
             <h3>Next Todos</h3>
             {% if snapshot.pending_todos %}
@@ -94,6 +109,7 @@
       <div class="panel-switcher">
         <a class="{% if requested_panel == 'auto' %}active{% endif %}" href="{{ url_for('screen', panel='auto') }}">Auto</a>
         <a class="{% if requested_panel == 'weather' %}active{% endif %}" href="{{ url_for('screen', panel='weather') }}">Weather</a>
+        <a class="{% if requested_panel == 'focus' %}active{% endif %}" href="{{ url_for('screen', panel='focus') }}">Focus</a>
         <a class="{% if requested_panel == 'todos' %}active{% endif %}" href="{{ url_for('screen', panel='todos') }}">Todos</a>
         <a class="{% if requested_panel == 'notes' %}active{% endif %}" href="{{ url_for('screen', panel='notes') }}">Notes</a>
         <a class="{% if requested_panel == 'system' %}active{% endif %}" href="{{ url_for('screen', panel='system') }}">System</a>

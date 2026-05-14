@@ -380,6 +380,10 @@ a {
   max-width: 34rem;
 }
 
+.compact-form {
+  margin-top: 1rem;
+}
+
 .stack-form label {
   display: grid;
   gap: 0.35rem;

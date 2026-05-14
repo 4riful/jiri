@@ -21,6 +21,11 @@ rm -f "$JIRI_DB_PATH"
 "$PYTHON_BIN" -m jiri.cli todo done 1
 "$PYTHON_BIN" -m jiri.cli note add "WSL smoke note" --body "JIRI notes work from SSH."
 "$PYTHON_BIN" -m jiri.cli note list
+"$PYTHON_BIN" -m jiri.cli focus start --minutes 1 --title "WSL smoke focus"
+"$PYTHON_BIN" -m jiri.cli focus status
+"$PYTHON_BIN" -m jiri.cli focus pause
+"$PYTHON_BIN" -m jiri.cli focus resume
+"$PYTHON_BIN" -m jiri.cli focus complete
 "$PYTHON_BIN" -m jiri.cli location set-coords --name "WSL Smoke" --lat 26.1167 --lon 88.85
 "$PYTHON_BIN" -m jiri.cli location current
 "$PYTHON_BIN" -m jiri.cli weather refresh

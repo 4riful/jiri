@@ -37,3 +37,20 @@ class WeatherSnapshot:
     rain_chance: int | None = None
     stale: bool = False
     unavailable: bool = False
+
+
+@dataclass(frozen=True)
+class FocusSession:
+    id: int
+    kind: str
+    status: str
+    title: str
+    todo_id: int | None
+    duration_seconds: int
+    elapsed_seconds: int
+    started_at: str | None
+    paused_at: str | None
+    completed_at: str | None
+    cancelled_at: str | None
+    created_at: str
+    updated_at: str

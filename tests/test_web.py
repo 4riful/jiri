@@ -160,6 +160,27 @@ def test_json_api_crud_surface(tmp_path, monkeypatch):
     assert weather_snapshot.status_code == 200
     assert weather_snapshot.json["location"] == "Home"
 
+    focus_start = client.post("/api/focus/start", json={"title": "API focus", "minutes": 1})
+    assert focus_start.status_code == 201
+    assert focus_start.json["title"] == "API focus"
+
+    focus_status = client.get("/api/focus")
+    assert focus_status.status_code == 200
+    assert focus_status.json["active"] is True
+    assert focus_status.json["remaining_seconds"] <= 60
+
+    focus_pause = client.post("/api/focus/pause")
+    assert focus_pause.status_code == 200
+    assert focus_pause.json["status"] == "paused"
+
+    focus_resume = client.post("/api/focus/resume")
+    assert focus_resume.status_code == 200
+    assert focus_resume.json["status"] == "running"
+
+    focus_complete = client.post("/api/focus/complete")
+    assert focus_complete.status_code == 200
+    assert focus_complete.json["status"] == "completed"
+
     deleted_note = client.delete("/api/notes/1")
     assert deleted_note.status_code == 200
     assert deleted_note.json["title"] == "API note edited"
@@ -167,6 +188,30 @@ def test_json_api_crud_surface(tmp_path, monkeypatch):
     deleted_todo = client.delete("/api/todos/1")
     assert deleted_todo.status_code == 200
     assert deleted_todo.json["title"] == "API todo edited"
+
+
+def test_browser_focus_controls_render_on_admin_and_screen(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+
+    app = create_app()
+    client = app.test_client()
+
+    admin_start = client.post("/focus/start", data={"title": "Browser focus", "minutes": "1"}, follow_redirects=True)
+    assert admin_start.status_code == 200
+    assert b"Browser focus" in admin_start.data
+
+    screen = client.get("/screen?panel=focus")
+    assert screen.status_code == 200
+    assert b"Browser focus" in screen.data
+
+    admin_cancel = client.post("/focus/cancel", follow_redirects=True)
+    assert admin_cancel.status_code == 200
+    assert b"Cancelled focus" in admin_cancel.data
 
 
 def test_json_api_validation_errors(tmp_path, monkeypatch):

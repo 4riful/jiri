@@ -36,12 +36,42 @@
     </article>
 
     <article class="card">
+      <h2>Focus Assist</h2>
+      {% if snapshot.focus.active %}
+        <p><strong>{{ snapshot.focus.title }}</strong></p>
+        <p>{{ snapshot.focus.kind }} · {{ snapshot.focus.status }} · {{ snapshot.focus.remaining_text }} left</p>
+        <div class="inline-actions">
+          {% if snapshot.focus.status == 'running' %}
+            <form method="post" action="{{ url_for('focus_pause') }}"><button class="button button-soft" type="submit">Pause</button></form>
+          {% elif snapshot.focus.status == 'paused' %}
+            <form method="post" action="{{ url_for('focus_resume') }}"><button class="button button-soft" type="submit">Resume</button></form>
+          {% endif %}
+          <form method="post" action="{{ url_for('focus_complete') }}"><button class="button" type="submit">Complete</button></form>
+          <form method="post" action="{{ url_for('focus_cancel') }}"><button class="button button-danger" type="submit">Cancel</button></form>
+        </div>
+      {% else %}
+        <p>No active focus session.</p>
+      {% endif %}
+      <form class="stack-form" method="post" action="{{ url_for('focus_start') }}">
+        <label>Title<input name="title" value="Focus session"></label>
+        <label>Minutes<input name="minutes" type="number" min="1" value="25"></label>
+        <label>Todo ID<input name="todo_id" type="number" min="1" placeholder="optional"></label>
+        <button class="button" type="submit">Start focus</button>
+      </form>
+      <form class="stack-form compact-form" method="post" action="{{ url_for('focus_break') }}">
+        <label>Break minutes<input name="minutes" type="number" min="1" value="5"></label>
+        <button class="button button-soft" type="submit">Start break</button>
+      </form>
+    </article>
+
+    <article class="card">
       <h2>Counts</h2>
       <div class="stat-grid">
         <div><strong>{{ snapshot.screen.pending_count }}</strong><span>Open todos</span></div>
         <div><strong>{{ snapshot.screen.overdue_count }}</strong><span>Overdue</span></div>
         <div><strong>{{ snapshot.notes|length }}</strong><span>Notes</span></div>
         <div><strong>{{ snapshot.todos|length }}</strong><span>Total todos</span></div>
+        <div><strong>{{ snapshot.focus.remaining_text if snapshot.focus.active else 'none' }}</strong><span>Focus</span></div>
       </div>
     </article>
   </section>

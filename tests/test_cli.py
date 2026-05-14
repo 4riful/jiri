@@ -38,6 +38,26 @@ def test_cli_note_add_and_list(tmp_path, monkeypatch, capsys):
     assert "#1 Title" in capsys.readouterr().out
 
 
+def test_cli_focus_lifecycle(tmp_path, monkeypatch, capsys):
+    db_path = tmp_path / "jiri.db"
+    _cli_env(monkeypatch, tmp_path, db_path)
+
+    assert cli.main(["focus", "start", "--minutes", "1", "--title", "CLI focus"]) == 0
+    assert "Started focus #1" in capsys.readouterr().out
+
+    assert cli.main(["focus", "status"]) == 0
+    assert "CLI focus" in capsys.readouterr().out
+
+    assert cli.main(["focus", "pause"]) == 0
+    assert "Paused focus #1" in capsys.readouterr().out
+
+    assert cli.main(["focus", "resume"]) == 0
+    assert "Resumed focus #1" in capsys.readouterr().out
+
+    assert cli.main(["focus", "complete"]) == 0
+    assert "Completed focus #1" in capsys.readouterr().out
+
+
 def test_cli_weather_refresh_uses_cache_fallback_system(tmp_path, monkeypatch, capsys):
     db_path = tmp_path / "jiri.db"
     _cli_env(monkeypatch, tmp_path, db_path)

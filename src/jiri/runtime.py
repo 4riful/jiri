@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from . import db, health, notes, todos, weather
+from . import db, focus, health, notes, todos, weather
 from .config import AppConfig, load_config
 from .views import DashboardSnapshot, ScreenSnapshot, build_dashboard_snapshot, build_screen_snapshot
 
@@ -92,6 +92,32 @@ class JiriRuntime:
 
     def weather_test_providers(self):
         return weather.test_providers(db_path=self.db_path)
+
+    def start_focus(self, minutes: int | None = None, title: str = "Focus session", todo_id: int | None = None):
+        duration = minutes or self.config.focus.default_minutes
+        return focus.start_focus(duration, title=title, todo_id=todo_id, db_path=self.db_path)
+
+    def start_break(self, minutes: int | None = None, title: str = "Break"):
+        duration = minutes or self.config.focus.break_minutes
+        return focus.start_break(duration, title=title, db_path=self.db_path)
+
+    def pause_focus(self):
+        return focus.pause_session(db_path=self.db_path)
+
+    def resume_focus(self):
+        return focus.resume_session(db_path=self.db_path)
+
+    def complete_focus(self):
+        return focus.complete_session(db_path=self.db_path)
+
+    def cancel_focus(self):
+        return focus.cancel_session(db_path=self.db_path)
+
+    def focus_snapshot(self):
+        return focus.active_snapshot(db_path=self.db_path)
+
+    def list_focus_sessions(self, limit: int = 20):
+        return focus.list_sessions(limit=limit, db_path=self.db_path)
 
     def health_snapshot(self):
         return health.health_snapshot(db_path=self.db_path, config=self.config)
