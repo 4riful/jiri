@@ -1,60 +1,76 @@
+{% from "macros/icons.html" import icon_todos, icon_play, icon_stop, icon_chevron_down, icon_chevron_up, icon_calendar, icon_tag %}
 {% extends "base.html" %}
 
 {% block content %}
   <section class="split-layout">
     <article class="card wide-card">
-      <h2>Todos</h2>
+      <h2>{{ icon_todos(16) }} Tasks</h2>
       <form class="stack-form" method="post" action="{{ url_for('todos_add') }}">
         <label>
           Title
-          <input name="title" required maxlength="160" placeholder="Add a task">
+          <input type="text" name="title" required maxlength="160" placeholder="Add a task">
         </label>
         <label>
-          Due at
-          <input name="due_at" placeholder="2026-05-14 21:00">
+          Due date
+          <input type="datetime-local" name="due_at" aria-label="Todo due date">
         </label>
         <label>
           Description
-          <textarea name="description" rows="3" placeholder="Optional note"></textarea>
+          <textarea name="description" rows="2" placeholder="Optional note"></textarea>
         </label>
-        <label>
-          Priority
-          <input name="priority" type="number" min="1" max="5" value="2">
-        </label>
-        <button class="button" type="submit">Add todo</button>
+        <div>
+          <span class="stat-label" style="display:block;margin-bottom:6px">Priority</span>
+          <div class="priority-row">
+            <label class="priority-label"><input type="radio" name="priority" value="1"> P1</label>
+            <label class="priority-label"><input type="radio" name="priority" value="2" checked> P2</label>
+            <label class="priority-label"><input type="radio" name="priority" value="3"> P3</label>
+            <label class="priority-label"><input type="radio" name="priority" value="4"> P4</label>
+            <label class="priority-label"><input type="radio" name="priority" value="5"> P5</label>
+          </div>
+        </div>
+        <button class="button" type="submit">{{ icon_play(14) }} Add todo</button>
       </form>
     </article>
 
     <article class="card wide-card">
-      <h2>Todo List</h2>
+      <div class="list-header">
+        <h2>Todo List</h2>
+        <span class="list-count">{{ snapshot.todos|length }} tasks</span>
+      </div>
       {% if snapshot.todos %}
-        <ul class="item-list">
-          {% for todo in snapshot.todos %}
-            <li class="item-row">
-              <div>
-                <strong>#{{ todo.id }} {{ todo.title }}</strong>
-                <p>{{ todo.description or 'No description' }}</p>
-                <div class="meta-line">{{ todo.status }} · p{{ todo.priority }}{% if todo.due_at %} · {{ todo.due_at }}{% endif %}</div>
-                <form class="inline-edit" method="post" action="{{ url_for('todo_update', todo_id=todo.id) }}">
-                  <input name="title" required maxlength="160" value="{{ todo.title }}" aria-label="Todo title">
-                  <input name="due_at" value="{{ todo.due_at or '' }}" placeholder="Due at" aria-label="Todo due date">
-                  <input name="priority" type="number" min="1" max="5" value="{{ todo.priority }}" aria-label="Todo priority">
-                  <textarea name="description" rows="2" placeholder="Description" aria-label="Todo description">{{ todo.description or '' }}</textarea>
-                  <button class="button button-soft" type="submit">Save</button>
-                </form>
-              </div>
-              <div class="row-actions">
-                {% if todo.status == 'pending' %}
-                  <form method="post" action="{{ url_for('todo_done', todo_id=todo.id) }}"><button class="button button-soft" type="submit">Done</button></form>
-                  <form method="post" action="{{ url_for('todo_cancel', todo_id=todo.id) }}"><button class="button button-soft" type="submit">Cancel</button></form>
-                {% endif %}
-                <form method="post" action="{{ url_for('todo_delete', todo_id=todo.id) }}"><button class="button button-danger" type="submit">Delete</button></form>
-              </div>
-            </li>
-          {% endfor %}
-        </ul>
+        <div class="todo-scrollbox">
+          <ul class="item-list todo-list">
+            {% for todo in snapshot.todos %}
+              <li class="item-row todo-item">
+                <div class="todo-item-main">
+                  <div class="todo-title-row">
+                    <span class="todo-id">#{{ todo.id }}</span>
+                    <strong class="todo-title {{ 'todo-done' if todo.status == 'done' }}">
+                      {% if todo.status == 'done' %}✓ {% elif todo.status == 'cancelled' %}✗ {% endif %}{{ todo.title }}
+                    </strong>
+                  </div>
+                  {% if todo.description %}<p class="todo-desc">{{ todo.description }}</p>{% endif %}
+                  <div class="todo-meta-row">
+                    <span class="todo-meta status {{ todo.status }}">{{ todo.status }}</span>
+                    <span class="todo-meta priority p{{ todo.priority }}">P{{ todo.priority }}</span>
+                    {% if todo.due_at %}
+                      <span class="todo-meta due">{{ todo.due_at }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="row-actions todo-actions">
+                  {% if todo.status == 'pending' %}
+                    <form method="post" action="{{ url_for('todo_done', todo_id=todo.id) }}"><button class="button button-soft" type="submit">Done</button></form>
+                    <form method="post" action="{{ url_for('todo_cancel', todo_id=todo.id) }}"><button class="button button-soft" type="submit">Cancel</button></form>
+                  {% endif %}
+                  <form method="post" action="{{ url_for('todo_delete', todo_id=todo.id) }}"><button class="button button-danger" type="submit">Delete</button></form>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
       {% else %}
-        <p>No todos yet.</p>
+        <div class="empty-state">No tasks yet. Add one above.</div>
       {% endif %}
     </article>
   </section>

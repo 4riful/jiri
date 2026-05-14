@@ -341,7 +341,7 @@ def _apply_cached_extra(data: dict[str, object], cached_raw: dict[str, object]) 
         data["location_meta"] = location_meta
     hourly = cached_raw.get("hourly_forecast")
     if isinstance(hourly, list):
-        data["hourly_forecast"] = hourly[:12]
+        data["hourly_forecast"] = hourly[:24]
 
 
 def _hydrate_provider_cache_fields(data: dict[str, object], cached_raw: dict[str, object]) -> None:
@@ -655,7 +655,7 @@ def _base_weather(location: str, source: str) -> dict[str, object]:
     }
 
 
-def _open_meteo_hourly_forecast(raw: dict[str, Any], limit: int = 12) -> list[dict[str, object]]:
+def _open_meteo_hourly_forecast(raw: dict[str, Any], limit: int = 24) -> list[dict[str, object]]:
     hourly = raw.get("hourly")
     if not isinstance(hourly, dict):
         return []
@@ -682,7 +682,7 @@ def _open_meteo_hourly_forecast(raw: dict[str, Any], limit: int = 12) -> list[di
     return rows
 
 
-def _wttr_hourly_forecast(raw: dict[str, Any], limit: int = 8) -> list[dict[str, object]]:
+def _wttr_hourly_forecast(raw: dict[str, Any], limit: int = 24) -> list[dict[str, object]]:
     days = raw.get("weather")
     if not isinstance(days, list):
         return []

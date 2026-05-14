@@ -1,3 +1,4 @@
+{% from "macros/icons.html" import icon_screen, icon_dashboard, icon_todos, icon_notes, icon_weather, icon_focus, icon_ai, icon_logout %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -16,19 +17,19 @@
       </div>
       <nav class="nav">
         {% if web_surface in ('screen', 'all') %}
-          <a href="{{ url_for('screen') }}"><span aria-hidden="true">▣</span> Screen</a>
+          <a href="{{ url_for('screen') }}">{{ icon_screen(14) }} Screen</a>
         {% endif %}
         {% if web_surface in ('admin', 'all') %}
-          <a href="{{ url_for('admin') }}"><span aria-hidden="true">⌂</span> Dashboard</a>
-          <a href="{{ url_for('todos_view') }}"><span aria-hidden="true">✓</span> Todos</a>
-          <a href="{{ url_for('notes_view') }}"><span aria-hidden="true">✎</span> Notes</a>
-          <a href="{{ url_for('weather_view') }}"><span aria-hidden="true">☁</span> Weather</a>
-          <a href="{{ url_for('focus_view') }}"><span aria-hidden="true">⏱</span> Focus</a>
-          <button class="nav-button theme-toggle" type="button" data-theme-toggle><span aria-hidden="true">◐</span> Theme</button>
+          <a href="{{ url_for('admin') }}">{{ icon_dashboard(14) }} Dashboard</a>
+          <a href="{{ url_for('todos_view') }}">{{ icon_todos(14) }} Todos</a>
+          <a href="{{ url_for('notes_view') }}">{{ icon_notes(14) }} Notes</a>
+          <a href="{{ url_for('weather_view') }}">{{ icon_weather(14) }} Weather</a>
+          <a href="{{ url_for('focus_view') }}">{{ icon_focus(14) }} Focus</a>
+          <a href="{{ url_for('llama_view') }}">{{ icon_ai(14) }} AI</a>
           {% if admin_authenticated %}
-            <form method="post" action="{{ url_for('admin_logout') }}"><button class="nav-button" type="submit"><span aria-hidden="true">↩</span> Logout</button></form>
+            <form method="post" action="{{ url_for('admin_logout') }}"><button class="nav-button" type="submit">{{ icon_logout(14) }} Logout</button></form>
           {% else %}
-            <a href="{{ url_for('admin_login') }}"><span aria-hidden="true">↪</span> Login</a>
+            <a href="{{ url_for('admin_login') }}">Login</a>
           {% endif %}
         {% endif %}
       </nav>
@@ -48,18 +49,5 @@
       <span>WSL testbed, Pi-first constraints</span>
     </footer>
   </div>
-  <script>
-    (function () {
-      var saved = localStorage.getItem('jiri-theme') || 'light';
-      document.documentElement.classList.toggle('dark', saved === 'dark');
-      document.querySelectorAll('[data-theme-toggle]').forEach(function (button) {
-        button.addEventListener('click', function () {
-          var dark = !document.documentElement.classList.contains('dark');
-          document.documentElement.classList.toggle('dark', dark);
-          localStorage.setItem('jiri-theme', dark ? 'dark' : 'light');
-        });
-      });
-    }());
-  </script>
 </body>
 </html>

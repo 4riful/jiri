@@ -6,6 +6,7 @@ from pathlib import Path
 from . import __version__, db, todos, weather
 from .config import AppConfig, load_config
 from .system_info import cpu_temperature_c, free_ram_mb
+from .llama import llama_status as _llama_status
 
 
 def health_snapshot(db_path: str | None = None, config: AppConfig | None = None) -> dict[str, object]:
@@ -13,9 +14,10 @@ def health_snapshot(db_path: str | None = None, config: AppConfig | None = None)
     path = db_path or cfg.database.path
     db.init_db(path)
     overdue = todos.get_overdue_todos(datetime.now(), db_path=path)
-    weather_snapshot = weather.peek_weather(db_path=path, config=cfg)
+    weather_snapshot = weather.peek_weather(db_path=db_path, config=cfg)
     weather_available = bool(weather_snapshot.get("available"))
     weather_source = str(weather_snapshot.get("source", "unavailable"))
+    llama = _llama_status(port=cfg.llm.server_port)
     return {
         "app_version": __version__,
         "database_path": path,
@@ -34,6 +36,7 @@ def health_snapshot(db_path: str | None = None, config: AppConfig | None = None)
         "free_ram_mb": free_ram_mb(),
         "cpu_temperature_c": cpu_temperature_c(),
         "worker": "enabled" if cfg.worker.enabled else "disabled",
+        "llama": llama,
     }
 
 

@@ -1,67 +1,213 @@
+{% from "macros/icons.html" import icon_todos, icon_notes, icon_weather, icon_focus, icon_system, icon_ai, icon_chevron_down, icon_chevron_up, icon_thermometer, icon_cloud_rain, icon_wind, icon_memory, icon_cpu, icon_globe, icon_monitor, icon_database, icon_check, icon_cloud, icon_gear, icon_tag, icon_link, icon_play, icon_stop %}
 {% extends "base.html" %}
 
 {% block content %}
-  <section class="page-head">
-    <div>
-      <p class="eyebrow">DASHBOARD</p>
-      <h1>JIRI Status</h1>
-      <p>Snapshot-only overview. Management lives on its own pages.</p>
+<section class="dash-stats">
+  <article class="stat-card stat-llama">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_ai(14) }} AI Server</span>
+      {% if snapshot.llama.running %}
+      <span class="stat-head-badge badge-green">Live</span>
+      {% else %}
+      <span class="stat-head-badge badge-dim">Off</span>
+      {% endif %}
     </div>
-  </section>
+    {% if snapshot.llama.running %}
+    <strong class="stat-big">{{ snapshot.llama.model_name[:20] if snapshot.llama.model_name else 'Llama' }}</strong>
+    <p>{{ snapshot.llama.port }} :{{ snapshot.llama.pid }}</p>
+    {% else %}
+    <strong class="stat-big stat-big-dim">Stopped</strong>
+    <p>Start from AI page</p>
+    {% endif %}
+  </article>
 
-  <section class="stats-dashboard">
-    <article class="stat-card weather-card">
-      <div class="stat-icon" aria-hidden="true">☁</div>
-      <div>
-        <span class="stat-label">Weather</span>
-        <strong>{{ snapshot.weather.temperature_c ~ 'C' if snapshot.weather.temperature_c is not none else 'unknown' }}</strong>
-        <p>{{ snapshot.weather.location }} · {{ snapshot.weather.condition }}</p>
-      </div>
-    </article>
+  <article class="stat-card stat-todos">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_todos(14) }} Todos</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.screen.pending_count }}</strong>
+    <p>{{ snapshot.screen.overdue_count }} overdue &middot; {{ snapshot.todos|length }} total</p>
+  </article>
 
-    <article class="stat-card">
-      <div class="stat-icon" aria-hidden="true">☂</div>
-      <div>
-        <span class="stat-label">Rain</span>
-        <strong>{{ snapshot.weather.rain_chance if snapshot.weather.rain_chance is not none else 'unknown' }}%</strong>
-        <p>Wind {{ snapshot.weather.wind_kmh if snapshot.weather.wind_kmh is not none else 'unknown' }} km/h</p>
-      </div>
-    </article>
+  <article class="stat-card stat-focus">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_focus(14) }} Focus</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.focus.remaining_text if snapshot.focus.active else '--:--' }}</strong>
+    <p>{{ snapshot.focus.title if snapshot.focus.active else 'No active session' }}</p>
+  </article>
 
-    <article class="stat-card">
-      <div class="stat-icon" aria-hidden="true">✓</div>
-      <div>
-        <span class="stat-label">Todos</span>
-        <strong>{{ snapshot.screen.pending_count }}</strong>
-        <p>{{ snapshot.screen.overdue_count }} overdue · {{ snapshot.todos|length }} total</p>
-      </div>
-    </article>
+  <article class="stat-card stat-notes">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_notes(14) }} Notes</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.notes|length }}</strong>
+    <p>{{ (snapshot.notes[0].title or '')[:30] if snapshot.notes else 'Empty' }}</p>
+  </article>
+</section>
 
-    <article class="stat-card">
-      <div class="stat-icon" aria-hidden="true">⏱</div>
-      <div>
-        <span class="stat-label">Focus</span>
-        <strong>{{ snapshot.focus.remaining_text if snapshot.focus.active else 'idle' }}</strong>
-        <p>{{ snapshot.focus.title if snapshot.focus.active else 'No active session' }}</p>
+<section class="dash-hero">
+  <article class="dash-hero-card weather-hero">
+    <div class="hero-header">
+      <h2>{{ icon_weather(18) }} Weather</h2>
+      <span class="hero-status">{{ snapshot.weather.condition if snapshot.weather.condition else 'Unavailable' }}</span>
+    </div>
+    <p class="hero-location">{{ snapshot.weather.location if snapshot.weather.location else 'No location selected' }}</p>
+    <div class="hero-metrics">
+      <div class="metric-tile metric-temp">
+        <span class="metric-icon">{{ icon_thermometer(14) }}</span>
+        <div class="metric-content">
+          <span class="metric-label">Temperature</span>
+          <strong>{{ snapshot.weather.temperature_c ~ 'C' if snapshot.weather.temperature_c is not none else '--' }}</strong>
+        </div>
       </div>
-    </article>
+      <div class="metric-tile metric-feels">
+        <span class="metric-icon">{{ icon_thermometer(14) }}</span>
+        <div class="metric-content">
+          <span class="metric-label">Feels Like</span>
+          <strong>{{ snapshot.weather.feels_like_c ~ 'C' if snapshot.weather.feels_like_c is not none else '--' }}</strong>
+        </div>
+      </div>
+      <div class="metric-tile metric-rain">
+        <span class="metric-icon">{{ icon_cloud_rain(14) }}</span>
+        <div class="metric-content">
+          <span class="metric-label">Rain</span>
+          <strong>{{ snapshot.weather.rain_chance ~ '%' if snapshot.weather.rain_chance is not none else '--' }}</strong>
+        </div>
+      </div>
+      <div class="metric-tile metric-wind">
+        <span class="metric-icon">{{ icon_wind(14) }}</span>
+        <div class="metric-content">
+          <span class="metric-label">Wind</span>
+          <strong>{{ snapshot.weather.wind_kmh if snapshot.weather.wind_kmh is not none else '--' }} km/h</strong>
+        </div>
+      </div>
+    </div>
+    {% if snapshot.weather.hourly_forecast %}
+    <div class="forecast-panel">
+      <div class="forecast-head">
+        <span>Hourly Forecast</span>
+        <small>Temperature and rain chance</small>
+      </div>
+      <div class="forecast-strip" aria-label="Next 4 hour forecast">
+        {% for hour in snapshot.weather.hourly_forecast[:4] %}
+        <div class="forecast-card">
+          <span class="forecast-time">{{ hour.time }}</span>
+          <strong>{{ hour.temperature_c ~ 'C' if hour.temperature_c is not none else '-' }}</strong>
+          <small class="forecast-rain">{{ icon_cloud_rain(12) }} {{ hour.rain_chance ~ '%' if hour.rain_chance is not none else '-' }}</small>
+        </div>
+        {% endfor %}
+      </div>
+      {% if snapshot.weather.hourly_forecast|length > 4 %}
+      <div class="forecast-extra" id="forecast-extra">
+        {% for hour in snapshot.weather.hourly_forecast[4:] %}
+        <div class="forecast-card">
+          <span class="forecast-time">{{ hour.time }}</span>
+          <strong>{{ hour.temperature_c ~ 'C' if hour.temperature_c is not none else '-' }}</strong>
+          <small class="forecast-rain">{{ icon_cloud_rain(12) }} {{ hour.rain_chance ~ '%' if hour.rain_chance is not none else '-' }}</small>
+        </div>
+        {% endfor %}
+      </div>
+      <button class="collapse-toggle forecast-toggle" onclick="toggleForecast()" aria-expanded="false" aria-controls="forecast-extra">
+        <span class="toggle-label">Show rest of day</span>
+        {{ icon_chevron_down(14) }}
+      </button>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="hero-empty">No forecast cached yet.</p>
+    {% endif %}
+  </article>
+</section>
 
-    <article class="stat-card">
-      <div class="stat-icon" aria-hidden="true">✎</div>
-      <div>
-        <span class="stat-label">Notes</span>
-        <strong>{{ snapshot.notes|length }}</strong>
-        <p>{{ snapshot.notes[0].title if snapshot.notes else 'No notes yet' }}</p>
+<section class="dash-panel">
+  <article class="dash-panel-card">
+    <div class="panel-header">
+      <h3>{{ icon_system(16) }} System</h3>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="hero-status">{{ 'Healthy' if snapshot.health.database_writable else 'Issues' }}</span>
+        <button class="collapse-toggle" onclick="toggleSystem()" aria-expanded="false" aria-controls="system-extra">
+          <span class="toggle-label">Details</span>
+          {{ icon_chevron_down(14) }}
+        </button>
       </div>
-    </article>
+    </div>
+    <div class="system-grid">
+      <div class="system-tile">
+        <span class="system-tile-icon">{{ icon_memory(14) }}</span>
+        <span class="system-tile-label">Memory</span>
+        <strong>{{ snapshot.health.free_ram_mb if snapshot.health.free_ram_mb is not none else '?' }} MB free</strong>
+      </div>
+      <div class="system-tile">
+        <span class="system-tile-icon">{{ icon_cpu(14) }}</span>
+        <span class="system-tile-label">Temperature</span>
+        <strong>{{ snapshot.health.cpu_temperature_c ~ 'C' if snapshot.health.cpu_temperature_c is not none else '?' }}</strong>
+      </div>
+      <div class="system-tile">
+        <span class="system-tile-icon">{{ icon_globe(14) }}</span>
+        <span class="system-tile-label">Web</span>
+        <strong>{{ snapshot.health.web.host }}:{{ snapshot.health.web.port }}</strong>
+      </div>
+      <div class="system-tile">
+        <span class="system-tile-icon">{{ icon_monitor(14) }}</span>
+        <span class="system-tile-label">Display</span>
+        <strong>{{ snapshot.health.display.width }}x{{ snapshot.health.display.height }}</strong>
+      </div>
+    </div>
+    <div class="collapse-section" id="system-extra">
+      <div class="system-grid">
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_database(14) }}</span>
+          <span class="system-tile-label">Database</span>
+          <strong>{{ snapshot.health.database_path }}</strong>
+        </div>
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_check(14) }}</span>
+          <span class="system-tile-label">Writable</span>
+          <strong>{{ 'Yes' if snapshot.health.database_writable else 'No' }}</strong>
+        </div>
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_cloud(14) }}</span>
+          <span class="system-tile-label">Weather Cache</span>
+          <strong>{{ snapshot.health.weather_cache_status }}</strong>
+        </div>
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_gear(14) }}</span>
+          <span class="system-tile-label">Worker</span>
+          <strong>{{ snapshot.health.worker }}</strong>
+        </div>
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_tag(14) }}</span>
+          <span class="system-tile-label">Version</span>
+          <strong>{{ snapshot.health.app_version }}</strong>
+        </div>
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_link(14) }}</span>
+          <span class="system-tile-label">Display Mode</span>
+          <strong>{{ snapshot.health.display.driver }} @ {{ snapshot.health.display.fps }}fps</strong>
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
 
-    <article class="stat-card">
-      <div class="stat-icon" aria-hidden="true">▣</div>
-      <div>
-        <span class="stat-label">System</span>
-        <strong>{{ 'OK' if snapshot.health.database_writable else 'BAD' }}</strong>
-        <p>RAM {{ snapshot.health.free_ram_mb if snapshot.health.free_ram_mb is not none else 'unknown' }} MB · weather {{ snapshot.health.weather_cache_status }}</p>
-      </div>
-    </article>
-  </section>
+<script>
+function toggleForecast() {
+  var el = document.getElementById("forecast-extra");
+  var btn = el.nextElementSibling;
+  var expanded = el.classList.toggle("forecast-expanded");
+  btn.setAttribute("aria-expanded", expanded);
+  btn.querySelector(".toggle-label").textContent = expanded ? "Hide rest of day" : "Show rest of day";
+  btn.querySelector(".icon").outerHTML = expanded ? '{{ icon_chevron_up(14)|safe }}' : '{{ icon_chevron_down(14)|safe }}';
+}
+
+function toggleSystem() {
+  var el = document.getElementById("system-extra");
+  var btn = el.previousElementSibling.querySelector(".collapse-toggle");
+  var expanded = el.classList.toggle("panel-expanded");
+  btn.setAttribute("aria-expanded", expanded);
+  btn.querySelector(".toggle-label").textContent = expanded ? "Less" : "Details";
+  btn.querySelector(".icon").outerHTML = expanded ? '{{ icon_chevron_up(14)|safe }}' : '{{ icon_chevron_down(14)|safe }}';
+}
+</script>
 {% endblock %}

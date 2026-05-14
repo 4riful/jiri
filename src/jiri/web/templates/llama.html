@@ -1,0 +1,68 @@
+{% from "macros/icons.html" import icon_play, icon_stop, icon_test, icon_refresh, icon_ai %}
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-head">
+    <div>
+      <p class="eyebrow">LLM SERVER</p>
+      <h1>AI Management</h1>
+    </div>
+    <div>
+      {% if llama_status.running %}
+        <span class="status-pill status-green">Running (PID {{ llama_status.pid }})</span>
+      {% else %}
+        <span class="status-pill status-dim">Stopped</span>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="stacked-dashboard">
+    <article class="card">
+      <h2>{{ icon_ai(16) }} Server Controls</h2>
+      <div class="split-layout">
+        <div>
+          {% if llama_status.running %}
+            <form method="post" action="{{ url_for('llama_stop') }}" style="margin-bottom: 8px">
+              <input type="hidden" name="pid" value="{{ llama_status.pid if llama_status.pid else '' }}">
+              <button class="button button-danger" type="submit">{{ icon_stop(16) }} Stop Server</button>
+            </form>
+            <form method="post" action="{{ url_for('llama_test_chat') }}" class="stack-form">
+              <label>Prompt <input name="prompt" value="Hello" placeholder="Say hello..."></label>
+              <button class="button button-soft" type="submit">Test Model Reply</button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url_for('llama_start') }}" class="stack-form">
+              <label>Model Path <input name="model_path" placeholder="/root/models/gemma-3-270m-q4_k_m.gguf"></label>
+              <label>Port <input name="port" type="number" placeholder="8080" value="8080"></label>
+              <label>Context Size <input name="context" type="number" placeholder="512" value="512"></label>
+              <label>Threads <input name="threads" type="number" placeholder="2" value="2"></label>
+              <button class="button" type="submit">{{ icon_play(16) }} Start Server</button>
+            </form>
+          {% endif %}
+        </div>
+        <div>
+          <form method="post" action="{{ url_for('llama_test') }}" class="stack-form">
+            <label>Test Port <input name="port" type="number" value="8080"></label>
+            <button class="button" type="submit">{{ icon_test(16) }} Test Health</button>
+          </form>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2>{{ icon_refresh(16) }} Status</h2>
+      <dl class="details">
+        <div><dt>Running</dt><dd>{{ 'Yes' if llama_status.running else 'No' }}</dd></div>
+        {% if llama_status.pid %}<div><dt>PID</dt><dd>{{ llama_status.pid }}</dd></div>{% endif %}
+        {% if llama_status.port %}<div><dt>Port</dt><dd>{{ llama_status.port }}</dd></div>{% endif %}
+        {% if llama_status.model_name %}<div><dt>Model</dt><dd>{{ llama_status.model_name }}</dd></div>{% endif %}
+        {% if llama_status.uptime %}<div><dt>Uptime</dt><dd>{{ llama_status.uptime }}</dd></div>{% endif %}
+      </dl>
+    </article>
+
+    <article class="card">
+      <h2>Server Log</h2>
+      <pre class="log-block">{{ llama_logs }}</pre>
+    </article>
+  </section>
+{% endblock %}

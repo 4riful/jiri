@@ -55,6 +55,7 @@ class DashboardSnapshot:
     recent_locations: tuple[dict[str, object], ...]
     weather: dict[str, object]
     focus: dict[str, object]
+    llama: dict[str, object]
     search_results: tuple[dict[str, object], ...] = ()
     provider_results: tuple[dict[str, object], ...] = ()
     notice: str = ""
@@ -145,6 +146,7 @@ def build_dashboard_snapshot(
         recent_locations=recent_locations,
         weather=weather_state,
         focus=focus_state,
+        llama=health_snapshot.get("llama", {"running": False}),
         search_results=stored_results,
         provider_results=provider_rows,
         notice=notice,

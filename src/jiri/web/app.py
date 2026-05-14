@@ -369,6 +369,73 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
                 error=str(exc),
             )
 
+    @app.get("/admin/llama")
+    @admin_required
+    def llama_view():
+        status = runtime.llama_status()
+        logs = runtime.llama_logs(tail=40)
+        return render_template(
+            "llama.html",
+            snapshot=runtime.dashboard_snapshot(panel="system"),
+            llama_status=status,
+            llama_logs=logs,
+            notice=request.args.get("notice", ""),
+            error=request.args.get("error", ""),
+        )
+
+    @app.post("/admin/llama/start")
+    @admin_required
+    def llama_start():
+        try:
+            result = runtime.llama_start(
+                model_path=request.form.get("model_path") or None,
+                port=_int_form(request.form.get("port"), default=None),
+                context=_int_form(request.form.get("context"), default=None),
+                threads=_int_form(request.form.get("threads"), default=None),
+            )
+            return redirect(url_for("llama_view", notice=f"Started llama server (PID {result['pid']})."))
+        except Exception as exc:
+            return redirect(url_for("llama_view", error=str(exc)))
+
+    @app.post("/admin/llama/stop")
+    @admin_required
+    def llama_stop():
+        try:
+            pid = _int_form(request.form.get("pid"), default=None)
+            result = runtime.llama_stop(pid=pid)
+            if result.get("stopped"):
+                return redirect(url_for("llama_view", notice="Llama server stopped."))
+            return redirect(url_for("llama_view", notice=result.get("reason", "Already stopped.")))
+        except Exception as exc:
+            return redirect(url_for("llama_view", error=str(exc)))
+
+    @app.post("/admin/llama/test")
+    @admin_required
+    def llama_test():
+        try:
+            port = _int_form(request.form.get("port"), default=None) or runtime.config.llm.server_port
+            result = runtime.llama_test(port=port)
+            notice = f"Server responded {result['status_code']}" if result["ok"] else f"Test failed: {result['response']}"
+            return redirect(url_for("llama_view", notice=notice))
+        except Exception as exc:
+            return redirect(url_for("llama_view", error=str(exc)))
+
+    @app.post("/admin/llama/test_chat")
+    @admin_required
+    def llama_test_chat():
+        try:
+            prompt = request.form.get("prompt", "Hello")
+            result = runtime.llama_test_chat(prompt=prompt)
+            if result["ok"]:
+                return redirect(url_for("llama_view", notice=f"Model reply: {result['response']}"))
+            return redirect(url_for("llama_view", error=f"Chat test failed: {result['response']}"))
+        except Exception as exc:
+            return redirect(url_for("llama_view", error=str(exc)))
+
+    @app.get("/api/llama/status")
+    def api_llama_status():
+        return jsonify(runtime.llama_status())
+
     @app.get("/api/status")
     def api_status():
         return jsonify(runtime.health_snapshot())

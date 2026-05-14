@@ -28,9 +28,9 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
 
     logged_in = login(client)
     assert logged_in.status_code == 200
-    assert b"JIRI Status" in logged_in.data
     assert b"Dashboard" in logged_in.data
     assert b"Focus" in logged_in.data
+    assert b"Weather" in logged_in.data
 
     screen = client.get("/screen")
     assert screen.status_code == 200

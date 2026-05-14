@@ -79,6 +79,10 @@ class LlmConfig:
     enabled: bool = False
     provider: str = "none"
     model_path: str = ""
+    server_binary: str = "llama-server"
+    server_port: int = 8080
+    server_context: int = 512
+    server_threads: int = 2
 
 
 @dataclass(frozen=True)
