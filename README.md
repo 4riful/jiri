@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./jiri.png" alt="JIRI icon" width="180">
+  <img src="./jirie.png" alt="JIRI icon" width="180">
 </p>
 
 <h1 align="center">JIRI</h1>
