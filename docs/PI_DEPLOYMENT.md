@@ -25,4 +25,9 @@ export JIRI_HEIGHT=320
 export JIRI_DB_PATH=data/jiri.db
 ```
 
-Do not configure fullscreen display services until the real 3.5-inch display is confirmed.
+Deployment rules:
+
+- Confirm the real 3.5-inch display before enabling fullscreen services.
+- Keep the main Pi bootable without the AI worker.
+- Back up SQLite before schema changes once real data exists.
+- Install systemd units only after the relevant stage gate passes.

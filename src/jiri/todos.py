@@ -70,39 +70,62 @@ def list_todos(include_done: bool = False, db_path: str | None = None) -> list[T
 def mark_done(todo_id: int, db_path: str | None = None) -> Todo:
     now = _now_iso()
     db.init_db(db_path)
-    with db.connect(db_path) as conn:
-        cur = conn.execute(
-            """
-            UPDATE todos
-            SET status = 'done', updated_at = ?, completed_at = ?, angry_level = 0
-            WHERE id = ? AND status != 'done'
-            """,
-            (now, now, todo_id),
-        )
-        if cur.rowcount == 0:
-            exists = conn.execute("SELECT 1 FROM todos WHERE id = ?", (todo_id,)).fetchone()
-            if exists is None:
-                raise ValueError(f"Todo {todo_id} not found")
+    try:
+        with db.connect(db_path) as conn:
+            cur = conn.execute(
+                """
+                UPDATE todos
+                SET status = 'done', updated_at = ?, completed_at = ?, angry_level = 0
+                WHERE id = ? AND status != 'done'
+                """,
+                (now, now, todo_id),
+            )
+            if cur.rowcount == 0:
+                exists = conn.execute("SELECT 1 FROM todos WHERE id = ?", (todo_id,)).fetchone()
+                if exists is None:
+                    raise ValueError(f"Todo {todo_id} not found")
+    except sqlite3.OperationalError as exc:
+        if "locked" in str(exc).lower():
+            raise RuntimeError("Database is busy. Try again in a moment.") from exc
+        raise
     return get_todo(todo_id, db_path=db_path)
 
 
 def cancel_todo(todo_id: int, db_path: str | None = None) -> Todo:
     now = _now_iso()
     db.init_db(db_path)
-    with db.connect(db_path) as conn:
-        cur = conn.execute(
-            """
-            UPDATE todos
-            SET status = 'cancelled', updated_at = ?, angry_level = 0
-            WHERE id = ? AND status != 'cancelled'
-            """,
-            (now, todo_id),
-        )
-        if cur.rowcount == 0:
-            exists = conn.execute("SELECT 1 FROM todos WHERE id = ?", (todo_id,)).fetchone()
-            if exists is None:
-                raise ValueError(f"Todo {todo_id} not found")
+    try:
+        with db.connect(db_path) as conn:
+            cur = conn.execute(
+                """
+                UPDATE todos
+                SET status = 'cancelled', updated_at = ?, angry_level = 0
+                WHERE id = ? AND status != 'cancelled'
+                """,
+                (now, todo_id),
+            )
+            if cur.rowcount == 0:
+                exists = conn.execute("SELECT 1 FROM todos WHERE id = ?", (todo_id,)).fetchone()
+                if exists is None:
+                    raise ValueError(f"Todo {todo_id} not found")
+    except sqlite3.OperationalError as exc:
+        if "locked" in str(exc).lower():
+            raise RuntimeError("Database is busy. Try again in a moment.") from exc
+        raise
     return get_todo(todo_id, db_path=db_path)
+
+
+def delete_todo(todo_id: int, db_path: str | None = None) -> Todo:
+    todo = get_todo(todo_id, db_path=db_path)
+    db.init_db(db_path)
+    try:
+        with db.connect(db_path) as conn:
+            conn.execute("DELETE FROM todos WHERE id = ?", (todo_id,))
+    except sqlite3.OperationalError as exc:
+        if "locked" in str(exc).lower():
+            raise RuntimeError("Database is busy. Try again in a moment.") from exc
+        raise
+    return todo
 
 
 def get_overdue_todos(now: datetime, db_path: str | None = None) -> list[Todo]:

@@ -20,6 +20,14 @@ Run tests:
 scripts/test_wsl.sh
 ```
 
+Useful smoke checks:
+
+```bash
+python -m jiri.cli init-db
+python -m jiri.cli status
+python -m jiri.cli weather test-providers
+```
+
 WSL-safe areas:
 
 - Database schema.
@@ -27,5 +35,7 @@ WSL-safe areas:
 - Mood and messages.
 - Config loading.
 - CLI behavior.
-- Weather parsing and fallback once Stage 2 starts.
-- Flask routes once Stage 4 starts.
+- Weather parsing and fallback.
+- Flask routes once Stage B starts.
+
+WSL is for logic and integration checks only. Real display behavior, thermals, and benchmark results still need Raspberry Pi hardware.

@@ -12,10 +12,16 @@ personality = "funny_sarcastic"
 rage_mode_enabled = true
 
 [weather]
-provider = "wttr"
-location = "Dhaka"
+provider = "open_meteo"
+location = "auto"
+# Optional fixed coordinates. Saved CLI location settings override these.
+# latitude = 26.1167
+# longitude = 88.85
 refresh_minutes = 30
 timeout_seconds = 3
+
+# Run `python -m jiri.cli location search "your place" --country BD` then `location set 1`.
+# Or run `python -m jiri.cli location set-coords --name "Home" --lat 26.1167 --lon 88.85`.
 
 [database]
 path = "data/jiri.db"

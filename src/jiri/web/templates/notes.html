@@ -1,2 +1,46 @@
 {% extends "base.html" %}
-{% block content %}<h1>Notes</h1>{% endblock %}
+
+{% block content %}
+  <section class="split-layout">
+    <article class="card wide-card">
+      <h2>Notes</h2>
+      <form class="stack-form" method="post" action="{{ url_for('notes_add') }}">
+        <label>
+          Title
+          <input name="title" required maxlength="160" placeholder="Note title">
+        </label>
+        <label>
+          Body
+          <textarea name="body" rows="6" required placeholder="Write the note body"></textarea>
+        </label>
+        <label>
+          Tags
+          <input name="tags" placeholder="desk, pi, ideas">
+        </label>
+        <button class="button" type="submit">Add note</button>
+      </form>
+    </article>
+
+    <article class="card wide-card">
+      <h2>Note List</h2>
+      {% if snapshot.notes %}
+        <ul class="item-list">
+          {% for note in snapshot.notes %}
+            <li class="item-row">
+              <div>
+                <strong>#{{ note.id }} {{ note.title }}</strong>
+                <p>{{ note.body }}</p>
+                <div class="meta-line">{{ note.tags or 'untagged' }}</div>
+              </div>
+              <div class="row-actions">
+                <form method="post" action="{{ url_for('note_delete', note_id=note.id) }}"><button class="button button-danger" type="submit">Delete</button></form>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No notes yet.</p>
+      {% endif %}
+    </article>
+  </section>
+{% endblock %}

@@ -90,3 +90,21 @@ def count_rows(table: str, db_path: str | None = None) -> int:
     with connect(db_path) as conn:
         row = conn.execute(f"SELECT COUNT(*) AS count FROM {table}").fetchone()
     return int(row["count"])
+
+
+def get_setting(key: str, db_path: str | None = None) -> str | None:
+    init_db(db_path)
+    with connect(db_path) as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    if row is None:
+        return None
+    return str(row["value"])
+
+
+def set_setting(key: str, value: str, db_path: str | None = None) -> None:
+    init_db(db_path)
+    with connect(db_path) as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO settings(key, value) VALUES(?, ?)",
+            (key, value),
+        )

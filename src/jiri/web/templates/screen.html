@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block head %}
+  <meta http-equiv="refresh" content="{{ snapshot.refresh_seconds }};url={{ refresh_url }}">
+{% endblock %}
+
+{% block content %}
+  <section class="screen-shell">
+    <div class="screen-frame screen-{{ snapshot.face_state }}">
+      <div class="screen-top">
+        <div>
+          <div class="eyebrow">LIVE SCREEN · {{ snapshot.clock }}</div>
+          <h1>{{ snapshot.app_name }}</h1>
+        </div>
+        <div class="status-pill">{{ snapshot.panel_title }}</div>
+      </div>
+
+      <div class="screen-stats">
+        <span>{{ snapshot.pending_count }} open todo(s)</span>
+        <span>{{ snapshot.overdue_count }} overdue</span>
+        <span>{{ snapshot.note_count }} note(s)</span>
+        <span>{{ snapshot.weather.source }}</span>
+      </div>
+
+      <div class="screen-grid">
+        <article class="card face-card">
+          <div class="face face-{{ snapshot.face_state }}">
+            <div class="eye-row">
+              <span class="eye"></span>
+              <span class="eye"></span>
+            </div>
+            <div class="mouth"></div>
+          </div>
+          <div class="face-copy">
+            <h2>{{ snapshot.headline }}</h2>
+            <p>{{ snapshot.subheadline }}</p>
+          </div>
+        </article>
+
+        <article class="card panel-card">
+          {% if snapshot.panel == 'weather' %}
+            <h3>Weather</h3>
+            <dl class="details">
+              <div><dt>Location</dt><dd>{{ snapshot.weather.location }}</dd></div>
+              <div><dt>Condition</dt><dd>{{ snapshot.weather.condition }}</dd></div>
+              <div><dt>Temperature</dt><dd>{{ snapshot.weather.temperature_c ~ 'C' if snapshot.weather.temperature_c is not none else 'unknown' }}</dd></div>
+              <div><dt>Feels like</dt><dd>{{ snapshot.weather.feels_like_c ~ 'C' if snapshot.weather.feels_like_c is not none else 'unknown' }}</dd></div>
+              <div><dt>Humidity</dt><dd>{{ snapshot.weather.humidity if snapshot.weather.humidity is not none else 'unknown' }}%</dd></div>
+              <div><dt>Rain</dt><dd>{{ snapshot.weather.rain_chance if snapshot.weather.rain_chance is not none else 'unknown' }}%</dd></div>
+              <div><dt>Wind</dt><dd>{{ snapshot.weather.wind_kmh if snapshot.weather.wind_kmh is not none else 'unknown' }} km/h</dd></div>
+            </dl>
+          {% elif snapshot.panel == 'todos' %}
+            <h3>Next Todos</h3>
+            {% if snapshot.pending_todos %}
+              <ul class="compact-list">
+                {% for todo in snapshot.pending_todos[:4] %}
+                  <li>
+                    <strong>#{{ todo.id }} {{ todo.title }}</strong>
+                    <span>{{ todo.status }} · p{{ todo.priority }}{% if todo.due_at %} · {{ todo.due_at }}{% endif %}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p>No pending todos. Enjoy the silence.</p>
+            {% endif %}
+          {% elif snapshot.panel == 'notes' %}
+            <h3>Recent Notes</h3>
+            {% if snapshot.recent_notes %}
+              <ul class="compact-list">
+                {% for note in snapshot.recent_notes %}
+                  <li>
+                    <strong>{{ note.title }}</strong>
+                    <span>{{ note.body[:90] }}{% if note.body|length > 90 %}...{% endif %}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p>No notes yet.</p>
+            {% endif %}
+          {% else %}
+            <h3>System</h3>
+            <dl class="details">
+              <div><dt>Database</dt><dd>{{ snapshot.system.database_path }}</dd></div>
+              <div><dt>Writable</dt><dd>{{ 'yes' if snapshot.system.database_writable else 'no' }}</dd></div>
+              <div><dt>Todos</dt><dd>{{ snapshot.system.todos_count }}</dd></div>
+              <div><dt>Overdue</dt><dd>{{ snapshot.system.overdue_count }}</dd></div>
+              <div><dt>RAM</dt><dd>{{ snapshot.system.free_ram_mb if snapshot.system.free_ram_mb is not none else 'unknown' }}</dd></div>
+              <div><dt>CPU</dt><dd>{{ snapshot.system.cpu_temperature_c ~ 'C' if snapshot.system.cpu_temperature_c is not none else 'unknown' }}</dd></div>
+            </dl>
+          {% endif %}
+        </article>
+      </div>
+
+      <div class="panel-switcher">
+        <a class="{% if requested_panel == 'auto' %}active{% endif %}" href="{{ url_for('screen', panel='auto') }}">Auto</a>
+        <a class="{% if requested_panel == 'weather' %}active{% endif %}" href="{{ url_for('screen', panel='weather') }}">Weather</a>
+        <a class="{% if requested_panel == 'todos' %}active{% endif %}" href="{{ url_for('screen', panel='todos') }}">Todos</a>
+        <a class="{% if requested_panel == 'notes' %}active{% endif %}" href="{{ url_for('screen', panel='notes') }}">Notes</a>
+        <a class="{% if requested_panel == 'system' %}active{% endif %}" href="{{ url_for('screen', panel='system') }}">System</a>
+      </div>
+    </div>
+  </section>
+{% endblock %}

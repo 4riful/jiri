@@ -1,20 +1,636 @@
 from __future__ import annotations
 
-from .config import load_config
-from .models import WeatherSnapshot
+from datetime import datetime, timedelta
+import json
+import time
+from typing import Any
+
+import requests
+
+from . import db
+from .config import AppConfig, load_config
 
 
-def get_weather(db_path: str | None = None) -> WeatherSnapshot:
-    cfg = load_config()
-    return WeatherSnapshot(
-        location=cfg.weather.location,
-        fetched_at=None,
-        temperature_c=None,
-        condition="Weather unavailable until Stage 2 cache/fetch is implemented",
-        stale=False,
-        unavailable=True,
+OPEN_METEO_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
+OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+WTTR_URL = "https://wttr.in/{latitude},{longitude}?format=j2"
+
+LOCATION_SETTING_KEYS = (
+    "weather.location_name",
+    "weather.latitude",
+    "weather.longitude",
+    "weather.timezone",
+    "weather.country",
+    "weather.country_code",
+    "weather.admin1",
+    "weather.admin2",
+    "weather.admin3",
+    "weather.admin4",
+)
+
+WEATHER_CODE_MAP = {
+    0: "Clear sky",
+    1: "Mainly clear",
+    2: "Partly cloudy",
+    3: "Overcast",
+    45: "Fog",
+    48: "Depositing rime fog",
+    51: "Light drizzle",
+    53: "Moderate drizzle",
+    55: "Dense drizzle",
+    61: "Slight rain",
+    63: "Moderate rain",
+    65: "Heavy rain",
+    71: "Slight snow",
+    73: "Moderate snow",
+    75: "Heavy snow",
+    80: "Slight rain showers",
+    81: "Moderate rain showers",
+    82: "Violent rain showers",
+    95: "Thunderstorm",
+    96: "Thunderstorm with hail",
+    99: "Thunderstorm with heavy hail",
+}
+
+
+def search_locations(query: str, country: str | None = None, timeout_seconds: int = 3) -> list[dict[str, object]]:
+    clean_query = query.strip()
+    if not clean_query:
+        raise ValueError("Location search query cannot be empty")
+    response = requests.get(
+        OPEN_METEO_GEOCODING_URL,
+        params={"name": clean_query, "count": 10, "language": "en", "format": "json"},
+        timeout=_safe_timeout(timeout_seconds),
     )
+    response.raise_for_status()
+    raw = response.json()
+    results = [_normalize_location_result(item) for item in raw.get("results", []) if isinstance(item, dict)]
+    if country:
+        preferred = country.strip().upper()
+        results.sort(key=lambda item: 0 if str(item.get("country_code", "")).upper() == preferred else 1)
+    return results
 
 
-def refresh_weather(db_path: str | None = None) -> WeatherSnapshot:
-    return get_weather(db_path=db_path)
+def save_last_location_search(results: list[dict[str, object]], db_path: str | None = None) -> None:
+    db.set_setting("weather.last_location_search_json", json.dumps(results, separators=(",", ":"), sort_keys=True), db_path=db_path)
+
+
+def get_last_location_search(db_path: str | None = None) -> list[dict[str, object]]:
+    raw = db.get_setting("weather.last_location_search_json", db_path=db_path)
+    if not raw:
+        return []
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Last location search is corrupted. Run location search again.") from exc
+    if not isinstance(decoded, list):
+        raise ValueError("Last location search is invalid. Run location search again.")
+    return [item for item in decoded if isinstance(item, dict)]
+
+
+def select_location(index: int, db_path: str | None = None) -> dict[str, object]:
+    results = get_last_location_search(db_path=db_path)
+    if not results:
+        raise ValueError("No saved location search. Run location search first.")
+    if index < 1 or index > len(results):
+        raise ValueError(f"Location index must be between 1 and {len(results)}")
+    selected = results[index - 1]
+    save_selected_location(selected, db_path=db_path)
+    return selected
+
+
+def save_selected_location(location: dict[str, object], db_path: str | None = None) -> None:
+    lat = _required_float(location.get("latitude"), "latitude")
+    lon = _required_float(location.get("longitude"), "longitude")
+    _validate_coordinates(lat, lon)
+    values = {
+        "weather.location_name": str(location.get("name") or location.get("location_name") or "Selected location"),
+        "weather.latitude": str(lat),
+        "weather.longitude": str(lon),
+        "weather.timezone": str(location.get("timezone") or ""),
+        "weather.country": str(location.get("country") or ""),
+        "weather.country_code": str(location.get("country_code") or ""),
+        "weather.admin1": str(location.get("admin1") or ""),
+        "weather.admin2": str(location.get("admin2") or ""),
+        "weather.admin3": str(location.get("admin3") or ""),
+        "weather.admin4": str(location.get("admin4") or ""),
+    }
+    for key, value in values.items():
+        db.set_setting(key, value, db_path=db_path)
+
+
+def set_coordinates(name: str, latitude: float, longitude: float, db_path: str | None = None) -> dict[str, object]:
+    clean_name = name.strip()
+    if not clean_name:
+        raise ValueError("Location name cannot be empty")
+    _validate_coordinates(latitude, longitude)
+    location = {
+        "name": clean_name,
+        "latitude": float(latitude),
+        "longitude": float(longitude),
+        "timezone": "",
+        "country": "",
+        "country_code": "",
+        "admin1": "",
+        "admin2": "",
+        "admin3": "",
+        "admin4": "",
+    }
+    save_selected_location(location, db_path=db_path)
+    return location
+
+
+def get_active_location(db_path: str | None = None, config: AppConfig | None = None) -> dict[str, object] | None:
+    cfg = config or load_config()
+    lat = db.get_setting("weather.latitude", db_path=db_path)
+    lon = db.get_setting("weather.longitude", db_path=db_path)
+    if lat is not None and lon is not None:
+        location = _settings_location(db_path=db_path)
+        location["source"] = "settings"
+        return location
+    if cfg.weather.latitude is not None and cfg.weather.longitude is not None:
+        return {
+            "source": "config",
+            "name": cfg.weather.location,
+            "latitude": cfg.weather.latitude,
+            "longitude": cfg.weather.longitude,
+            "timezone": "",
+            "country": "",
+            "country_code": "",
+            "admin1": "",
+            "admin2": "",
+            "admin3": "",
+            "admin4": "",
+        }
+    return None
+
+
+def fetch_open_meteo_weather(location: dict[str, object], timeout_seconds: int = 3) -> dict[str, object]:
+    if load_config().weather.fake:
+        return _fake_open_meteo_weather(location)
+    lat = _required_float(location.get("latitude"), "latitude")
+    lon = _required_float(location.get("longitude"), "longitude")
+    response = requests.get(
+        OPEN_METEO_FORECAST_URL,
+        params={
+            "latitude": lat,
+            "longitude": lon,
+            "current": "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,wind_speed_10m",
+            "hourly": "temperature_2m,precipitation_probability,rain,relative_humidity_2m",
+            "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum",
+            "timezone": "auto",
+            "forecast_days": 3,
+        },
+        timeout=_safe_timeout(timeout_seconds),
+    )
+    response.raise_for_status()
+    return _parse_open_meteo_response(location, response.json())
+
+
+def fetch_wttr_weather(location: dict[str, object], timeout_seconds: int = 3) -> dict[str, object]:
+    lat = _required_float(location.get("latitude"), "latitude")
+    lon = _required_float(location.get("longitude"), "longitude")
+    response = requests.get(WTTR_URL.format(latitude=lat, longitude=lon), timeout=_safe_timeout(timeout_seconds))
+    response.raise_for_status()
+    return _parse_wttr_response(location, response.json())
+
+
+def get_cached_weather(location_name: str | None = None, db_path: str | None = None) -> dict[str, object] | None:
+    db.init_db(db_path)
+    params: tuple[object, ...] = ()
+    where = ""
+    if location_name:
+        where = "WHERE location = ?"
+        params = (location_name,)
+    with db.connect(db_path) as conn:
+        row = conn.execute(
+            f"""
+            SELECT * FROM weather_cache
+            {where}
+            ORDER BY fetched_at DESC, id DESC
+            LIMIT 1
+            """,
+            params,
+        ).fetchone()
+    if row is None:
+        return None
+    data = _base_weather(str(row["location"]), "cache")
+    data.update(
+        {
+            "available": True,
+            "temperature_c": row["temperature_c"],
+            "condition": row["condition"] or "Weather cached.",
+            "humidity": row["humidity"],
+            "rain_chance": row["rain_chance"],
+            "fetched_at": row["fetched_at"],
+            "raw_json": row["raw_json"],
+            "message": "Using cached weather.",
+        }
+    )
+    try:
+        cached_raw = json.loads(row["raw_json"] or "{}")
+    except json.JSONDecodeError:
+        cached_raw = {}
+    if isinstance(cached_raw, dict):
+        for key in ("feels_like_c", "wind_kmh"):
+            if key in cached_raw:
+                data[key] = cached_raw[key]
+            location_meta = cached_raw.get("location_meta")
+            if isinstance(location_meta, dict):
+                data["location_meta"] = location_meta
+    return data
+
+
+def save_weather_cache(location_name: str, weather_data: dict[str, object], db_path: str | None = None) -> dict[str, object]:
+    clean_location = location_name.strip() or str(weather_data.get("location") or "Selected location")
+    fetched_at = str(weather_data.get("fetched_at") or _now_iso())
+    raw_json = weather_data.get("raw_json")
+    extra = {
+        "feels_like_c": weather_data.get("feels_like_c"),
+        "wind_kmh": weather_data.get("wind_kmh"),
+        "location_meta": weather_data.get("location_meta"),
+    }
+    if raw_json is None:
+        raw_json = json.dumps(extra, separators=(",", ":"), sort_keys=True)
+    elif not isinstance(raw_json, str):
+        raw_json = json.dumps(raw_json, separators=(",", ":"), sort_keys=True)
+
+    db.init_db(db_path)
+    with db.connect(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO weather_cache(location, fetched_at, temperature_c, condition, humidity, rain_chance, raw_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                clean_location,
+                fetched_at,
+                _optional_float(weather_data.get("temperature_c")),
+                weather_data.get("condition"),
+                _optional_int(weather_data.get("humidity")),
+                _optional_int(weather_data.get("rain_chance")),
+                raw_json,
+            ),
+        )
+    cached = get_cached_weather(clean_location, db_path=db_path)
+    assert cached is not None
+    return cached
+
+
+def refresh_weather(db_path: str | None = None) -> dict[str, object]:
+    cfg = load_config()
+    location = get_active_location(db_path=db_path, config=cfg)
+    if location is None:
+        return unavailable_weather(
+            "No weather location selected",
+            "No weather coordinates selected. Run: python -m jiri.cli location search \"your place\" --country BD; python -m jiri.cli location set 1",
+        )
+    return refresh_weather_for_location(location, timeout_seconds=cfg.weather.timeout_seconds, db_path=db_path)
+
+
+def get_weather(db_path: str | None = None) -> dict[str, object]:
+    cfg = load_config()
+    location = get_active_location(db_path=db_path, config=cfg)
+    if location is None:
+        return unavailable_weather("No weather location selected", "No weather coordinates selected.")
+    cached = get_cached_weather(_location_label(location), db_path=db_path)
+    if cached is not None and not _is_stale(str(cached["fetched_at"]), cfg.weather.refresh_minutes):
+        return cached
+    return refresh_weather_for_location(location, timeout_seconds=cfg.weather.timeout_seconds, db_path=db_path)
+
+
+def peek_weather(db_path: str | None = None, config: AppConfig | None = None) -> dict[str, object]:
+    cfg = config or load_config()
+    location = get_active_location(db_path=db_path, config=cfg)
+    if location is None:
+        return unavailable_weather("No weather location selected", "No weather coordinates selected.")
+    label = _location_label(location)
+    cached = get_cached_weather(label, db_path=db_path)
+    if cached is not None:
+        return cached
+    return unavailable_weather(label, "Weather not cached yet.")
+
+
+def refresh_weather_for_location(location: dict[str, object], timeout_seconds: int = 3, db_path: str | None = None) -> dict[str, object]:
+    label = _location_label(location)
+    cached = get_cached_weather(label, db_path=db_path)
+    try:
+        live = fetch_open_meteo_weather(location, timeout_seconds=timeout_seconds)
+    except (requests.RequestException, ValueError, json.JSONDecodeError, KeyError, TypeError):
+        try:
+            live = fetch_wttr_weather(location, timeout_seconds=timeout_seconds)
+        except (requests.RequestException, ValueError, json.JSONDecodeError, KeyError, TypeError):
+            if cached is not None:
+                fallback = dict(cached)
+                fallback["source"] = "cache"
+                fallback["message"] = "Weather offline. Using cached weather."
+                return fallback
+            return unavailable_weather(label, "Weather unavailable. I will try again later.")
+    save_weather_cache(label, live, db_path=db_path)
+    return live
+
+
+def test_providers(db_path: str | None = None) -> list[dict[str, object]]:
+    location = get_active_location(db_path=db_path)
+    if location is None:
+        raise ValueError("No weather coordinates selected. Run location search/set first.")
+    providers = (("Open-Meteo", fetch_open_meteo_weather), ("wttr.in", fetch_wttr_weather))
+    results = []
+    for name, func in providers:
+        start = time.perf_counter()
+        try:
+            weather = func(location, timeout_seconds=3)
+            elapsed_ms = int((time.perf_counter() - start) * 1000)
+            results.append(
+                {
+                    "provider": name,
+                    "ok": True,
+                    "response_ms": elapsed_ms,
+                    "temperature_c": weather.get("temperature_c"),
+                    "condition": weather.get("condition"),
+                    "error": "",
+                }
+            )
+        except Exception as exc:  # diagnostic command must report provider errors, not crash
+            elapsed_ms = int((time.perf_counter() - start) * 1000)
+            results.append(
+                {
+                    "provider": name,
+                    "ok": False,
+                    "response_ms": elapsed_ms,
+                    "temperature_c": None,
+                    "condition": None,
+                    "error": str(exc),
+                }
+            )
+    return results
+
+
+def unavailable_weather(location: str, message: str = "Weather unavailable.") -> dict[str, object]:
+    data = _base_weather(location, "unavailable")
+    data.update({"available": False, "message": message})
+    return data
+
+
+def format_location_result(index: int, item: dict[str, object]) -> str:
+    country_code = str(item.get("country_code") or "")
+    bd = country_code.upper() == "BD"
+    labels = (
+        ("Division" if bd else "Region/Admin1", item.get("admin1")),
+        ("District" if bd else "District/Admin2", item.get("admin2")),
+        ("Upazila/Subdistrict" if bd else "Admin3", item.get("admin3")),
+        ("Local area" if bd else "Admin4", item.get("admin4")),
+    )
+    parts = [f"{index}. {item.get('name')}"]
+    for label, value in labels:
+        if value:
+            parts.append(f"{label}: {value}")
+    parts.extend(
+        [
+            f"Country: {item.get('country') or 'unknown'} ({country_code or 'unknown'})",
+            f"Lat/Lon: {item.get('latitude')}, {item.get('longitude')}",
+            f"Timezone: {item.get('timezone') or 'unknown'}",
+        ]
+    )
+    if item.get("population") is not None:
+        parts.append(f"Population: {item.get('population')}")
+    return " | ".join(parts)
+
+
+def format_active_location(location: dict[str, object] | None) -> str:
+    if location is None:
+        return "No active weather location. Run: python -m jiri.cli location search \"your place\" --country BD"
+    lines = [
+        f"source: {location.get('source')}",
+        f"name: {location.get('name')}",
+        f"country: {location.get('country') or 'unknown'} ({location.get('country_code') or 'unknown'})",
+        f"division/region: {location.get('admin1') or 'unknown'}",
+        f"district: {location.get('admin2') or 'unknown'}",
+        f"coordinates: {location.get('latitude')}, {location.get('longitude')}",
+        f"timezone: {location.get('timezone') or 'unknown'}",
+    ]
+    return "\n".join(lines)
+
+
+def _parse_open_meteo_response(location: dict[str, object], raw: dict[str, Any]) -> dict[str, object]:
+    current = raw.get("current")
+    if not isinstance(current, dict):
+        raise ValueError("Open-Meteo response missing current weather")
+    daily = raw.get("daily") if isinstance(raw.get("daily"), dict) else {}
+    rain_chance = _first_number(daily.get("precipitation_probability_max"))
+    if rain_chance is None and isinstance(raw.get("hourly"), dict):
+        rain_chance = _first_number(raw["hourly"].get("precipitation_probability"))
+    data = _base_weather(_location_label(location), "open_meteo")
+    data.update(
+        {
+            "available": True,
+            "temperature_c": _optional_float(current.get("temperature_2m")),
+            "feels_like_c": _optional_float(current.get("apparent_temperature")),
+            "condition": WEATHER_CODE_MAP.get(_optional_int(current.get("weather_code")), "Unknown"),
+            "humidity": _optional_int(current.get("relative_humidity_2m")),
+            "rain_chance": _optional_int(rain_chance),
+            "wind_kmh": _optional_float(current.get("wind_speed_10m")),
+            "fetched_at": _now_iso(),
+            "raw_json": json.dumps(raw, separators=(",", ":"), sort_keys=True),
+            "location_meta": _location_meta(location),
+            "message": "Weather online.",
+        }
+    )
+    return data
+
+
+def _parse_wttr_response(location: dict[str, object], raw: dict[str, Any]) -> dict[str, object]:
+    current = _first(raw.get("current_condition"))
+    if not isinstance(current, dict):
+        raise ValueError("wttr response missing current_condition")
+    desc = _first(current.get("weatherDesc"))
+    condition = str(desc.get("value")) if isinstance(desc, dict) and desc.get("value") else "Unknown"
+    data = _base_weather(_location_label(location), "wttr")
+    data.update(
+        {
+            "available": True,
+            "temperature_c": _optional_float(current.get("temp_C")),
+            "feels_like_c": _optional_float(current.get("FeelsLikeC")),
+            "condition": condition,
+            "humidity": _optional_int(current.get("humidity")),
+            "rain_chance": _optional_int(_wttr_rain_chance(raw)),
+            "wind_kmh": _optional_float(current.get("windspeedKmph")),
+            "fetched_at": _now_iso(),
+            "raw_json": json.dumps(raw, separators=(",", ":"), sort_keys=True),
+            "location_meta": _location_meta(location),
+            "message": "Weather online.",
+        }
+    )
+    return data
+
+
+def _fake_open_meteo_weather(location: dict[str, object]) -> dict[str, object]:
+    data = _base_weather(_location_label(location), "open_meteo")
+    data.update(
+        {
+            "available": True,
+            "temperature_c": 31.0,
+            "feels_like_c": 35.0,
+            "condition": "Fake partly cloudy",
+            "humidity": 70,
+            "rain_chance": 20,
+            "wind_kmh": 12.0,
+            "fetched_at": _now_iso(),
+            "raw_json": json.dumps({"fake": True}, separators=(",", ":"), sort_keys=True),
+            "location_meta": _location_meta(location),
+            "message": "Weather online.",
+        }
+    )
+    return data
+
+
+def _normalize_location_result(item: dict[str, Any]) -> dict[str, object]:
+    return {
+        "id": item.get("id"),
+        "name": str(item.get("name") or "Unknown"),
+        "latitude": _required_float(item.get("latitude"), "latitude"),
+        "longitude": _required_float(item.get("longitude"), "longitude"),
+        "timezone": str(item.get("timezone") or ""),
+        "country": str(item.get("country") or ""),
+        "country_code": str(item.get("country_code") or ""),
+        "admin1": str(item.get("admin1") or ""),
+        "admin2": str(item.get("admin2") or ""),
+        "admin3": str(item.get("admin3") or ""),
+        "admin4": str(item.get("admin4") or ""),
+        "population": item.get("population"),
+    }
+
+
+def _settings_location(db_path: str | None = None) -> dict[str, object]:
+    return {
+        "name": db.get_setting("weather.location_name", db_path=db_path) or "Selected location",
+        "latitude": _required_float(db.get_setting("weather.latitude", db_path=db_path), "latitude"),
+        "longitude": _required_float(db.get_setting("weather.longitude", db_path=db_path), "longitude"),
+        "timezone": db.get_setting("weather.timezone", db_path=db_path) or "",
+        "country": db.get_setting("weather.country", db_path=db_path) or "",
+        "country_code": db.get_setting("weather.country_code", db_path=db_path) or "",
+        "admin1": db.get_setting("weather.admin1", db_path=db_path) or "",
+        "admin2": db.get_setting("weather.admin2", db_path=db_path) or "",
+        "admin3": db.get_setting("weather.admin3", db_path=db_path) or "",
+        "admin4": db.get_setting("weather.admin4", db_path=db_path) or "",
+    }
+
+
+def _base_weather(location: str, source: str) -> dict[str, object]:
+    return {
+        "available": True,
+        "source": source,
+        "location": location,
+        "temperature_c": None,
+        "feels_like_c": None,
+        "condition": "Unavailable",
+        "humidity": None,
+        "rain_chance": None,
+        "wind_kmh": None,
+        "fetched_at": None,
+        "raw_json": None,
+        "location_meta": None,
+        "message": "Weather online.",
+    }
+
+
+def _location_meta(location: dict[str, object]) -> dict[str, object]:
+    return {
+        "name": location.get("name") or location.get("location_name") or "Selected location",
+        "latitude": location.get("latitude"),
+        "longitude": location.get("longitude"),
+        "timezone": location.get("timezone") or "",
+        "country": location.get("country") or "",
+        "country_code": location.get("country_code") or "",
+        "admin1": location.get("admin1") or "",
+        "admin2": location.get("admin2") or "",
+        "admin3": location.get("admin3") or "",
+        "admin4": location.get("admin4") or "",
+    }
+
+
+def _location_label(location: dict[str, object]) -> str:
+    name = str(location.get("name") or location.get("location_name") or "Selected location")
+    country = str(location.get("country") or "")
+    if country and country.lower() not in name.lower():
+        return f"{name}, {country}"
+    return name
+
+
+def location_label(location: dict[str, object]) -> str:
+    return _location_label(location)
+
+
+def _validate_coordinates(latitude: float, longitude: float) -> None:
+    if not -90 <= latitude <= 90:
+        raise ValueError("Latitude must be between -90 and 90")
+    if not -180 <= longitude <= 180:
+        raise ValueError("Longitude must be between -180 and 180")
+
+
+def _safe_timeout(timeout_seconds: int) -> int:
+    if timeout_seconds > 3:
+        return 3
+    if timeout_seconds <= 0:
+        return 1
+    return timeout_seconds
+
+
+def _is_stale(fetched_at: str, max_age_minutes: int) -> bool:
+    if max_age_minutes <= 0:
+        return True
+    try:
+        fetched = datetime.fromisoformat(fetched_at)
+    except ValueError:
+        return True
+    return datetime.now() - fetched >= timedelta(minutes=max_age_minutes)
+
+
+def _wttr_rain_chance(raw: dict[str, Any]) -> object | None:
+    weather = _first(raw.get("weather"))
+    if not isinstance(weather, dict):
+        return None
+    hourly = _first(weather.get("hourly"))
+    if not isinstance(hourly, dict):
+        return None
+    return hourly.get("chanceofrain")
+
+
+def _first(value: object) -> object | None:
+    if isinstance(value, list) and value:
+        return value[0]
+    return None
+
+
+def _first_number(value: object) -> object | None:
+    first = _first(value)
+    return first if first is not None else value
+
+
+def _required_float(value: object, name: str) -> float:
+    parsed = _optional_float(value)
+    if parsed is None:
+        raise ValueError(f"Weather {name} is required")
+    return parsed
+
+
+def _optional_float(value: object) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_int(value: object) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _now_iso() -> str:
+    return datetime.now().replace(microsecond=0).isoformat()

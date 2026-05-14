@@ -11,7 +11,9 @@
 - Weather fetch timeout: max 3 seconds.
 - Worker Pi HTTP timeout: max 1 second.
 - Web API response target: under 500ms locally.
+- Telegram command response target: under 2 seconds.
 - Startup target: under 30 seconds after login.
 - Full boot-to-ready target with systemd: under 90 seconds.
 - Database file target for v1: under 50MB.
 - Logs must be rotated or limited.
+- AI requests must be background only and must not block display refresh.

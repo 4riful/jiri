@@ -9,4 +9,11 @@ Target hardware:
 - Phone/laptop control via web dashboard and SSH.
 - No USB microphone or speaker required for v1.
 
-Unknown display details must be confirmed on real hardware before final UI work.
+Unknown display details that still need confirmation:
+
+- Exact screen resolution and rotation.
+- Touch controller model and event mapping.
+- Whether framebuffer or desktop mode is required.
+- Real refresh rate and readability at the chosen font sizes.
+
+Do not finish display work until these are confirmed on real hardware.

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="stacked-dashboard">
+    <article class="card">
+      <h2>Current Weather</h2>
+      <div class="stat-grid weather-grid">
+        <div><strong>{{ snapshot.weather.location }}</strong><span>Location</span></div>
+        <div><strong>{{ snapshot.weather.condition }}</strong><span>Condition</span></div>
+        <div><strong>{{ snapshot.weather.temperature_c ~ 'C' if snapshot.weather.temperature_c is not none else 'unknown' }}</strong><span>Temperature</span></div>
+        <div><strong>{{ snapshot.weather.rain_chance if snapshot.weather.rain_chance is not none else 'unknown' }}%</strong><span>Rain chance</span></div>
+      </div>
+      <p>{{ snapshot.weather.message }}</p>
+      <div class="inline-actions">
+        <form method="post" action="{{ url_for('weather_refresh') }}"><button class="button" type="submit">Refresh weather</button></form>
+        <form method="post" action="{{ url_for('weather_providers') }}"><button class="button button-soft" type="submit">Test providers</button></form>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2>Active Location</h2>
+      {% if snapshot.active_location %}
+        <dl class="details stacked">
+          <div><dt>Name</dt><dd>{{ snapshot.active_location.name }}</dd></div>
+          <div><dt>Country</dt><dd>{{ snapshot.active_location.country or 'unknown' }} ({{ snapshot.active_location.country_code or 'unknown' }})</dd></div>
+          <div><dt>Region</dt><dd>{{ snapshot.active_location.admin1 or 'unknown' }}</dd></div>
+          <div><dt>District</dt><dd>{{ snapshot.active_location.admin2 or 'unknown' }}</dd></div>
+          <div><dt>Coordinates</dt><dd>{{ snapshot.active_location.latitude }}, {{ snapshot.active_location.longitude }}</dd></div>
+        </dl>
+      {% else %}
+        <p>No active weather location yet.</p>
+      {% endif %}
+    </article>
+
+    <article class="card">
+      <h2>Search Location</h2>
+      <form class="stack-form" method="post" action="{{ url_for('weather_search') }}">
+        <label>
+          Query
+          <input name="query" required placeholder="Panchagarh">
+        </label>
+        <label>
+          Country filter
+          <input name="country" placeholder="BD">
+        </label>
+        <button class="button" type="submit">Search</button>
+      </form>
+      {% if search_results %}
+        <div class="search-results">
+          {% for result in search_results %}
+            <article class="search-card">
+              <div>
+                <strong>{{ loop.index }}. {{ result.name }}</strong>
+                <p>{{ result.country or 'unknown' }} ({{ result.country_code or 'unknown' }}) · {{ result.latitude }}, {{ result.longitude }}</p>
+                <p>{{ result.admin1 or 'unknown' }} / {{ result.admin2 or 'unknown' }} / {{ result.admin3 or 'unknown' }}</p>
+              </div>
+              <form method="post" action="{{ url_for('weather_select') }}">
+                <input type="hidden" name="index" value="{{ loop.index }}">
+                <button class="button button-soft" type="submit">Select</button>
+              </form>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </article>
+
+    <article class="card">
+      <h2>Set Coordinates Directly</h2>
+      <form class="stack-form" method="post" action="{{ url_for('weather_set_coords') }}">
+        <label>
+          Label
+          <input name="name" required placeholder="Home">
+        </label>
+        <label>
+          Latitude
+          <input name="lat" required type="number" step="0.0001" placeholder="26.1167">
+        </label>
+        <label>
+          Longitude
+          <input name="lon" required type="number" step="0.0001" placeholder="88.85">
+        </label>
+        <button class="button" type="submit">Save coordinates</button>
+      </form>
+    </article>
+
+    {% if provider_results %}
+      <article class="card">
+        <h2>Provider Diagnostics</h2>
+        <ul class="compact-list">
+          {% for result in provider_results %}
+            <li>
+              <strong>{{ result.provider }}</strong>
+              <span>{{ 'OK' if result.ok else 'FAILED' }} · {{ result.response_ms }}ms{% if result.ok %} · {{ result.condition }} · {{ result.temperature_c }}C{% else %} · {{ result.error }}{% endif %}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </article>
+    {% endif %}
+  </section>
+{% endblock %}

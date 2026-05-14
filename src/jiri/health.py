@@ -13,14 +13,16 @@ def health_snapshot(db_path: str | None = None, config: AppConfig | None = None)
     path = db_path or cfg.database.path
     db.init_db(path)
     overdue = todos.get_overdue_todos(datetime.now(), db_path=path)
-    weather_snapshot = weather.get_weather(db_path=path)
+    weather_snapshot = weather.peek_weather(db_path=path, config=cfg)
+    weather_available = bool(weather_snapshot.get("available"))
+    weather_source = str(weather_snapshot.get("source", "unavailable"))
     return {
         "app_version": __version__,
         "database_path": path,
         "database_writable": _is_writable(path),
         "todos_count": len(todos.list_todos(include_done=True, db_path=path)),
         "overdue_count": len(overdue),
-        "weather_cache_status": "unavailable" if weather_snapshot.unavailable else "available",
+        "weather_cache_status": weather_source if weather_available else "unavailable",
         "display": {
             "driver": cfg.display.driver,
             "width": cfg.display.width,

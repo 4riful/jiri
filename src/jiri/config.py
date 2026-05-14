@@ -30,8 +30,10 @@ class AssistantConfig:
 
 @dataclass(frozen=True)
 class WeatherConfig:
-    provider: str = "wttr"
-    location: str = "Dhaka"
+    provider: str = "open_meteo"
+    location: str = "auto"
+    latitude: float | None = None
+    longitude: float | None = None
     refresh_minutes: int = 30
     timeout_seconds: int = 3
     fake: bool = False
@@ -134,6 +136,8 @@ def _apply_env(cfg: AppConfig) -> AppConfig:
         display = replace(display, height=_parse_int(os.environ["JIRI_HEIGHT"], "JIRI_HEIGHT"))
     if "JIRI_DB_PATH" in os.environ:
         database = replace(database, path=os.environ["JIRI_DB_PATH"])
+    if "JIRI_WEATHER_LOCATION" in os.environ:
+        weather = replace(weather, location=os.environ["JIRI_WEATHER_LOCATION"])
     if "JIRI_WEATHER_FAKE" in os.environ:
         weather = replace(weather, fake=_parse_bool(os.environ["JIRI_WEATHER_FAKE"], "JIRI_WEATHER_FAKE"))
 
@@ -165,6 +169,14 @@ def _validate(cfg: AppConfig) -> None:
         raise ConfigError("Weather timeout must not exceed 3 seconds")
     if cfg.weather.refresh_minutes < 1:
         raise ConfigError("Weather refresh interval must be at least 1 minute")
+    if not cfg.weather.location.strip():
+        raise ConfigError("Weather location cannot be empty")
+    if (cfg.weather.latitude is None) != (cfg.weather.longitude is None):
+        raise ConfigError("Weather latitude and longitude must be configured together")
+    if cfg.weather.latitude is not None and not -90 <= cfg.weather.latitude <= 90:
+        raise ConfigError("Weather latitude must be between -90 and 90")
+    if cfg.weather.longitude is not None and not -180 <= cfg.weather.longitude <= 180:
+        raise ConfigError("Weather longitude must be between -180 and 180")
     if cfg.worker.timeout_seconds > 1:
         raise ConfigError("Worker timeout must not exceed 1 second")
     if cfg.web.port <= 0 or cfg.web.port > 65535:

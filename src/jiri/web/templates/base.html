@@ -3,9 +3,39 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>JIRI</title>
+  <title>{{ title or app_name or "JIRI" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block head %}{% endblock %}
 </head>
-<body>
-  {% block content %}{% endblock %}
+<body class="{{ body_class|default('') }}">
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="brand">{{ app_name }}</div>
+        <div class="tagline">Browser-driven Pi workspace</div>
+      </div>
+      <nav class="nav">
+        <a href="{{ url_for('screen') }}">Screen</a>
+        <a href="{{ url_for('admin') }}">Admin</a>
+        <a href="{{ url_for('todos_view') }}">Todos</a>
+        <a href="{{ url_for('notes_view') }}">Notes</a>
+        <a href="{{ url_for('weather_view') }}">Weather</a>
+      </nav>
+    </header>
+
+    {% if notice %}
+      <div class="banner banner-notice">{{ notice }}</div>
+    {% endif %}
+    {% if error %}
+      <div class="banner banner-error">{{ error }}</div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+
+    <footer class="footer">
+      <span>JIRI {{ app_version }}</span>
+      <span>WSL testbed, Pi-first constraints</span>
+    </footer>
+  </div>
 </body>
 </html>

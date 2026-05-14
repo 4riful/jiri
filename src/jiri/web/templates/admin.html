@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="dashboard-grid">
+    <article class="card">
+      <h2>Control Center</h2>
+      <p>Current screen mode: <strong>{{ snapshot.screen.panel_title }}</strong></p>
+      <p>{{ snapshot.screen.headline }}</p>
+      <div class="inline-actions">
+        <a class="button" href="{{ url_for('screen') }}">Open Screen</a>
+        <a class="button" href="{{ url_for('todos_view') }}">Manage Todos</a>
+        <a class="button" href="{{ url_for('notes_view') }}">Manage Notes</a>
+        <a class="button" href="{{ url_for('weather_view') }}">Weather</a>
+      </div>
+    </article>
+
+    <article class="card">
+      <h2>System Health</h2>
+      <dl class="details stacked">
+        <div><dt>Database</dt><dd>{{ snapshot.health.database_path }}</dd></div>
+        <div><dt>Writable</dt><dd>{{ 'yes' if snapshot.health.database_writable else 'no' }}</dd></div>
+        <div><dt>Todos</dt><dd>{{ snapshot.health.todos_count }}</dd></div>
+        <div><dt>Overdue</dt><dd>{{ snapshot.health.overdue_count }}</dd></div>
+        <div><dt>Weather</dt><dd>{{ snapshot.health.weather_cache_status }}</dd></div>
+        <div><dt>RAM</dt><dd>{{ snapshot.health.free_ram_mb if snapshot.health.free_ram_mb is not none else 'unknown' }}</dd></div>
+        <div><dt>CPU</dt><dd>{{ snapshot.health.cpu_temperature_c ~ 'C' if snapshot.health.cpu_temperature_c is not none else 'unknown' }}</dd></div>
+      </dl>
+    </article>
+
+    <article class="card">
+      <h2>Weather Snapshot</h2>
+      <p><strong>{{ snapshot.weather.location }}</strong></p>
+      <p>{{ snapshot.weather.condition }}</p>
+      <p>{{ snapshot.weather.temperature_c ~ 'C' if snapshot.weather.temperature_c is not none else 'unknown' }}, feels like {{ snapshot.weather.feels_like_c ~ 'C' if snapshot.weather.feels_like_c is not none else 'unknown' }}</p>
+      <p>Source: {{ snapshot.weather.source }}</p>
+    </article>
+
+    <article class="card">
+      <h2>Counts</h2>
+      <div class="stat-grid">
+        <div><strong>{{ snapshot.screen.pending_count }}</strong><span>Open todos</span></div>
+        <div><strong>{{ snapshot.screen.overdue_count }}</strong><span>Overdue</span></div>
+        <div><strong>{{ snapshot.notes|length }}</strong><span>Notes</span></div>
+        <div><strong>{{ snapshot.todos|length }}</strong><span>Total todos</span></div>
+      </div>
+    </article>
+  </section>
+{% endblock %}

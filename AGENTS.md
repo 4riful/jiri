@@ -2,7 +2,9 @@
 
 These rules are mandatory for future Codex sessions working on JIRI.
 
+- `docs/ENGINEERING_HANDBOOK.md` is the source-of-truth design and gate document.
 - Target hardware is Raspberry Pi 3B/3B+.
+- Final architecture uses `jiri-main` on Raspberry Pi 3B+ and `jiri-ai` on Raspberry Pi 3B.
 - Development happens in WSL, but production is Raspberry Pi OS.
 - Do not optimize for desktop-class WSL hardware.
 - Do not add heavy dependencies.
@@ -13,8 +15,9 @@ These rules are mandatory for future Codex sessions working on JIRI.
 - Keep all network requests out of the UI draw loop.
 - Use timeouts for every network request.
 - Keep offline fallback behavior.
-- Do not add an LLM until the deterministic non-AI assistant works and passes the 24-hour stability gate.
-- If an LLM is added later, it may only rewrite reminder messages and must never manage state, todos, reminders, due dates, database writes, weather cache, or system state.
+- Gemma 3 270M Q4_K_M is selected for benchmark only, not accepted until measured on real Pi 3B.
+- Do not add AI integration until the deterministic main app and AI benchmark gates pass.
+- If AI is added later, it may only rewrite/summarize from Python-supplied facts and must never manage state, todos, reminders, due dates, focus timers, database writes, weather facts, weather cache, system state, shell commands, or systemd.
 - Do not assume the display works in WSL.
 - Every stage must have tests or smoke checks.
 - If hardware behavior is unknown, create a Pi confirmation checklist instead of guessing.
@@ -24,3 +27,6 @@ These rules are mandatory for future Codex sessions working on JIRI.
 - Keep target UI FPS at 10 to 15 FPS.
 - Load fonts and reusable UI resources once.
 - Back up SQLite before schema changes once real data exists.
+- Keep the display as a living face and glance panel, not the admin dashboard.
+- Keep the web dashboard separate from the 3.5-inch display.
+- Telegram is later-stage admin control; use polling first and whitelist users.

@@ -10,6 +10,8 @@ def test_load_defaults_when_config_missing(tmp_path, monkeypatch):
     cfg = load_config()
     assert cfg.display.width == 480
     assert cfg.display.height == 320
+    assert cfg.weather.provider == "open_meteo"
+    assert cfg.weather.location == "auto"
     assert cfg.weather.timeout_seconds == 3
     assert cfg.worker.timeout_seconds == 1
 
@@ -21,11 +23,13 @@ def test_env_overrides_for_wsl(tmp_path, monkeypatch):
     monkeypatch.setenv("JIRI_WIDTH", "480")
     monkeypatch.setenv("JIRI_HEIGHT", "320")
     monkeypatch.setenv("JIRI_DB_PATH", "data/jiri_dev.db")
+    monkeypatch.setenv("JIRI_WEATHER_LOCATION", "Narayanganj")
     monkeypatch.setenv("JIRI_WEATHER_FAKE", "true")
     cfg = load_config()
     assert cfg.display.driver == "mock"
     assert cfg.display.fullscreen is False
     assert cfg.database.path == "data/jiri_dev.db"
+    assert cfg.weather.location == "Narayanganj"
     assert cfg.weather.fake is True
 
 
@@ -33,4 +37,11 @@ def test_invalid_weather_timeout_rejected(tmp_path):
     cfg_path = tmp_path / "config.toml"
     cfg_path.write_text("[weather]\ntimeout_seconds = 5\n", encoding="utf-8")
     with pytest.raises(ConfigError, match="Weather timeout"):
+        load_config(cfg_path)
+
+
+def test_invalid_weather_coordinates_rejected(tmp_path):
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text("[weather]\nlatitude = 91\nlongitude = 88.85\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="latitude"):
         load_config(cfg_path)
