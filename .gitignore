@@ -8,6 +8,7 @@ data/*.db
 data/*.db-*
 backups/*.db
 *.log
+*:Zone.Identifier
 .env
 config.toml
 dist/
