@@ -317,18 +317,24 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
     def weather_select():
         try:
             selected = runtime.select_location(_int_form(request.form.get("index"), default=1))
-            return redirect(url_for("weather_view", notice=f"Selected {selected.get('name')}."))
+            runtime.refresh_weather_for_location(selected)
+            return redirect(url_for("weather_view", notice=f"Selected {selected.get('name')} and refreshed weather."))
         except (ValueError, RuntimeError) as exc:
             return redirect(url_for("weather_view", error=str(exc)))
+        except Exception as exc:
+            return redirect(url_for("weather_view", error=f"Location selected, but weather refresh failed: {exc}"))
 
     @app.post("/admin/weather/recent")
     @admin_required
     def weather_select_recent():
         try:
             selected = runtime.select_recent_location(_int_form(request.form.get("index"), default=1))
-            return redirect(url_for("weather_view", notice=f"Selected {selected.get('name')}."))
+            runtime.refresh_weather_for_location(selected)
+            return redirect(url_for("weather_view", notice=f"Selected {selected.get('name')} and refreshed weather."))
         except (ValueError, RuntimeError) as exc:
             return redirect(url_for("weather_view", error=str(exc)))
+        except Exception as exc:
+            return redirect(url_for("weather_view", error=f"Location selected, but weather refresh failed: {exc}"))
 
     @app.post("/admin/weather/set-coords")
     @admin_required
@@ -339,9 +345,12 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
                 float(request.form.get("lat", "0")),
                 float(request.form.get("lon", "0")),
             )
-            return redirect(url_for("weather_view", notice=f"Selected coordinates for {selected.get('name')}."))
+            runtime.refresh_weather_for_location(selected)
+            return redirect(url_for("weather_view", notice=f"Selected coordinates for {selected.get('name')} and refreshed weather."))
         except (ValueError, RuntimeError) as exc:
             return redirect(url_for("weather_view", error=str(exc)))
+        except Exception as exc:
+            return redirect(url_for("weather_view", error=f"Coordinates saved, but weather refresh failed: {exc}"))
 
     @app.post("/admin/weather/refresh")
     @admin_required
