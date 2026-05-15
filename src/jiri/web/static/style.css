@@ -288,6 +288,8 @@ code { color: var(--bright-yellow); }
   color: var(--bright-black);
   font-size: 1rem;
 }
+
+.stat-water .stat-big { color: var(--bright-blue); }
 .stat-card p {
   margin: 0;
   color: var(--bright-black);
@@ -578,6 +580,19 @@ code { color: var(--bright-yellow); }
   margin: 8px 0 10px;
   color: var(--bright-black);
   font-size: 0.85rem;
+}
+
+.water-meter {
+  height: 18px;
+  border: 1px solid var(--selection);
+  background: var(--background);
+  margin: 10px 0 12px;
+}
+
+.water-fill {
+  height: 100%;
+  max-width: 100%;
+  background: var(--bright-blue);
 }
 
 /* ── card head flex ─────────────────────────────────────────── */

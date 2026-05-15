@@ -292,6 +292,53 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
             error=request.args.get("error", ""),
         )
 
+    @app.get("/admin/water")
+    @admin_required
+    def water_view():
+        snapshot = runtime.dashboard_snapshot(panel="system")
+        return render_template(
+            "water.html",
+            snapshot=snapshot,
+            notice=request.args.get("notice", ""),
+            error=request.args.get("error", ""),
+        )
+
+    @app.post("/admin/water/add")
+    @admin_required
+    def water_add():
+        try:
+            snapshot = runtime.add_water(_int_form(request.form.get("amount_ml"), default=250))
+            return redirect(url_for("water_view", notice=f"Added water. {snapshot['progress_ml']}ml / {snapshot['goal_ml']}ml."))
+        except (ValueError, RuntimeError) as exc:
+            return redirect(url_for("water_view", error=str(exc)))
+
+    @app.post("/admin/water/goal")
+    @admin_required
+    def water_goal():
+        try:
+            snapshot = runtime.set_water_goal(_int_form(request.form.get("goal_ml"), default=2150))
+            return redirect(url_for("water_view", notice=f"Water goal set to {snapshot['goal_ml']}ml."))
+        except (ValueError, RuntimeError) as exc:
+            return redirect(url_for("water_view", error=str(exc)))
+
+    @app.post("/admin/water/age")
+    @admin_required
+    def water_age():
+        try:
+            snapshot = runtime.set_water_goal_by_profile(
+                _int_form(request.form.get("age"), default=18),
+                request.form.get("sex", "female"),
+            )
+            return redirect(url_for("water_view", notice=f"Profile water goal set to {snapshot['goal_ml']}ml."))
+        except (ValueError, RuntimeError) as exc:
+            return redirect(url_for("water_view", error=str(exc)))
+
+    @app.post("/admin/water/reset")
+    @admin_required
+    def water_reset():
+        runtime.reset_water()
+        return redirect(url_for("water_view", notice="Water progress reset."))
+
     @app.post("/admin/weather/search")
     @admin_required
     def weather_search():

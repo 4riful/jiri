@@ -1,4 +1,4 @@
-{% from "macros/icons.html" import icon_screen, icon_dashboard, icon_todos, icon_notes, icon_weather, icon_focus, icon_ai, icon_logout %}
+{% from "macros/icons.html" import icon_screen, icon_dashboard, icon_todos, icon_notes, icon_weather, icon_focus, icon_ai, icon_logout, icon_droplet %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -27,6 +27,7 @@
           <a href="{{ url_for('todos_view') }}">{{ icon_todos(14) }} Todos</a>
           <a href="{{ url_for('notes_view') }}">{{ icon_notes(14) }} Notes</a>
           <a href="{{ url_for('weather_view') }}">{{ icon_weather(14) }} Weather</a>
+          <a href="{{ url_for('water_view') }}">{{ icon_droplet(14) }} Water</a>
           <a href="{{ url_for('focus_view') }}">{{ icon_focus(14) }} Focus</a>
           <a href="{{ url_for('llama_view') }}">{{ icon_ai(14) }} AI</a>
           {% if admin_authenticated %}

@@ -237,6 +237,55 @@ def test_both_providers_fail_then_cache_fallback(monkeypatch, tmp_path):
     assert result["condition"] == "Cached clouds"
 
 
+def test_auto_update_uses_fresh_cache_without_network(monkeypatch, tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    loc = weather.set_coordinates("Home", 26.1167, 88.85, db_path=db_path)
+    weather.save_weather_cache("Home", stable_weather("Home", condition="Fresh cache"), db_path=db_path)
+
+    def fail_refresh(*args, **kwargs):
+        raise AssertionError("fresh cache must not refresh")
+
+    monkeypatch.setattr(weather, "refresh_weather_for_location", fail_refresh)
+    result = weather.auto_update_weather(db_path=db_path, config=AppConfig(weather=WeatherConfig(refresh_minutes=30)))
+
+    assert loc["name"] == "Home"
+    assert result["condition"] == "Fresh cache"
+
+
+def test_auto_update_refreshes_stale_cache(monkeypatch, tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    weather.set_coordinates("Home", 26.1167, 88.85, db_path=db_path)
+    stale = stable_weather("Home", condition="Old cache")
+    stale["fetched_at"] = "2026-01-01T00:00:00"
+    weather.save_weather_cache("Home", stale, db_path=db_path)
+
+    def fake_refresh(location, timeout_seconds=3, db_path=None):
+        return stable_weather("Home", condition="Fresh live")
+
+    monkeypatch.setattr(weather, "refresh_weather_for_location", fake_refresh)
+    result = weather.auto_update_weather(db_path=db_path, config=AppConfig(weather=WeatherConfig(refresh_minutes=1)))
+
+    assert result["condition"] == "Fresh live"
+
+
+def test_auto_update_failure_cooldown_uses_cache(monkeypatch, tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    weather.set_coordinates("Home", 26.1167, 88.85, db_path=db_path)
+    stale = stable_weather("Home", condition="Old cache")
+    stale["fetched_at"] = "2026-01-01T00:00:00"
+    weather.save_weather_cache("Home", stale, db_path=db_path)
+    db.set_setting(weather.AUTO_REFRESH_FAILURE_KEY, weather._now_iso(), db_path=db_path)
+
+    def fail_refresh(*args, **kwargs):
+        raise AssertionError("cooldown must prevent refresh")
+
+    monkeypatch.setattr(weather, "refresh_weather_for_location", fail_refresh)
+    result = weather.auto_update_weather(db_path=db_path, config=AppConfig(weather=WeatherConfig(refresh_minutes=1)))
+
+    assert result["condition"] == "Old cache"
+    assert result["message"] == "Weather refresh recently failed. Using cached weather."
+
+
 def test_all_providers_fail_and_no_cache_returns_unavailable(monkeypatch, tmp_path):
     db_path = str(tmp_path / "jiri.db")
     loc = weather.set_coordinates("Home", 26.1167, 88.85, db_path=db_path)

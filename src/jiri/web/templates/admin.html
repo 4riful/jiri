@@ -1,4 +1,4 @@
-{% from "macros/icons.html" import icon_todos, icon_notes, icon_weather, icon_focus, icon_system, icon_ai, icon_chevron_down, icon_chevron_up, icon_thermometer, icon_cloud_rain, icon_wind, icon_memory, icon_cpu, icon_globe, icon_monitor, icon_database, icon_check, icon_cloud, icon_gear, icon_tag, icon_link, icon_play, icon_stop %}
+{% from "macros/icons.html" import icon_todos, icon_notes, icon_weather, icon_focus, icon_system, icon_ai, icon_chevron_down, icon_chevron_up, icon_thermometer, icon_cloud_rain, icon_wind, icon_memory, icon_cpu, icon_globe, icon_monitor, icon_database, icon_check, icon_cloud, icon_gear, icon_tag, icon_link, icon_play, icon_stop, icon_droplet %}
 {% extends "base.html" %}
 
 {% block content %}
@@ -43,6 +43,15 @@
     </div>
     <strong class="stat-big">{{ snapshot.notes|length }}</strong>
     <p>{{ (snapshot.notes[0].title or '')[:30] if snapshot.notes else 'Empty' }}</p>
+  </article>
+
+  <article class="stat-card stat-water">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_droplet(14) }} Water</span>
+      <span class="stat-head-badge {{ 'badge-green' if snapshot.water.complete else 'badge-dim' }}">{{ snapshot.water.percent }}%</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.water.progress_ml }}ml</strong>
+    <p>{{ snapshot.water.remaining_ml }}ml left · goal {{ snapshot.water.goal_ml }}ml</p>
   </article>
 </section>
 

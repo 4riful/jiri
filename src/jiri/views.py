@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from . import focus, health, messages, mood, notes, todos, weather
+from . import focus, health, messages, mood, notes, todos, weather, water
 from .config import AppConfig, load_config
 from .models import Note, Todo
 
@@ -56,6 +56,7 @@ class DashboardSnapshot:
     weather: dict[str, object]
     focus: dict[str, object]
     llama: dict[str, object]
+    water: dict[str, object]
     search_results: tuple[dict[str, object], ...] = ()
     provider_results: tuple[dict[str, object], ...] = ()
     notice: str = ""
@@ -71,7 +72,7 @@ def build_screen_snapshot(
     cfg = config or load_config()
     current = now or datetime.now()
     active_location = weather.get_active_location(db_path=db_path, config=cfg)
-    weather_state = weather.peek_weather(db_path=db_path, config=cfg)
+    weather_state = weather.auto_update_weather(db_path=db_path, config=cfg)
     focus_state = focus.active_snapshot(db_path=db_path, now=current)
     pending_todos = tuple(todos.list_todos(include_done=False, db_path=db_path))
     all_notes = tuple(notes.list_notes(db_path=db_path))
@@ -127,6 +128,7 @@ def build_dashboard_snapshot(
     recent_locations = tuple(weather.get_recent_locations(db_path=db_path))
     weather_state = screen.weather
     focus_state = screen.focus
+    water_state = water.water_snapshot(db_path=db_path, now=current)
     stored_results = tuple(search_results or [])
     provider_rows = tuple(provider_results or [])
 
@@ -147,6 +149,7 @@ def build_dashboard_snapshot(
         weather=weather_state,
         focus=focus_state,
         llama=health_snapshot.get("llama", {"running": False}),
+        water=water_state,
         search_results=stored_results,
         provider_results=provider_rows,
         notice=notice,

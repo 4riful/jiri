@@ -1,0 +1,59 @@
+{% from "macros/icons.html" import icon_droplet, icon_refresh %}
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="stacked-dashboard">
+    <article class="card water-card">
+      <h2 class="section-title"><span class="section-icon">{{ icon_droplet(16) }}</span>Water Reminder</h2>
+      <div class="water-meter" aria-label="Water progress">
+        <div class="water-fill" style="width: {{ snapshot.water.percent }}%"></div>
+      </div>
+      <div class="stat-grid compact-stats">
+        <div><strong>{{ snapshot.water.progress_ml }}ml</strong><span>Drunk today</span></div>
+        <div><strong>{{ snapshot.water.remaining_ml }}ml</strong><span>Remaining</span></div>
+        <div><strong>{{ snapshot.water.goal_ml }}ml</strong><span>Daily goal</span></div>
+      </div>
+      <p class="card-sub">{{ snapshot.water.message }} Progress resets automatically every new day.</p>
+      <p class="card-sub">Default targets use National Academies total-water adequate intakes by age/sex, reduced to a practical drink/fluid reminder target because food contributes water too.</p>
+    </article>
+
+    <section class="dashboard-grid">
+      <article class="card">
+        <h2>Quick Add</h2>
+        <div class="inline-actions">
+          {% for amount in (150, 250, 350, 500) %}
+            <form method="post" action="{{ url_for('water_add') }}">
+              <input type="hidden" name="amount_ml" value="{{ amount }}">
+              <button class="button" type="submit">+{{ amount }}ml</button>
+            </form>
+          {% endfor %}
+        </div>
+        <form class="stack-form compact-form" method="post" action="{{ url_for('water_add') }}">
+          <label>Custom amount<input name="amount_ml" type="number" min="1" max="2000" value="250"></label>
+          <button class="button button-soft" type="submit">Add custom</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <h2>Goal Settings</h2>
+        <form class="stack-form" method="post" action="{{ url_for('water_age') }}">
+          <label>Age<input name="age" type="number" min="1" max="120" value="{{ snapshot.water.age or 18 }}"></label>
+          <label>Sex
+            <select name="sex">
+              <option value="female" {% if snapshot.water.sex == "female" %}selected{% endif %}>Female</option>
+              <option value="male" {% if snapshot.water.sex == "male" %}selected{% endif %}>Male</option>
+            </select>
+          </label>
+          <button class="button" type="submit">Use profile-based goal</button>
+        </form>
+        <form class="stack-form compact-form" method="post" action="{{ url_for('water_goal') }}">
+          <label>Manual goal (ml)<input name="goal_ml" type="number" min="250" max="6000" value="{{ snapshot.water.goal_ml }}"></label>
+          <button class="button button-soft" type="submit">Set manual goal</button>
+        </form>
+        <form class="compact-form" method="post" action="{{ url_for('water_reset') }}">
+          <button class="button button-danger" type="submit">{{ icon_refresh(14) }} Reset today</button>
+        </form>
+      </article>
+    </section>
+  </section>
+{% endblock %}

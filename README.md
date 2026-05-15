@@ -94,6 +94,25 @@ Default local route:
 http://127.0.0.1:5001/screen
 ```
 
+Run both web surfaces together:
+
+```bash
+scripts/run_all.sh
+```
+
+Defaults:
+
+```text
+admin  -> http://127.0.0.1:5000/admin
+screen -> http://127.0.0.1:5001/screen
+```
+
+Override ports when needed:
+
+```bash
+JIRI_ADMIN_PORT=5100 JIRI_SCREEN_PORT=5101 scripts/run_all.sh
+```
+
 This separation is intentional. A phone/laptop admin dashboard and a 3.5-inch Pi display are not the same product surface.
 
 ## Data Method

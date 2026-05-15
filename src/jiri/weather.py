@@ -30,6 +30,8 @@ LOCATION_SETTING_KEYS = (
 
 RECENT_LOCATIONS_KEY = "weather.recent_locations_json"
 RECENT_LOCATION_LIMIT = 8
+AUTO_REFRESH_FAILURE_KEY = "weather.auto_refresh_failed_at"
+AUTO_REFRESH_RETRY_MINUTES = 5
 
 WEATHER_CODE_MAP = {
     0: "Clear sky",
@@ -396,6 +398,33 @@ def peek_weather(db_path: str | None = None, config: AppConfig | None = None) ->
     if cached is not None:
         return cached
     return unavailable_weather(label, "Weather not cached yet.")
+
+
+def auto_update_weather(db_path: str | None = None, config: AppConfig | None = None) -> dict[str, object]:
+    cfg = config or load_config()
+    location = get_active_location(db_path=db_path, config=cfg)
+    if location is None:
+        return unavailable_weather("No weather location selected", "No weather coordinates selected.")
+
+    label = _location_label(location)
+    cached = get_cached_weather(label, db_path=db_path)
+    if cached is not None and not _is_stale(str(cached["fetched_at"]), cfg.weather.refresh_minutes):
+        return cached
+
+    failed_at = db.get_setting(AUTO_REFRESH_FAILURE_KEY, db_path=db_path)
+    if failed_at and not _is_stale(failed_at, AUTO_REFRESH_RETRY_MINUTES):
+        if cached is not None:
+            fallback = dict(cached)
+            fallback["message"] = "Weather refresh recently failed. Using cached weather."
+            return fallback
+        return unavailable_weather(label, "Weather refresh recently failed. I will retry later.")
+
+    result = refresh_weather_for_location(location, timeout_seconds=cfg.weather.timeout_seconds, db_path=db_path)
+    if result.get("available") is False:
+        db.set_setting(AUTO_REFRESH_FAILURE_KEY, _now_iso(), db_path=db_path)
+    else:
+        db.set_setting(AUTO_REFRESH_FAILURE_KEY, "", db_path=db_path)
+    return result
 
 
 def refresh_weather_for_location(location: dict[str, object], timeout_seconds: int = 3, db_path: str | None = None) -> dict[str, object]:

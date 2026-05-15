@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from . import db, focus, health, notes, todos, weather, llama
+from . import db, focus, health, notes, todos, weather, llama, water
 from .config import AppConfig, load_config
 from .views import DashboardSnapshot, ScreenSnapshot, build_dashboard_snapshot, build_screen_snapshot
 
@@ -127,6 +127,21 @@ class JiriRuntime:
 
     def health_text(self) -> str:
         return health.format_health(self.health_snapshot())
+
+    def water_snapshot(self):
+        return water.water_snapshot(db_path=self.db_path)
+
+    def add_water(self, amount_ml: int):
+        return water.add_water(amount_ml, db_path=self.db_path)
+
+    def set_water_goal(self, goal_ml: int):
+        return water.set_goal(goal_ml, db_path=self.db_path)
+
+    def set_water_goal_by_profile(self, age: int, sex: str):
+        return water.set_goal_by_profile(age, sex, db_path=self.db_path)
+
+    def reset_water(self):
+        return water.reset_water(db_path=self.db_path)
 
     def screen_snapshot(self, panel: str | None = None, now: datetime | None = None) -> ScreenSnapshot:
         return build_screen_snapshot(db_path=self.db_path, config=self.config, panel=panel, now=now)

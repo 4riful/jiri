@@ -31,6 +31,7 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     assert b"Dashboard" in logged_in.data
     assert b"Focus" in logged_in.data
     assert b"Weather" in logged_in.data
+    assert b"Water" in logged_in.data
 
     screen = client.get("/screen")
     assert screen.status_code == 200
@@ -63,6 +64,14 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     done_page = client.post("/admin/todos/1/done", follow_redirects=True)
     assert done_page.status_code == 200
     assert b"done" in done_page.data
+
+    water_page = client.post("/admin/water/add", data={"amount_ml": "250"}, follow_redirects=True)
+    assert water_page.status_code == 200
+    assert b"250ml" in water_page.data
+
+    water_goal = client.post("/admin/water/age", data={"age": "30", "sex": "male"}, follow_redirects=True)
+    assert water_goal.status_code == 200
+    assert b"3000ml" in water_goal.data
 
     update_page = client.post(
         "/admin/todos/1/update",
