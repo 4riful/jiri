@@ -1,4 +1,4 @@
-{% from "macros/icons.html" import icon_weather, icon_search, icon_map_pin, icon_refresh, icon_test, icon_chevron_down, icon_chevron_up, icon_gear %}
+{% from "macros/icons.html" import icon_weather, icon_search, icon_map_pin, icon_refresh, icon_test, icon_chevron_down, icon_gear, icon_thermometer, icon_cloud_rain, icon_wind, icon_cloud, icon_cloud_fog, icon_cloud_lightning, icon_cloud_snow %}
 {% extends "base.html" %}
 
 {% block content %}
@@ -10,15 +10,22 @@
       <div class="banner banner-error">{{ error }}</div>
     {% endif %}
 
-    <article class="card">
-      <h2 class="section-title"><span class="section-icon">{{ icon_weather(15) }}</span>Current Weather</h2>
-      <div class="stat-grid weather-grid">
-        <div><strong>{{ snapshot.weather.location }}</strong><span>Location</span></div>
-        <div><strong>{{ snapshot.weather.condition }}</strong><span>Condition</span></div>
-        <div><strong>{{ snapshot.weather.temperature_c ~ 'C' if snapshot.weather.temperature_c is not none else 'unknown' }}</strong><span>Temperature</span></div>
-        <div><strong>{{ snapshot.weather.feels_like_c ~ 'C' if snapshot.weather.feels_like_c is not none else 'unknown' }}</strong><span>Feels like</span></div>
-        <div><strong>{{ snapshot.weather.rain_chance if snapshot.weather.rain_chance is not none else 'unknown' }}%</strong><span>Rain chance</span></div>
-        <div><strong>{{ snapshot.weather.wind_kmh if snapshot.weather.wind_kmh is not none else 'unknown' }} km/h</strong><span>Wind</span></div>
+    {% set today = snapshot.weather.daily_forecast[0] if snapshot.weather.daily_forecast else none %}
+    <article class="card weather-current-card">
+      <div class="weather-minimal-grid">
+        <div class="weather-main">
+          <h2>{{ snapshot.weather.location }}</h2>
+          {% if today %}<span class="weather-source">Updated {{ today.day }}</span>{% endif %}
+          <strong class="weather-main-temp">{{ snapshot.weather.temperature_c|round|int if snapshot.weather.temperature_c is not none else '--' }}&deg;</strong>
+          <span class="weather-main-cond">{{ snapshot.weather.condition }}</span>
+          <span class="weather-main-range">H:{{ (today.high_c|round|int) if today.high_c is defined and today.high_c is not none else '--' }}&deg; L:{{ (today.low_c|round|int) if today.low_c is defined and today.low_c is not none else '--' }}&deg;</span>
+        </div>
+        <div class="weather-details">
+          <span>Feels {{ snapshot.weather.feels_like_c|round|int if snapshot.weather.feels_like_c is not none else '--' }}&deg;</span>
+          <span>Rain {{ snapshot.weather.rain_chance ~ '%' if snapshot.weather.rain_chance is not none else '--' }}</span>
+          <span>Wind {{ snapshot.weather.wind_kmh|round|int if snapshot.weather.wind_kmh is not none else '--' }} km/h</span>
+          <span>Humidity {{ snapshot.weather.humidity ~ '%' if snapshot.weather.humidity is not none else '--' }}</span>
+        </div>
       </div>
       {% if snapshot.weather.message %}<p class="card-sub">{{ snapshot.weather.message }}</p>{% endif %}
       <div class="inline-actions">
@@ -28,36 +35,34 @@
     </article>
 
     {% if snapshot.weather.hourly_forecast %}
-    <article class="card">
-      <div class="card-head-flex">
-        <h2 class="section-title no-margin"><span class="section-icon">{{ icon_weather(15) }}</span>Hourly Forecast</h2>
-        <button class="collapse-toggle forecast-toggle" onclick="toggleForecastTable()" aria-expanded="true" aria-controls="forecast-body">
-          <span class="toggle-label">Hide</span>
-          {{ icon_chevron_up(14) }}
-        </button>
+    <article class="card weather-simple-card">
+      <h2 class="section-title"><span class="section-icon">{{ icon_weather(15) }}</span>Next 12 Hours</h2>
+      <div class="simple-hourly-grid">
+        {% for hour in snapshot.weather.hourly_forecast[:12] %}
+        <article class="simple-hour-item">
+          <span class="forecast-icon forecast-icon-{{ hour.icon|default('cloud') }}">
+            {% if hour.icon == 'sun' %}{{ icon_weather(18) }}{% elif hour.icon == 'rain' %}{{ icon_cloud_rain(18) }}{% elif hour.icon == 'storm' %}{{ icon_cloud_lightning(18) }}{% elif hour.icon == 'snow' %}{{ icon_cloud_snow(18) }}{% elif hour.icon == 'fog' %}{{ icon_cloud_fog(18) }}{% else %}{{ icon_cloud(18) }}{% endif %}
+          </span>
+          <span class="simple-hour-time">{{ hour.time }}</span>
+          <strong>{{ hour.temperature_c|round|int if hour.temperature_c is not none else '-' }}&deg;</strong>
+          <span class="simple-hour-rain">{{ hour.rain_chance ~ '%' if hour.rain_chance is not none else '-' }}</span>
+        </article>
+        {% endfor %}
       </div>
-      <div class="collapse-body" id="forecast-body">
-        <div class="forecast-line-chart" aria-label="Hourly weather graph chart">
-          {% for hour in snapshot.weather.hourly_forecast[:12] %}
-            {% set temp = hour.temperature_c if hour.temperature_c is not none else 0 %}
-            {% set rain = hour.rain_chance if hour.rain_chance is not none else 0 %}
-            <article class="forecast-point" style="--temp-y: {{ 100 - (temp if temp > 0 else 0) * 2.2 }}%; --rain-y: {{ 100 - rain }}%;">
-              <div class="forecast-time">{{ hour.time }}</div>
-              <div class="graph-cell">
-                <span class="graph-dot temp-dot" title="Temperature {{ temp }}C"></span>
-                <span class="graph-dot rain-dot" title="Rain {{ rain }}%"></span>
-              </div>
-              <div class="forecast-values">
-                <strong>{{ temp ~ 'C' if hour.temperature_c is not none else '-' }}</strong>
-                <span>{{ rain ~ '%' if hour.rain_chance is not none else '-' }}</span>
-              </div>
-            </article>
-          {% endfor %}
-        </div>
-        <div class="forecast-legend">
-          <span><i class="legend-temp"></i> Temperature</span>
-          <span><i class="legend-rain"></i> Rain chance</span>
-        </div>
+    </article>
+    {% endif %}
+
+    {% if snapshot.weather.daily_forecast %}
+    <article class="card weather-simple-card">
+      <h2 class="section-title"><span class="section-icon">{{ icon_weather(15) }}</span>7-Day Forecast</h2>
+      <div class="daily-simple-list">
+        {% for day in snapshot.weather.daily_forecast[:7] %}
+        <article class="daily-simple-item">
+          <span class="daily-simple-day">{{ day.day }}</span>
+          <span class="daily-simple-condition">{{ day.condition or 'Forecast' }}</span>
+          <span class="daily-simple-range">{{ day.low_c|round|int if day.low_c is not none else '--' }}&deg; &mdash; {{ day.high_c|round|int if day.high_c is not none else '--' }}&deg;</span>
+        </article>
+        {% endfor %}
       </div>
     </article>
     {% endif %}
@@ -235,12 +240,6 @@
   </section>
 
 <script>
-function toggleForecastTable() {
-  var body = document.getElementById("forecast-body");
-  var hidden = body.classList.toggle("forecast-hidden");
-  var btn = body.closest(".card").querySelector(".forecast-toggle");
-  btn.querySelector(".toggle-label").textContent = hidden ? "Show" : "Hide";
-}
 function toggleSavedLocations() {
   var body = document.getElementById("saved-locations");
   var hidden = body.classList.toggle("forecast-hidden");

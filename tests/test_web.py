@@ -135,8 +135,8 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
 
     weather_page = client.get("/admin/weather")
     assert weather_page.status_code == 200
-    assert b"Current Weather" in weather_page.data
-    assert b"Hourly Forecast" in weather_page.data
+    assert b"Next 12 Hours" in weather_page.data
+    assert b"7-Day Forecast" in weather_page.data
     assert b"Saved Locations" in weather_page.data
 
 

@@ -162,6 +162,8 @@ def test_open_meteo_weather_success_parse(monkeypatch):
         assert url == weather.OPEN_METEO_FORECAST_URL
         assert params["latitude"] == 26.1167
         assert "weather_code" in params["current"]
+        assert "weather_code" in params["daily"]
+        assert params["forecast_days"] == 7
         return FakeResponse(open_meteo_payload())
 
     monkeypatch.setattr(weather.requests, "get", fake_get)
@@ -171,10 +173,13 @@ def test_open_meteo_weather_success_parse(monkeypatch):
     assert result["feels_like_c"] == 35.0
     assert result["condition"] == "Partly cloudy"
     assert result["humidity"] == 70
-    assert result["rain_chance"] == 40
+    assert result["rain_chance"] == 80
     assert result["wind_kmh"] == 12.0
-    assert result["hourly_forecast"][0]["time"] == "03:00"
+    assert result["hourly_forecast"][0]["time"] == "3:00 am"
     assert result["hourly_forecast"][0]["temperature_c"] == 31.0
+    assert result["hourly_forecast"][0]["icon"] == "cloud"
+    assert result["daily_forecast"][0]["day"] == "Today"
+    assert result["daily_forecast"][0]["high_c"] == 34.0
     assert result["location_meta"]["latitude"] == 26.1167
     assert result["location_meta"]["country"] == "Bangladesh"
 
@@ -190,6 +195,8 @@ def test_cached_open_meteo_weather_preserves_secondary_fields(tmp_path):
     assert cached["feels_like_c"] == 35.0
     assert cached["wind_kmh"] == 12.0
     assert cached["hourly_forecast"][0]["rain_chance"] == 35
+    assert cached["hourly_forecast"][0]["time"] == "3:00 am"
+    assert cached["daily_forecast"][0]["low_c"] == 26.0
     assert cached["location_meta"]["latitude"] == 26.1167
 
 
@@ -333,6 +340,7 @@ def location():
 def open_meteo_payload():
     return {
         "current": {
+            "time": "2026-05-15T03:00",
             "temperature_2m": 31.0,
             "relative_humidity_2m": 70,
             "apparent_temperature": 35.0,
@@ -349,7 +357,14 @@ def open_meteo_payload():
             "relative_humidity_2m": [70, 71],
             "weather_code": [2, 3],
         },
-        "daily": {"precipitation_probability_max": [40]},
+        "daily": {
+            "time": ["2026-05-15", "2026-05-16"],
+            "weather_code": [95, 61],
+            "temperature_2m_max": [34.0, 32.0],
+            "temperature_2m_min": [26.0, 25.0],
+            "precipitation_probability_max": [80, 55],
+            "rain_sum": [8.0, 4.0],
+        },
     }
 
 

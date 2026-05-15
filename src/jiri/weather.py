@@ -221,9 +221,9 @@ def fetch_open_meteo_weather(location: dict[str, object], timeout_seconds: int =
             "longitude": lon,
             "current": "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,wind_speed_10m",
             "hourly": "temperature_2m,precipitation_probability,rain,relative_humidity_2m,weather_code",
-            "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum",
+            "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum",
             "timezone": "auto",
-            "forecast_days": 3,
+            "forecast_days": 7,
         },
         timeout=_safe_timeout(timeout_seconds),
     )
@@ -292,6 +292,7 @@ def save_weather_cache(location_name: str, weather_data: dict[str, object], db_p
         "wind_kmh": weather_data.get("wind_kmh"),
         "location_meta": weather_data.get("location_meta"),
         "hourly_forecast": weather_data.get("hourly_forecast"),
+        "daily_forecast": weather_data.get("daily_forecast"),
     }
     raw_json = _cache_raw_json(weather_data.get("raw_json"), extra)
 
@@ -343,7 +344,10 @@ def _apply_cached_extra(data: dict[str, object], cached_raw: dict[str, object]) 
         data["location_meta"] = location_meta
     hourly = cached_raw.get("hourly_forecast")
     if isinstance(hourly, list):
-        data["hourly_forecast"] = hourly[:24]
+        data["hourly_forecast"] = _normalize_hourly_rows(hourly[:24])
+    daily = cached_raw.get("daily_forecast")
+    if isinstance(daily, list):
+        data["daily_forecast"] = daily[:7]
 
 
 def _hydrate_provider_cache_fields(data: dict[str, object], cached_raw: dict[str, object]) -> None:
@@ -355,6 +359,8 @@ def _hydrate_provider_cache_fields(data: dict[str, object], cached_raw: dict[str
             data["wind_kmh"] = _optional_float(current.get("wind_speed_10m"))
         if not data.get("hourly_forecast"):
             data["hourly_forecast"] = _open_meteo_hourly_forecast(cached_raw)
+        if not data.get("daily_forecast"):
+            data["daily_forecast"] = _open_meteo_daily_forecast(cached_raw)
 
     wttr_current = _first(cached_raw.get("current_condition"))
     if isinstance(wttr_current, dict):
@@ -364,6 +370,8 @@ def _hydrate_provider_cache_fields(data: dict[str, object], cached_raw: dict[str
             data["wind_kmh"] = _optional_float(wttr_current.get("windspeedKmph"))
         if not data.get("hourly_forecast"):
             data["hourly_forecast"] = _wttr_hourly_forecast(cached_raw)
+        if not data.get("daily_forecast"):
+            data["daily_forecast"] = _wttr_daily_forecast(cached_raw)
 
 
 def refresh_weather(db_path: str | None = None) -> dict[str, object]:
@@ -536,6 +544,7 @@ def _parse_open_meteo_response(location: dict[str, object], raw: dict[str, Any])
     rain_chance = _first_number(daily.get("precipitation_probability_max"))
     if rain_chance is None and isinstance(raw.get("hourly"), dict):
         rain_chance = _first_number(raw["hourly"].get("precipitation_probability"))
+    hourly = _open_meteo_hourly_forecast(raw)
     data = _base_weather(_location_label(location), "open_meteo")
     data.update(
         {
@@ -546,7 +555,8 @@ def _parse_open_meteo_response(location: dict[str, object], raw: dict[str, Any])
             "humidity": _optional_int(current.get("relative_humidity_2m")),
             "rain_chance": _optional_int(rain_chance),
             "wind_kmh": _optional_float(current.get("wind_speed_10m")),
-            "hourly_forecast": _open_meteo_hourly_forecast(raw),
+            "hourly_forecast": _slice_from_now(hourly, current.get("time")),
+            "daily_forecast": _open_meteo_daily_forecast(raw),
             "fetched_at": _now_iso(),
             "raw_json": json.dumps(raw, separators=(",", ":"), sort_keys=True),
             "location_meta": _location_meta(location),
@@ -573,6 +583,7 @@ def _parse_wttr_response(location: dict[str, object], raw: dict[str, Any]) -> di
             "rain_chance": _optional_int(_wttr_rain_chance(raw)),
             "wind_kmh": _optional_float(current.get("windspeedKmph")),
             "hourly_forecast": _wttr_hourly_forecast(raw),
+            "daily_forecast": _wttr_daily_forecast(raw),
             "fetched_at": _now_iso(),
             "raw_json": json.dumps(raw, separators=(",", ":"), sort_keys=True),
             "location_meta": _location_meta(location),
@@ -593,11 +604,8 @@ def _fake_open_meteo_weather(location: dict[str, object]) -> dict[str, object]:
             "humidity": 70,
             "rain_chance": 20,
             "wind_kmh": 12.0,
-            "hourly_forecast": [
-                {"time": "now", "temperature_c": 31.0, "rain_chance": 20, "rain_mm": 0.0, "humidity": 70, "condition": "Fake partly cloudy"},
-                {"time": "+1h", "temperature_c": 31.2, "rain_chance": 18, "rain_mm": 0.0, "humidity": 69, "condition": "Fake partly cloudy"},
-                {"time": "+2h", "temperature_c": 31.5, "rain_chance": 15, "rain_mm": 0.0, "humidity": 68, "condition": "Fake partly cloudy"},
-            ],
+            "hourly_forecast": _fake_hourly_forecast(),
+            "daily_forecast": _fake_daily_forecast(),
             "fetched_at": _now_iso(),
             "raw_json": json.dumps({"fake": True}, separators=(",", ":"), sort_keys=True),
             "location_meta": _location_meta(location),
@@ -677,6 +685,7 @@ def _base_weather(location: str, source: str) -> dict[str, object]:
         "rain_chance": None,
         "wind_kmh": None,
         "hourly_forecast": [],
+        "daily_forecast": [],
         "fetched_at": None,
         "raw_json": None,
         "location_meta": None,
@@ -698,13 +707,44 @@ def _open_meteo_hourly_forecast(raw: dict[str, Any], limit: int = 24) -> list[di
     humidity = hourly.get("relative_humidity_2m") if isinstance(hourly.get("relative_humidity_2m"), list) else []
     codes = hourly.get("weather_code") if isinstance(hourly.get("weather_code"), list) else []
     for index, timestamp in enumerate(times[:limit]):
+        code = _at_int(codes, index)
+        condition = WEATHER_CODE_MAP.get(code, "")
         rows.append(
             {
-                "time": _short_hour(timestamp),
+                "time": _format_hour_12(timestamp),
+                "timestamp": str(timestamp),
                 "temperature_c": _at_float(temperatures, index),
                 "rain_chance": _at_int(rain_prob, index),
                 "rain_mm": _at_float(rain, index),
                 "humidity": _at_int(humidity, index),
+                "condition": condition,
+                "icon": _weather_icon_from_code(code),
+            }
+        )
+    return rows
+
+
+def _open_meteo_daily_forecast(raw: dict[str, Any], limit: int = 7) -> list[dict[str, object]]:
+    daily = raw.get("daily")
+    if not isinstance(daily, dict):
+        return []
+    dates = daily.get("time") if isinstance(daily.get("time"), list) else []
+    highs = daily.get("temperature_2m_max") if isinstance(daily.get("temperature_2m_max"), list) else []
+    lows = daily.get("temperature_2m_min") if isinstance(daily.get("temperature_2m_min"), list) else []
+    rain_prob = daily.get("precipitation_probability_max") if isinstance(daily.get("precipitation_probability_max"), list) else []
+    rain = daily.get("rain_sum") if isinstance(daily.get("rain_sum"), list) else []
+    codes = daily.get("weather_code") if isinstance(daily.get("weather_code"), list) else []
+    rows: list[dict[str, object]] = []
+    for index in range(min(limit, len(dates) or max(len(highs), len(lows), len(rain_prob), len(rain), len(codes)))):
+        date = str(dates[index]) if index < len(dates) else ""
+        rows.append(
+            {
+                "day": "Today" if index == 0 else _short_weekday(date),
+                "date": date,
+                "high_c": _at_float(highs, index),
+                "low_c": _at_float(lows, index),
+                "rain_chance": _at_int(rain_prob, index),
+                "rain_mm": _at_float(rain, index),
                 "condition": WEATHER_CODE_MAP.get(_at_int(codes, index), ""),
             }
         )
@@ -727,6 +767,7 @@ def _wttr_hourly_forecast(raw: dict[str, Any], limit: int = 24) -> list[dict[str
             if not isinstance(item, dict):
                 continue
             desc = _first(item.get("weatherDesc"))
+            condition = str(desc.get("value")) if isinstance(desc, dict) and desc.get("value") else ""
             rows.append(
                 {
                     "time": _wttr_hour(date, item.get("time")),
@@ -734,7 +775,8 @@ def _wttr_hourly_forecast(raw: dict[str, Any], limit: int = 24) -> list[dict[str
                     "rain_chance": _optional_int(item.get("chanceofrain")),
                     "rain_mm": _optional_float(item.get("precipMM")),
                     "humidity": _optional_int(item.get("humidity")),
-                    "condition": str(desc.get("value")) if isinstance(desc, dict) and desc.get("value") else "",
+                    "condition": condition,
+                    "icon": _weather_icon_from_condition(condition),
                 }
             )
             if len(rows) >= limit:
@@ -742,16 +784,164 @@ def _wttr_hourly_forecast(raw: dict[str, Any], limit: int = 24) -> list[dict[str
     return rows
 
 
-def _short_hour(value: object) -> str:
+def _wttr_daily_forecast(raw: dict[str, Any], limit: int = 7) -> list[dict[str, object]]:
+    days = raw.get("weather")
+    if not isinstance(days, list):
+        return []
+    rows: list[dict[str, object]] = []
+    for index, day in enumerate(days[:limit]):
+        if not isinstance(day, dict):
+            continue
+        hourly = day.get("hourly") if isinstance(day.get("hourly"), list) else []
+        first_hour = _first(hourly)
+        desc = _first(first_hour.get("weatherDesc")) if isinstance(first_hour, dict) else None
+        date = str(day.get("date") or "")
+        rows.append(
+            {
+                "day": "Today" if index == 0 else _short_weekday(date),
+                "date": date,
+                "high_c": _optional_float(day.get("maxtempC")),
+                "low_c": _optional_float(day.get("mintempC")),
+                "rain_chance": _optional_int(_wttr_day_rain_chance(day)),
+                "rain_mm": _wttr_day_rain_mm(day),
+                "condition": str(desc.get("value")) if isinstance(desc, dict) and desc.get("value") else "",
+            }
+        )
+    return rows
+
+
+def _slice_from_now(hourly: list[dict[str, object]], current_time: object | None = None) -> list[dict[str, object]]:
+    if current_time is not None:
+        try:
+            current = datetime.fromisoformat(str(current_time)).replace(minute=0, second=0, microsecond=0)
+        except ValueError:
+            current = None
+        if current is not None:
+            for index, row in enumerate(hourly):
+                try:
+                    timestamp = datetime.fromisoformat(str(row.get("timestamp"))).replace(minute=0, second=0, microsecond=0)
+                except ValueError:
+                    continue
+                if timestamp >= current:
+                    return hourly[index:]
+    now_hour = datetime.now().hour
+    if 0 <= now_hour < len(hourly):
+        return hourly[now_hour:]
+    return hourly
+
+
+def _normalize_hourly_rows(rows: list[object]) -> list[dict[str, object]]:
+    normalized = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        item = dict(row)
+        item["time"] = _format_hour_12(item.get("time"))
+        if not item.get("icon"):
+            item["icon"] = _weather_icon_from_condition(str(item.get("condition") or ""))
+        normalized.append(item)
+    return normalized
+
+
+def _fake_hourly_forecast() -> list[dict[str, object]]:
+    temps = [31.0, 32.0, 33.0, 33.0, 32.0, 31.0, 30.0, 29.0, 28.0, 28.0, 27.0, 27.0]
+    rain = [10, 15, 30, 65, 80, 55, 35, 25, 20, 15, 10, 10]
+    rows = []
+    for index, temp in enumerate(temps):
+        timestamp = datetime.now().replace(minute=0, second=0, microsecond=0) + timedelta(hours=index)
+        condition = "Fake rain" if rain[index] >= 60 else "Fake partly cloudy"
+        rows.append(
+            {
+                "time": _format_hour_12(timestamp.isoformat()),
+                "temperature_c": temp,
+                "rain_chance": rain[index],
+                "rain_mm": 0.0,
+                "humidity": 70,
+                "condition": condition,
+                "icon": _weather_icon_from_condition(condition),
+            }
+        )
+    return rows
+
+
+def _fake_daily_forecast() -> list[dict[str, object]]:
+    rows = [
+        ("Today", "Fake rain", 26.0, 34.0, 80),
+        ("Sat", "Fake showers", 25.0, 32.0, 55),
+        ("Sun", "Fake cloudy", 26.0, 33.0, 35),
+        ("Mon", "Fake partly cloudy", 27.0, 35.0, 20),
+        ("Tue", "Fake rain", 25.0, 31.0, 65),
+        ("Wed", "Fake showers", 24.0, 30.0, 45),
+        ("Thu", "Fake cloudy", 25.0, 32.0, 30),
+    ]
+    return [
+        {"day": day, "date": "", "condition": condition, "low_c": low, "high_c": high, "rain_chance": rain, "rain_mm": 0.0}
+        for day, condition, low, high, rain in rows
+    ]
+
+
+def _format_hour_12(value: object) -> str:
     text = str(value)
-    if "T" in text:
-        return text.split("T", 1)[1][:5]
-    return text[:5]
+    parsed = None
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        pass
+    if parsed is None:
+        time_text = text.split(" ", 1)[-1]
+        if "T" in time_text:
+            time_text = time_text.split("T", 1)[1]
+        try:
+            parsed = datetime.strptime(time_text[:5], "%H:%M")
+        except ValueError:
+            return text
+    return parsed.strftime("%I:%M %p").lstrip("0").lower()
+
+
+def _weather_icon_from_code(code: int | None) -> str:
+    if code is None:
+        return "cloud"
+    if code in {0, 1}:
+        return "sun"
+    if code in {2, 3}:
+        return "cloud"
+    if code in {45, 48}:
+        return "fog"
+    if 51 <= code <= 67 or 80 <= code <= 82:
+        return "rain"
+    if 71 <= code <= 77:
+        return "snow"
+    if code >= 95:
+        return "storm"
+    return "cloud"
+
+
+def _weather_icon_from_condition(condition: str) -> str:
+    text = condition.lower()
+    if any(word in text for word in ("thunder", "storm")):
+        return "storm"
+    if "snow" in text:
+        return "snow"
+    if any(word in text for word in ("rain", "drizzle", "shower")):
+        return "rain"
+    if any(word in text for word in ("fog", "mist", "haze")):
+        return "fog"
+    if any(word in text for word in ("clear", "sunny")):
+        return "sun"
+    return "cloud"
+
+
+def _short_weekday(value: object) -> str:
+    try:
+        return datetime.fromisoformat(str(value)).strftime("%a")
+    except ValueError:
+        return str(value)[:3] or "Day"
 
 
 def _wttr_hour(date: str, value: object) -> str:
     digits = str(value or "0").zfill(4)
-    return f"{date} {digits[:-2]}:{digits[-2:]}" if date else f"{digits[:-2]}:{digits[-2:]}"
+    text = f"{date}T{digits[:-2]}:{digits[-2:]}" if date else f"{digits[:-2]}:{digits[-2:]}"
+    return _format_hour_12(text)
 
 
 def _at_float(values: object, index: int) -> float | None:
@@ -826,6 +1016,24 @@ def _wttr_rain_chance(raw: dict[str, Any]) -> object | None:
     if not isinstance(hourly, dict):
         return None
     return hourly.get("chanceofrain")
+
+
+def _wttr_day_rain_chance(day: dict[str, Any]) -> object | None:
+    hourly = day.get("hourly")
+    if not isinstance(hourly, list):
+        return None
+    chances = [_optional_int(item.get("chanceofrain")) for item in hourly if isinstance(item, dict)]
+    real = [value for value in chances if value is not None]
+    return max(real) if real else None
+
+
+def _wttr_day_rain_mm(day: dict[str, Any]) -> float | None:
+    hourly = day.get("hourly")
+    if not isinstance(hourly, list):
+        return None
+    values = [_optional_float(item.get("precipMM")) for item in hourly if isinstance(item, dict)]
+    real = [value for value in values if value is not None]
+    return round(sum(real), 2) if real else None
 
 
 def _first(value: object) -> object | None:

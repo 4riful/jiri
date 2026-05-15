@@ -1,4 +1,4 @@
-{% from "macros/icons.html" import icon_todos, icon_notes, icon_weather, icon_focus, icon_system, icon_ai, icon_chevron_down, icon_chevron_up, icon_thermometer, icon_cloud_rain, icon_wind, icon_memory, icon_cpu, icon_globe, icon_monitor, icon_database, icon_check, icon_cloud, icon_gear, icon_tag, icon_link, icon_play, icon_stop, icon_droplet %}
+{% from "macros/icons.html" import icon_todos, icon_notes, icon_weather, icon_focus, icon_system, icon_ai, icon_chevron_down, icon_chevron_up, icon_thermometer, icon_cloud_rain, icon_wind, icon_memory, icon_cpu, icon_globe, icon_monitor, icon_database, icon_check, icon_cloud, icon_cloud_fog, icon_cloud_lightning, icon_cloud_snow, icon_gear, icon_tag, icon_link, icon_play, icon_stop, icon_droplet %}
 {% extends "base.html" %}
 
 {% block content %}
@@ -19,6 +19,11 @@
     <strong class="stat-big stat-big-dim">Stopped</strong>
     <p>Start from AI page</p>
     {% endif %}
+  </article>
+
+  <article class="stat-card stat-datetime">
+    <strong class="stat-big" id="clock-time">{{ snapshot.now.strftime('%I:%M %p').lstrip('0').lower() if snapshot.now else '--:--' }}</strong>
+    <p id="clock-date">{{ snapshot.now.strftime('%a %b %d, %Y') if snapshot.now else '---' }}</p>
   </article>
 
   <article class="stat-card stat-todos">
@@ -67,14 +72,14 @@
         <span class="metric-icon">{{ icon_thermometer(14) }}</span>
         <div class="metric-content">
           <span class="metric-label">Temperature</span>
-          <strong>{{ snapshot.weather.temperature_c ~ 'C' if snapshot.weather.temperature_c is not none else '--' }}</strong>
+          <strong>{{ snapshot.weather.temperature_c|round|int if snapshot.weather.temperature_c is not none else '--' }}&deg;C</strong>
         </div>
       </div>
       <div class="metric-tile metric-feels">
         <span class="metric-icon">{{ icon_thermometer(14) }}</span>
         <div class="metric-content">
           <span class="metric-label">Feels Like</span>
-          <strong>{{ snapshot.weather.feels_like_c ~ 'C' if snapshot.weather.feels_like_c is not none else '--' }}</strong>
+          <strong>{{ snapshot.weather.feels_like_c|round|int if snapshot.weather.feels_like_c is not none else '--' }}&deg;C</strong>
         </div>
       </div>
       <div class="metric-tile metric-rain">
@@ -88,40 +93,25 @@
         <span class="metric-icon">{{ icon_wind(14) }}</span>
         <div class="metric-content">
           <span class="metric-label">Wind</span>
-          <strong>{{ snapshot.weather.wind_kmh if snapshot.weather.wind_kmh is not none else '--' }} km/h</strong>
+          <strong>{{ snapshot.weather.wind_kmh|round|int if snapshot.weather.wind_kmh is not none else '--' }} km/h</strong>
         </div>
       </div>
     </div>
     {% if snapshot.weather.hourly_forecast %}
     <div class="forecast-panel">
-      <div class="forecast-head">
-        <span>Hourly Forecast</span>
-        <small>Temperature and rain chance</small>
-      </div>
-      <div class="forecast-strip" aria-label="Next 4 hour forecast">
-        {% for hour in snapshot.weather.hourly_forecast[:4] %}
+      <div class="forecast-head"><span>Next 12 Hours</span></div>
+      <div class="forecast-strip-scroll">
+        {% for hour in snapshot.weather.hourly_forecast[:12] %}
         <div class="forecast-card">
+          <span class="forecast-icon forecast-icon-{{ hour.icon|default('cloud') }}">
+            {% if hour.icon == 'sun' %}{{ icon_weather(18) }}{% elif hour.icon == 'rain' %}{{ icon_cloud_rain(18) }}{% elif hour.icon == 'storm' %}{{ icon_cloud_lightning(18) }}{% elif hour.icon == 'snow' %}{{ icon_cloud_snow(18) }}{% elif hour.icon == 'fog' %}{{ icon_cloud_fog(18) }}{% else %}{{ icon_cloud(18) }}{% endif %}
+          </span>
           <span class="forecast-time">{{ hour.time }}</span>
-          <strong>{{ hour.temperature_c ~ 'C' if hour.temperature_c is not none else '-' }}</strong>
-          <small class="forecast-rain">{{ icon_cloud_rain(12) }} {{ hour.rain_chance ~ '%' if hour.rain_chance is not none else '-' }}</small>
+          <strong>{{ hour.temperature_c|round|int if hour.temperature_c is not none else '-' }}&deg;</strong>
+          <small class="forecast-rain">{{ hour.rain_chance ~ '%' if hour.rain_chance is not none else '-' }} rain</small>
         </div>
         {% endfor %}
       </div>
-      {% if snapshot.weather.hourly_forecast|length > 4 %}
-      <div class="forecast-extra" id="forecast-extra">
-        {% for hour in snapshot.weather.hourly_forecast[4:] %}
-        <div class="forecast-card">
-          <span class="forecast-time">{{ hour.time }}</span>
-          <strong>{{ hour.temperature_c ~ 'C' if hour.temperature_c is not none else '-' }}</strong>
-          <small class="forecast-rain">{{ icon_cloud_rain(12) }} {{ hour.rain_chance ~ '%' if hour.rain_chance is not none else '-' }}</small>
-        </div>
-        {% endfor %}
-      </div>
-      <button class="collapse-toggle forecast-toggle" onclick="toggleForecast()" aria-expanded="false" aria-controls="forecast-extra">
-        <span class="toggle-label">Show rest of day</span>
-        {{ icon_chevron_down(14) }}
-      </button>
-      {% endif %}
     </div>
     {% else %}
     <p class="hero-empty">No forecast cached yet.</p>
@@ -201,15 +191,6 @@
 </section>
 
 <script>
-function toggleForecast() {
-  var el = document.getElementById("forecast-extra");
-  var btn = el.nextElementSibling;
-  var expanded = el.classList.toggle("forecast-expanded");
-  btn.setAttribute("aria-expanded", expanded);
-  btn.querySelector(".toggle-label").textContent = expanded ? "Hide rest of day" : "Show rest of day";
-  btn.querySelector(".icon").outerHTML = expanded ? '{{ icon_chevron_up(14)|safe }}' : '{{ icon_chevron_down(14)|safe }}';
-}
-
 function toggleSystem() {
   var el = document.getElementById("system-extra");
   var btn = el.previousElementSibling.querySelector(".collapse-toggle");
@@ -218,5 +199,19 @@ function toggleSystem() {
   btn.querySelector(".toggle-label").textContent = expanded ? "Less" : "Details";
   btn.querySelector(".icon").outerHTML = expanded ? '{{ icon_chevron_up(14)|safe }}' : '{{ icon_chevron_down(14)|safe }}';
 }
+
+(function(){
+  var timeEl = document.getElementById("clock-time");
+  var dateEl = document.getElementById("clock-date");
+  if(!timeEl || !dateEl) return;
+  setInterval(function(){
+    var d = new Date();
+    var hours = d.getHours();
+    var suffix = hours >= 12 ? 'pm' : 'am';
+    var displayHours = hours % 12 || 12;
+    timeEl.textContent = displayHours + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + suffix;
+    dateEl.textContent = d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'2-digit', year:'numeric'});
+  }, 1000);
+})();
 </script>
 {% endblock %}
