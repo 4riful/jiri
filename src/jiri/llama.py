@@ -96,9 +96,10 @@ def llama_test(port: int = 8080, timeout: int = 5) -> dict[str, object]:
 
 
 def llama_test_chat(port: int = 8080, prompt: str = "Hello", timeout: int = 15) -> dict[str, object]:
+    model = _server_model_name(port=port, timeout=timeout) or "default"
     url = f"http://127.0.0.1:{port}/v1/chat/completions"
     payload = {
-        "model": "gemma-3-270m",
+        "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 20,
     }
@@ -111,7 +112,7 @@ def llama_test_chat(port: int = 8080, prompt: str = "Hello", timeout: int = 15) 
         else:
             comp_resp = requests.post(
                 f"http://127.0.0.1:{port}/v1/completions",
-                json={"model": "gemma-3-270m", "prompt": prompt, "max_tokens": 20},
+                json={"model": model, "prompt": prompt, "max_tokens": 20},
                 timeout=timeout,
             )
             if comp_resp.status_code == 200:
@@ -123,6 +124,24 @@ def llama_test_chat(port: int = 8080, prompt: str = "Hello", timeout: int = 15) 
         return {"ok": False, "status_code": None, "response": "connection refused"}
     except requests.Timeout:
         return {"ok": False, "status_code": None, "response": "timeout"}
+
+
+def _server_model_name(port: int = 8080, timeout: int = 5) -> str | None:
+    try:
+        resp = requests.get(f"http://127.0.0.1:{port}/v1/models", timeout=timeout)
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        models = data.get("data", [])
+        if not models:
+            return None
+        first = models[0]
+        if isinstance(first, dict):
+            value = first.get("id") or first.get("name")
+            return str(value) if value else None
+        return str(first)
+    except (requests.RequestException, ValueError, TypeError):
+        return None
 
 
 def llama_logs(tail: int = 50) -> str:

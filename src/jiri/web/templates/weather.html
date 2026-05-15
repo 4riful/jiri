@@ -71,8 +71,14 @@
 
     {% if snapshot.recent_locations %}
     <article class="card">
-      <h2><span class="icon-in-heading">{{ icon_search(16) }}</span> Saved Locations</h2>
-      <div class="search-results">
+      <div class="card-head-flex">
+        <h2 style="margin:0"><span class="icon-in-heading">{{ icon_map_pin(16) }}</span> Saved Locations</h2>
+        <button class="collapse-toggle" onclick="toggleSavedLocations()" aria-expanded="false" aria-controls="saved-locations">
+          <span class="toggle-label">Show</span>
+          {{ icon_chevron_down(14) }}
+        </button>
+      </div>
+      <div class="search-results collapse-body forecast-hidden" id="saved-locations">
         {% for result in snapshot.recent_locations %}
           <article class="search-card">
             <div>
@@ -227,9 +233,16 @@
 <script>
 function toggleForecastTable() {
   var body = document.getElementById("forecast-body");
-  var expanded = body.classList.toggle("forecast-hidden");
+  var hidden = body.classList.toggle("forecast-hidden");
   var btn = body.closest(".card").querySelector(".forecast-toggle");
-  btn.querySelector(".toggle-label").textContent = expanded ? "Hide" : "Show";
+  btn.querySelector(".toggle-label").textContent = hidden ? "Show" : "Hide";
+}
+function toggleSavedLocations() {
+  var body = document.getElementById("saved-locations");
+  var hidden = body.classList.toggle("forecast-hidden");
+  var btn = body.closest(".card").querySelector(".collapse-toggle");
+  btn.setAttribute("aria-expanded", !hidden);
+  btn.querySelector(".toggle-label").textContent = hidden ? "Show" : "Hide";
 }
 </script>
 {% endblock %}

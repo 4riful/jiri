@@ -11,9 +11,12 @@
 <body class="{{ body_class|default('') }}">
   <div class="app-shell">
     <header class="topbar">
-      <div>
-        <div class="brand">{{ app_name }}</div>
-        <div class="tagline">Pi-first admin</div>
+      <div class="brand-lockup">
+        <pre class="ascii-face" id="ascii-face" aria-label="JIRI mood face">[ ^_^ ]</pre>
+        <div>
+          <div class="brand">{{ app_name }}</div>
+          <div class="tagline">Pi-first admin</div>
+        </div>
       </div>
       <nav class="nav">
         {% if web_surface in ('screen', 'all') %}
@@ -49,5 +52,17 @@
       <span>WSL testbed, Pi-first constraints</span>
     </footer>
   </div>
+  <script>
+  (function() {
+    var face = document.getElementById("ascii-face");
+    if (!face) return;
+    var faces = ["[ ^_^ ]", "[ -_- ]", "[ >_< ]", "[ o_o ]", "[ =_= ]", "[ ^o^ ]"];
+    var i = 0;
+    setInterval(function() {
+      i = (i + 1) % faces.length;
+      face.textContent = faces[i];
+    }, 850);
+  })();
+  </script>
 </body>
 </html>

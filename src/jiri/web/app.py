@@ -286,7 +286,7 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
         return render_template(
             "weather.html",
             snapshot=snapshot,
-            search_results=snapshot.search_results,
+            search_results=(),
             provider_results=snapshot.provider_results,
             notice=request.args.get("notice", ""),
             error=request.args.get("error", ""),
@@ -300,7 +300,15 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
             country = request.form.get("country") or None
             results = runtime.search_locations(query, country=country)
             runtime.save_location_search(results)
-            return redirect(url_for("weather_view", notice=f"Found {len(results)} location(s)."))
+            snapshot = runtime.dashboard_snapshot(panel="weather", search_results=results)
+            return render_template(
+                "weather.html",
+                snapshot=snapshot,
+                search_results=results,
+                provider_results=snapshot.provider_results,
+                notice=f"Found {len(results)} location(s).",
+                error="",
+            )
         except Exception as exc:
             return redirect(url_for("weather_view", error=str(exc)))
 
