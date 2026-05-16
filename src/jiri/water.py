@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from . import db
 
@@ -50,6 +50,7 @@ def water_snapshot(db_path: str | None = None, now: datetime | None = None, rese
         "sex": _sex_setting(db_path=db_path),
         "complete": progress_ml >= goal_ml,
         "message": "Hydration goal complete." if progress_ml >= goal_ml else "Keep sipping water.",
+        "week": weekly_history(db_path=db_path, now=current),
     }
 
 
@@ -60,6 +61,7 @@ def add_water(amount_ml: int, db_path: str | None = None, now: datetime | None =
     _reset_if_new_day(db_path=db_path, now=current)
     progress = _int_setting(WATER_PROGRESS_KEY, 0, db_path=db_path) + amount_ml
     db.set_setting(WATER_PROGRESS_KEY, str(progress), db_path=db_path)
+    _record_water(amount_ml, db_path=db_path, now=current)
     return water_snapshot(db_path=db_path, now=current)
 
 
@@ -87,6 +89,35 @@ def reset_water(db_path: str | None = None, now: datetime | None = None) -> dict
     return water_snapshot(db_path=db_path, now=current)
 
 
+def weekly_history(db_path: str | None = None, now: datetime | None = None) -> tuple[dict[str, object], ...]:
+    current = now or datetime.now()
+    goal_ml = _goal_ml(db_path=db_path)
+    days = [(current.date() - timedelta(days=offset)).isoformat() for offset in range(6, -1, -1)]
+    totals = {day: 0 for day in days}
+    db.init_db(db_path)
+    with db.connect(db_path) as conn:
+        rows = conn.execute(
+            """SELECT day, COALESCE(SUM(amount_ml), 0) AS total_ml
+            FROM water_log
+            WHERE day BETWEEN ? AND ?
+            GROUP BY day""",
+            (days[0], days[-1]),
+        ).fetchall()
+    for row in rows:
+        totals[str(row["day"])] = int(row["total_ml"] or 0)
+    return tuple(
+        {
+            "date": day,
+            "label": datetime.fromisoformat(day).strftime("%a"),
+            "amount_ml": totals[day],
+            "goal_ml": goal_ml,
+            "percent": min(100, int((totals[day] / goal_ml) * 100)) if goal_ml > 0 else 0,
+            "complete": totals[day] >= goal_ml,
+        }
+        for day in days
+    )
+
+
 def goal_for_profile(age: int, sex: str) -> int:
     normalized_sex = _normalize_sex(sex)
     if age <= 3:
@@ -107,6 +138,16 @@ def _reset_if_new_day(db_path: str | None = None, now: datetime | None = None) -
         return
     db.set_setting(WATER_DATE_KEY, today, db_path=db_path)
     db.set_setting(WATER_PROGRESS_KEY, "0", db_path=db_path)
+
+
+def _record_water(amount_ml: int, db_path: str | None = None, now: datetime | None = None) -> None:
+    current = now or datetime.now()
+    db.init_db(db_path)
+    with db.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO water_log(day, recorded_at, amount_ml) VALUES(?, ?, ?)",
+            (_today(current), current.replace(microsecond=0).isoformat(), amount_ml),
+        )
 
 
 def _goal_ml(db_path: str | None = None) -> int:

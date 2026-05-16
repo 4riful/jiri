@@ -303,6 +303,7 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
         return render_template(
             "water.html",
             snapshot=snapshot,
+            water_week=runtime.water_weekly_history(),
             notice=request.args.get("notice", ""),
             error=request.args.get("error", ""),
         )
@@ -805,6 +806,11 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
     @app.get("/api/weather")
     def api_weather():
         return jsonify(runtime.screen_snapshot(panel="weather").weather)
+
+    @app.get("/api/water")
+    def api_water():
+        snapshot = runtime.water_snapshot()
+        return jsonify(snapshot)
 
     @app.post("/api/weather/refresh")
     @admin_required

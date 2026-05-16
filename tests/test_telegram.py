@@ -110,6 +110,7 @@ def test_dispatch_commands_cover_notes_focus_water_and_help(tmp_path):
     )
 
     assert "/todo add" in telegram.dispatch_command(runtime, "/help")
+    assert "/summary" in telegram.dispatch_command(runtime, "/help")
     assert "Added note #1" in telegram.dispatch_command(runtime, "/note add Plan | Keep it small")
     assert "Recent notes" in telegram.dispatch_command(runtime, "/notes")
     assert "Started focus #1" in telegram.dispatch_command(runtime, "/focus start 1 Telegram test")
@@ -119,6 +120,56 @@ def test_dispatch_commands_cover_notes_focus_water_and_help(tmp_path):
     assert "Cancelled focus #1" in telegram.dispatch_command(runtime, "/focus stop")
     assert "Added water" in telegram.dispatch_command(runtime, "/water add 250")
     assert "250ml" in telegram.dispatch_command(runtime, "/water")
+
+
+def test_summary_command_includes_core_state(tmp_path):
+    runtime = _runtime(tmp_path, allowed_chat_ids=(123456789,))
+    runtime.add_todo("Summary todo", priority=1)
+    runtime.add_note("Summary note", "Keep it small")
+
+    response = telegram.dispatch_command(runtime, "/summary")
+
+    assert "JIRI summary:" in response
+    assert "Todos: 1 pending" in response
+    assert "#1 p1 Summary todo" in response
+    assert "#1 Summary note" in response
+
+
+def test_telegram_destructive_todo_done_requires_confirmation(tmp_path):
+    runtime = _runtime(tmp_path, allowed_chat_ids=(123456789,))
+    todo = runtime.add_todo("Confirm me")
+
+    first = telegram.dispatch_command(runtime, f"/todo done {todo.id}", chat_id=123456789)
+    assert "Confirm to mark todo #1 done" in first
+    assert runtime.list_todos()[0].status == "pending"
+
+    code = first.split("/confirm ", 1)[1].splitlines()[0]
+    wrong = telegram.dispatch_command(runtime, "/confirm wrong", chat_id=123456789)
+    assert "did not match" in wrong
+    assert runtime.list_todos()[0].status == "pending"
+
+    confirmed = telegram.dispatch_command(runtime, f"/confirm {code}", chat_id=123456789)
+    assert "Done todo #1" in confirmed
+    assert runtime.list_todos(include_done=True)[0].status == "done"
+
+
+def test_telegram_destructive_focus_cancel_requires_confirmation(tmp_path):
+    runtime = _runtime(tmp_path, allowed_chat_ids=(123456789,))
+    runtime.start_focus(minutes=1, title="Confirm focus")
+
+    first = telegram.dispatch_command(runtime, "/focus stop", chat_id=123456789)
+    assert "Confirm to cancel the active focus session" in first
+    assert runtime.focus_snapshot()["active"] is True
+
+    cancelled = telegram.dispatch_command(runtime, "/cancel", chat_id=123456789)
+    assert "Pending action cancelled" in cancelled
+    assert runtime.focus_snapshot()["active"] is True
+
+    second = telegram.dispatch_command(runtime, "/focus stop", chat_id=123456789)
+    code = second.split("/confirm ", 1)[1].splitlines()[0]
+    confirmed = telegram.dispatch_command(runtime, f"/confirm {code}", chat_id=123456789)
+    assert "Cancelled focus #1" in confirmed
+    assert runtime.focus_snapshot()["active"] is False
 
 
 def test_extract_chat_candidates_finds_private_group_and_channel():

@@ -94,6 +94,6 @@ def test_typing_speed_from_config(tmp_path, monkeypatch):
 
 def test_invalid_typing_speed_rejected(tmp_path):
     cfg_path = tmp_path / "config.toml"
-    cfg_path.write_text("[display]\ntyping_speed_cps = 5\n", encoding="utf-8")
+    cfg_path.write_text("[display]\ntyping_speed_cps = 17\n", encoding="utf-8")
     with pytest.raises(ConfigError, match="typing speed"):
         load_config(cfg_path)

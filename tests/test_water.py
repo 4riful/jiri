@@ -53,3 +53,18 @@ def test_water_validates_inputs(tmp_path):
         water.set_goal_by_profile(0, "female", db_path=db_path)
     with pytest.raises(ValueError):
         water.set_goal_by_profile(30, "unknown", db_path=db_path)
+
+
+def test_water_records_weekly_history(tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+
+    water.add_water(300, db_path=db_path, now=datetime(2026, 5, 10, 9, 0, 0))
+    water.add_water(500, db_path=db_path, now=datetime(2026, 5, 12, 9, 0, 0))
+    water.add_water(700, db_path=db_path, now=datetime(2026, 5, 15, 9, 0, 0))
+
+    week = water.weekly_history(db_path=db_path, now=datetime(2026, 5, 15, 12, 0, 0))
+
+    assert len(week) == 7
+    assert week[-1]["amount_ml"] == 700
+    assert week[-1]["date"] == "2026-05-15"
+    assert any(day["amount_ml"] == 500 for day in week)

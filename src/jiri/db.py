@@ -6,7 +6,7 @@ import sqlite3
 from .config import load_config
 
 
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 
 
 def get_db_path(db_path: str | None = None) -> str:
@@ -91,10 +91,18 @@ def init_db(db_path: str | None = None) -> None:
                 FOREIGN KEY(todo_id) REFERENCES todos(id) ON DELETE SET NULL
             );
 
+            CREATE TABLE IF NOT EXISTS water_log (
+                id INTEGER PRIMARY KEY,
+                day TEXT NOT NULL,
+                recorded_at TEXT NOT NULL,
+                amount_ml INTEGER NOT NULL CHECK (amount_ml > 0)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_todos_status_due ON todos(status, due_at);
             CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at);
             CREATE INDEX IF NOT EXISTS idx_weather_location_fetched ON weather_cache(location, fetched_at);
             CREATE INDEX IF NOT EXISTS idx_focus_status_updated ON focus_sessions(status, updated_at);
+            CREATE INDEX IF NOT EXISTS idx_water_log_day_recorded ON water_log(day, recorded_at);
             """
         )
         current_ver = conn.execute("SELECT value FROM settings WHERE key = 'schema_version'").fetchone()
@@ -120,10 +128,19 @@ def _migrate(conn, current_ver: str) -> None:
                 UNIQUE(event_type, event_key)
             )"""
         )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS water_log (
+            id INTEGER PRIMARY KEY,
+            day TEXT NOT NULL,
+            recorded_at TEXT NOT NULL,
+            amount_ml INTEGER NOT NULL CHECK (amount_ml > 0)
+        )"""
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_water_log_day_recorded ON water_log(day, recorded_at)")
 
 
 def count_rows(table: str, db_path: str | None = None) -> int:
-    if table not in {"todos", "notes", "weather_cache", "settings", "events_log", "focus_sessions"}:
+    if table not in {"todos", "notes", "weather_cache", "settings", "events_log", "focus_sessions", "water_log"}:
         raise ValueError("Unsupported table")
     init_db(db_path)
     with connect(db_path) as conn:

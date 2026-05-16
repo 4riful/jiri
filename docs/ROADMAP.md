@@ -21,11 +21,11 @@
 | A | Main App Stable | Passed in WSL | Todos, notes, weather, location search, CLI, tests. |
 | B | Web Admin | Passed in WSL | Flask dashboard by IP, todo CRUD, notes CRUD, weather location control, JSON APIs. |
 | C | Focus Assist | Passed in WSL | Focus timer, pause/resume/complete, no DB writes every second. |
-| D | ASCII/Touch Display | Scaffolded | Persistent face, right info panel, touch zones, focus eyes; needs real display confirmation. |
-| P | Persona And Proactive Behavior | P0/P1 passed in WSL | Deterministic persona core and Telegram nudges; event model, typed mouth, web controls, and AI rewrite still staged. |
+| D | ASCII/Touch Display | Scaffolded | Persistent face, right info panel, touch zones, focus eyes, typed mouth scaffold; needs real display confirmation. |
+| P | Persona And Proactive Behavior | P0-P4 software implemented in WSL | Deterministic persona, Telegram nudges, event model, typed mouth scaffold, and web controls; AI rewrite still blocked. |
 | E | Local AI Benchmark | Scripts ready | Safe debloat, llama.cpp, Gemma 3 270M Q4_K_M benchmark at 512 ctx; WSL/local preflight is not acceptance. |
 | F | AI Integration | Blocked for acceptance | Local AI client remains disabled by default; production acceptance only after real Pi benchmark acceptance. |
-| G | Telegram Admin | Pending | Polling bot, CRUD/control commands, user whitelist. |
+| G | Telegram Admin | Passed in WSL | Polling bot, CRUD/control commands, summary command, user whitelist, and deterministic destructive confirmations. |
 
 ## Blockers Before Hardware Stages
 

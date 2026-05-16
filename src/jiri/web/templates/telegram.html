@@ -147,6 +147,9 @@
     <h2>Implemented Commands</h2>
     <ul class="compact-list">
       <li><strong>/status</strong><span>Dashboard health, pending todos, focus, weather, and water.</span></li>
+      <li><strong>/summary</strong><span>Compact daily snapshot with todos, focus, weather, water, and recent notes.</span></li>
+      <li><strong>/confirm &lt;code&gt;</strong><span>Confirm a pending destructive command.</span></li>
+      <li><strong>/cancel</strong><span>Cancel a pending Telegram confirmation.</span></li>
       <li><strong>/todos</strong><span>List pending todos.</span></li>
       <li><strong>/todo add &lt;title&gt;</strong><span>Add a deterministic todo.</span></li>
       <li><strong>/todo done &lt;id&gt;</strong><span>Mark a todo done.</span></li>
@@ -172,11 +175,11 @@
 
   <article class="card telegram-wide-card">
     <h2>{{ icon_database(16) }} Current Scope</h2>
-    <p>This page is a binding/status surface. It intentionally does not save tokens through the browser and does not execute Telegram commands from the web UI.</p>
+    <p>This page is a binding/status surface. It saves Telegram settings to SQLite and does not execute Telegram commands from the web UI.</p>
     <ul class="compact-list">
       <li><strong>Allowed</strong><span>Polling, explicit allowlist, deterministic JIRI commands.</span></li>
       <li><strong>Blocked</strong><span>Shell execution, systemd control, AI-owned state changes, implicit geocoding.</span></li>
-      <li><strong>Next</strong><span>Telegram poller implementation will use <code>getUpdates</code> and <code>sendMessage</code>.</span></li>
+      <li><strong>Confirmations</strong><span>Destructive Telegram commands require <code>/confirm &lt;code&gt;</code> or can be cleared with <code>/cancel</code>.</span></li>
     </ul>
   </article>
 </section>

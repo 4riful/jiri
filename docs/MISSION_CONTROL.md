@@ -34,16 +34,18 @@ Implemented in code:
 - Stage C: Focus Assist core, CLI, web/API controls, no per-second SQLite writes.
 - Stage D: WSL-safe display foundation, shared display view model, touch zones, critical face guardrails, mock-safe Pygame entrypoint.
 - Stage E: local AI benchmark scaffolding scripts and WSL safety tests.
+- Stage G: Telegram admin polling path, allowlist, deterministic commands, summary command, and destructive confirmations.
+- Hydration tracking with SQLite-backed daily state and 7-day water intake history.
 
 Implemented but still hardware-gated:
 
 - Stage D ASCII/touch display final acceptance requires real 3.5-inch display confirmation.
 - Stage E local AI benchmark final acceptance requires real Raspberry Pi 3B/3B+ measurements.
+- Stage G production usage requires a real Telegram bot token and explicit allowed chat IDs.
 
 Not yet implemented:
 
 - Stage F AI integration acceptance. Blocked until Stage E passes on real hardware.
-- Stage G Telegram admin.
 
 ## Active Build Order
 
@@ -57,18 +59,18 @@ Use the handbook build order from now on:
 | D | ASCII/Touch Display | Scaffolded in WSL | Needs Pi display/touch confirmation before acceptance. |
 | E | Local AI Benchmark | Scripts ready | Local ctx512 preflight allowed; no claims before real Pi measurement. |
 | F | AI Integration | Blocked for acceptance | Disabled-by-default local work only; production only after benchmark passes. |
-| G | Telegram Admin | Later | Polling first, whitelist users. |
+| G | Telegram Admin | Passed in WSL | Needs real token/chat allowlist for production. |
 
 ## Immediate Next Engineering Task
 
-WSL-local Gemma preflight setup plus hardware confirmation and gate alignment before Stage F acceptance.
+Hardware confirmation and gate alignment before Stage F acceptance.
 
 Scope:
 
 - Run Stage D display/touch checks on the real Pi 3B+.
 - Run Stage E AI baseline and Gemma benchmark scripts on the real Pi target.
 - Use `JIRI_LOCAL_DEV=1` only for local Gemma ctx512 preflight; do not count it as acceptance.
-- Keep WSL tests green while preparing Telegram/admin work.
+- Keep WSL tests green while preparing hardware validation.
 - Do not implement AI integration until benchmark acceptance exists.
 
 Hard limits:

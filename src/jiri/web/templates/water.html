@@ -17,6 +17,20 @@
       <p class="card-sub">Default targets use National Academies total-water adequate intakes by age/sex, reduced to a practical drink/fluid reminder target because food contributes water too.</p>
     </article>
 
+    <article class="card">
+      <h2>Weekly Intake</h2>
+      <div class="water-week-grid">
+        {% for day in water_week %}
+          <div class="water-week-day {% if day.complete %}complete{% endif %}">
+            <strong>{{ day.label }}</strong>
+            <span>{{ day.amount_ml }}ml</span>
+            <small>{{ day.percent }}%</small>
+          </div>
+        {% endfor %}
+      </div>
+      <p class="card-sub">Shows the last 7 days of recorded intake, stored in SQLite.</p>
+    </article>
+
     <section class="dashboard-grid">
       <article class="card">
         <h2>Quick Add</h2>

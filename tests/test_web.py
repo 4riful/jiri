@@ -71,6 +71,15 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     assert water_page.status_code == 200
     assert b"250ml" in water_page.data
 
+    water_view = client.get("/admin/water")
+    assert water_view.status_code == 200
+    assert b"Weekly Intake" in water_view.data
+    assert b"stored in SQLite" in water_view.data
+
+    water_api = client.get("/api/water")
+    assert water_api.status_code == 200
+    assert len(water_api.json["week"]) == 7
+
     water_goal = client.post("/admin/water/age", data={"age": "30", "sex": "male"}, follow_redirects=True)
     assert water_goal.status_code == 200
     assert b"3000ml" in water_goal.data
@@ -82,6 +91,7 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     assert b"Missing setup" in telegram_page.data
     assert b"Check Bot API" in telegram_page.data
     assert b"/todo add" in telegram_page.data
+    assert b"/summary" in telegram_page.data
 
     telegram_api = client.get("/api/telegram/status")
     assert telegram_api.status_code == 200

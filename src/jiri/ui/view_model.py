@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from jiri.views import ScreenSnapshot
 
 from .face import FaceFrame, face_frame_for_state
 from .touch import TouchZone, build_touch_zones
+from .typing import TypedText, truncate_text, type_text
 
 
 @dataclass(frozen=True)
@@ -17,22 +19,47 @@ class DisplayViewModel:
     face: FaceFrame
     headline: str
     subheadline: str
+    typed_headline: str
+    typed_complete: bool
+    typing_speed_cps: int
     right_rows: tuple[tuple[str, str], ...]
     touch_zones: tuple[TouchZone, ...]
 
 
-def build_display_view_model(snapshot: ScreenSnapshot) -> DisplayViewModel:
+def build_display_view_model(
+    snapshot: ScreenSnapshot,
+    message_started_at: datetime | None = None,
+    now: datetime | None = None,
+) -> DisplayViewModel:
+    headline = truncate_text(snapshot.headline)
+    subheadline = truncate_text(snapshot.subheadline)
+    typed = _typed_headline(snapshot, headline, message_started_at=message_started_at, now=now)
     return DisplayViewModel(
         width=snapshot.width,
         height=snapshot.height,
         panel=snapshot.panel,
         panel_title=snapshot.panel_title,
         face=face_frame_for_state(snapshot.face_state, focus_snapshot=snapshot.focus),
-        headline=snapshot.headline,
-        subheadline=snapshot.subheadline,
+        headline=headline,
+        subheadline=subheadline,
+        typed_headline=typed.visible,
+        typed_complete=typed.complete,
+        typing_speed_cps=snapshot.typing_speed_cps,
         right_rows=_right_rows(snapshot),
         touch_zones=build_touch_zones(snapshot.width, snapshot.height),
     )
+
+
+def _typed_headline(
+    snapshot: ScreenSnapshot,
+    headline: str,
+    message_started_at: datetime | None = None,
+    now: datetime | None = None,
+) -> TypedText:
+    if message_started_at is None:
+        return TypedText(headline, True, len(headline), len(headline))
+    current = now or datetime.now()
+    return type_text(headline, started_at=message_started_at, now=current, speed_cps=snapshot.typing_speed_cps)
 
 
 def _right_rows(snapshot: ScreenSnapshot) -> tuple[tuple[str, str], ...]:

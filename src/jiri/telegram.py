@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+import hashlib
 import argparse
 import sys
 import time
@@ -29,6 +30,7 @@ COMMAND_CHAT_ID_KEY = "telegram.command_chat_id"
 POLLING_TIMEOUT_KEY = "telegram.polling_timeout_seconds"
 BOT_USERNAME_KEY = "telegram.bot_username"
 BOT_ID_KEY = "telegram.bot_id"
+CONFIRM_PREFIX = "telegram.confirm."
 
 
 class TelegramError(RuntimeError):
@@ -489,31 +491,37 @@ def handle_update(runtime: "JiriRuntime", update: dict[str, object]) -> Telegram
     if not text:
         return TelegramReply(chat_id, "Send /help for JIRI commands.")
     try:
-        return TelegramReply(chat_id, dispatch_command(runtime, text))
+        return TelegramReply(chat_id, dispatch_command(runtime, text, chat_id=chat_id))
     except (ValueError, RuntimeError) as exc:
         return TelegramReply(chat_id, f"Error: {exc}")
 
 
-def dispatch_command(runtime: "JiriRuntime", text: str) -> str:
+def dispatch_command(runtime: "JiriRuntime", text: str, chat_id: int | None = None) -> str:
     command, arg = _split_command(text)
     if command in {"/start", "/help"}:
         return _help_text()
+    if command == "/confirm":
+        return _confirm_command(runtime, chat_id, arg)
+    if command == "/cancel":
+        return _cancel_confirmation(runtime, chat_id)
     if command == "/status":
         return _status_text(runtime)
+    if command == "/summary":
+        return _summary_text(runtime)
     if command in {"/todos", "/todo"}:
-        return _todo_command(runtime, command, arg)
+        return _todo_command(runtime, command, arg, chat_id=chat_id)
     if command in {"/notes", "/note"}:
         return _note_command(runtime, command, arg)
     if command == "/weather":
         return _weather_text(runtime)
     if command == "/focus":
-        return _focus_command(runtime, arg)
+        return _focus_command(runtime, arg, chat_id=chat_id)
     if command == "/water":
         return _water_command(runtime, arg)
     return "Unknown command. Send /help for supported commands."
 
 
-def _todo_command(runtime: "JiriRuntime", command: str, arg: str) -> str:
+def _todo_command(runtime: "JiriRuntime", command: str, arg: str, chat_id: int | None = None) -> str:
     if command == "/todos" or not arg or arg == "list":
         rows = runtime.list_todos(include_done=False)[:8]
         if not rows:
@@ -524,6 +532,8 @@ def _todo_command(runtime: "JiriRuntime", command: str, arg: str) -> str:
         todo = runtime.add_todo(rest)
         return f"Added todo #{todo.id}: {todo.title}"
     if sub == "done":
+        if chat_id is not None:
+            return _request_confirmation(runtime, chat_id, f"/todo done {rest}", f"mark todo #{rest.strip()} done")
         todo = runtime.mark_todo_done(_parse_positive_int(rest, "todo id"))
         return f"Done todo #{todo.id}: {todo.title}"
     return "Usage: /todos, /todo add <title>, /todo done <id>"
@@ -543,7 +553,7 @@ def _note_command(runtime: "JiriRuntime", command: str, arg: str) -> str:
     return "Usage: /notes, /note add <title> | <body>"
 
 
-def _focus_command(runtime: "JiriRuntime", arg: str) -> str:
+def _focus_command(runtime: "JiriRuntime", arg: str, chat_id: int | None = None) -> str:
     sub, rest = _split_word(arg or "status")
     if sub == "status":
         snap = runtime.focus_snapshot()
@@ -565,6 +575,8 @@ def _focus_command(runtime: "JiriRuntime", arg: str) -> str:
         session = runtime.complete_focus()
         return f"Completed focus #{session.id}: {session.title}"
     if sub in {"stop", "cancel"}:
+        if chat_id is not None:
+            return _request_confirmation(runtime, chat_id, f"/focus {sub}", "cancel the active focus session")
         session = runtime.cancel_focus()
         return f"Cancelled focus #{session.id}: {session.title}"
     return "Usage: /focus status|start [minutes] [title]|pause|resume|complete|stop"
@@ -595,6 +607,27 @@ def _status_text(runtime: "JiriRuntime") -> str:
     )
 
 
+def _summary_text(runtime: "JiriRuntime") -> str:
+    snap = runtime.dashboard_snapshot(panel="system")
+    pending = snap.todos[:5]
+    notes = snap.notes[:3]
+    focus_text = snap.focus.get("remaining_text") if snap.focus.get("active") else "none"
+    lines = [
+        "JIRI summary:",
+        f"Todos: {snap.screen.pending_count} pending, {snap.screen.overdue_count} overdue",
+        f"Focus: {focus_text}",
+        f"Weather: {snap.weather.get('condition') or 'unavailable'}",
+        f"Water: {snap.water.get('progress_ml')}ml / {snap.water.get('goal_ml')}ml",
+    ]
+    if pending:
+        lines.append("Next todos:")
+        lines.extend(f"#{todo.id} p{todo.priority} {todo.title}" for todo in pending)
+    if notes:
+        lines.append("Recent notes:")
+        lines.extend(f"#{note.id} {note.title}" for note in notes)
+    return "\n".join(lines)
+
+
 def _weather_text(runtime: "JiriRuntime") -> str:
     weather = runtime.dashboard_snapshot(panel="weather").weather
     if not weather.get("available"):
@@ -617,6 +650,9 @@ def _help_text() -> str:
         [
             "JIRI Telegram commands:",
             "/status",
+            "/summary",
+            "/confirm <code>",
+            "/cancel",
             "/todos",
             "/todo add <title>",
             "/todo done <id>",
@@ -628,6 +664,51 @@ def _help_text() -> str:
             "/water add <ml>",
         ]
     )
+
+
+def _confirm_command(runtime: "JiriRuntime", chat_id: int | None, arg: str) -> str:
+    if chat_id is None:
+        return "Confirmation is only available for Telegram chats."
+    pending = db.get_setting(_confirm_key(chat_id), db_path=runtime.db_path) or ""
+    if not pending:
+        return "No pending confirmation."
+    code, command = _split_pending_confirmation(pending)
+    if arg.strip() != code:
+        return "Confirmation code did not match. Send /cancel to clear the pending action."
+    db.delete_setting(_confirm_key(chat_id), db_path=runtime.db_path)
+    return dispatch_command(runtime, command, chat_id=None)
+
+
+def _cancel_confirmation(runtime: "JiriRuntime", chat_id: int | None) -> str:
+    if chat_id is None:
+        return "No Telegram chat context."
+    key = _confirm_key(chat_id)
+    if not db.get_setting(key, db_path=runtime.db_path):
+        return "No pending confirmation."
+    db.delete_setting(key, db_path=runtime.db_path)
+    return "Pending action cancelled."
+
+
+def _request_confirmation(runtime: "JiriRuntime", chat_id: int, command: str, description: str) -> str:
+    code = _confirmation_code(chat_id, command)
+    db.set_setting(_confirm_key(chat_id), f"{code}|{command}", db_path=runtime.db_path)
+    return f"Confirm to {description}: /confirm {code}\nSend /cancel to abort."
+
+
+def _split_pending_confirmation(value: str) -> tuple[str, str]:
+    if "|" not in value:
+        return "", ""
+    code, command = value.split("|", 1)
+    return code.strip(), command.strip()
+
+
+def _confirm_key(chat_id: int) -> str:
+    return f"{CONFIRM_PREFIX}{chat_id}"
+
+
+def _confirmation_code(chat_id: int, command: str) -> str:
+    seed = f"{chat_id}:{command.strip().lower()}".encode("utf-8")
+    return hashlib.sha256(seed).hexdigest()[:6]
 
 
 def _split_command(text: str) -> tuple[str, str]:

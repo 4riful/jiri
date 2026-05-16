@@ -725,7 +725,7 @@ Commands:
 Security:
 
 - Allow only configured Telegram user IDs.
-- Token stored in environment variable.
+- Token seeded from environment or config on first boot, then stored in SQLite and managed from the web UI.
 - Never commit token.
 - Confirm destructive actions.
 - Ignore unknown users.

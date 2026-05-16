@@ -20,7 +20,7 @@ def type_text(
     now: datetime | None = None,
     speed_cps: int = 24,
 ) -> TypedText:
-    truncated = text[:MAX_MESSAGE_LENGTH]
+    truncated = truncate_text(text)
     total = len(truncated)
     if total == 0:
         return TypedText("", True, 0, 0)
@@ -39,7 +39,11 @@ def type_text(
 
 
 def typing_duration_seconds(text: str, speed_cps: int = 24) -> float:
-    truncated = text[:MAX_MESSAGE_LENGTH]
+    truncated = truncate_text(text)
     if not truncated:
         return 0.0
     return len(truncated) / max(1, speed_cps)
+
+
+def truncate_text(text: str, max_length: int = MAX_MESSAGE_LENGTH) -> str:
+    return text[:max(0, max_length)]

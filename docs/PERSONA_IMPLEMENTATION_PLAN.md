@@ -49,7 +49,7 @@ Acceptance:
 
 ## Stage P2: Event Model And Milestones
 
-Status: planned.
+Status: implemented in WSL.
 
 Scope:
 
@@ -84,14 +84,14 @@ Acceptance:
 Implementation details:
 
 - `src/jiri/ui/typing.py`: pure-Python `type_text()` tracks visible character count from elapsed time and configurable cps; `MAX_MESSAGE_LENGTH = 160`.
-- `DisplayConfig.typing_speed_cps`: configurable 10-40 cps (default 24), validated in config.
+- `DisplayConfig.typing_speed_cps`: configurable 18-30 cps (default 24), validated in config.
 - `ScreenSnapshot.typing_speed_cps`: passed to templates and API.
 - Web screen: vanilla JS typing effect with blinking cursor, speed from server.
 - `tests/test_typing.py`: 9 tests covering empty, partial, complete, truncation, speed variation, negative elapsed.
 
 ## Stage P4: Web Persona Controls
 
-Status: planned.
+Status: implemented in WSL.
 
 Scope:
 

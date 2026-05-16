@@ -106,7 +106,7 @@ Status: scaffolded in WSL. Real display/touch acceptance still required.
 
 ### Stage P: Persona And Proactive Behavior
 
-Status: P0/P1 implemented in WSL. P2-P5 remain planned or hardware/AI blocked.
+Status: P0-P4 software implemented in WSL. P3 still needs real display acceptance; P5 remains AI/hardware blocked.
 
 - Deterministic persona engine follows handbook priority order.
 - Screen persona decisions do not write SQLite.
@@ -114,7 +114,7 @@ Status: P0/P1 implemented in WSL. P2-P5 remain planned or hardware/AI blocked.
 - Quiet hours suppress low-priority proactive messages.
 - Focus suppresses random idle chatter.
 - Per-task overdue cooldowns prevent one task from silencing another.
-- Typed mouth effect and real display acceptance remain Stage D/P3 hardware work.
+- Typed mouth effect has software coverage; real display acceptance remains Stage D/P3 hardware work.
 - AI rewrite remains blocked until Stage E and Stage F acceptance.
 
 ### Stage E: Local AI Benchmark
@@ -143,6 +143,8 @@ Status: blocked for production acceptance until Stage E passes on real Raspberry
 - AI timeout keeps deterministic fallback message.
 
 ### Stage G: Telegram Admin
+
+Status: passed in WSL. Production use still requires a real bot token and allowed chat IDs.
 
 - Polling bot works without public IP.
 - Unknown users ignored.

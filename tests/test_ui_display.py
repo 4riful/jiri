@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from jiri.config import AppConfig, DisplayConfig
 from jiri.ui.face import face_frame_for_state, focus_eyes, is_critical_face_state
@@ -50,8 +50,30 @@ def test_display_view_model_from_screen_snapshot(tmp_path):
     assert model.width == 480
     assert model.height == 320
     assert model.panel == "system"
+    assert model.headline == model.headline[:160]
+    assert model.typed_headline == model.headline
+    assert model.typed_complete is True
+    assert model.typing_speed_cps == 24
     assert model.right_rows
     assert model.touch_zones
+
+
+def test_display_view_model_types_and_truncates_headline(tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    cfg = AppConfig(display=DisplayConfig(driver="mock", fullscreen=False, width=480, height=320, typing_speed_cps=20))
+    started = datetime(2026, 5, 15, 9, 0, 0)
+    snapshot = build_screen_snapshot(db_path=db_path, config=cfg, panel="system", now=started)
+    long_headline_snapshot = snapshot.__class__(**{**snapshot.__dict__, "headline": "A" * 300})
+
+    model = build_display_view_model(
+        long_headline_snapshot,
+        message_started_at=started,
+        now=started + timedelta(seconds=2),
+    )
+
+    assert len(model.headline) == 160
+    assert model.typed_headline == "A" * 40
+    assert model.typed_complete is False
 
 
 def test_layout_respects_minimum_geometry():

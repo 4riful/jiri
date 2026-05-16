@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from jiri.ui.typing import MAX_MESSAGE_LENGTH, type_text, typing_duration_seconds
+from jiri.ui.typing import MAX_MESSAGE_LENGTH, truncate_text, type_text, typing_duration_seconds
 
 
 def test_type_text_starts_empty():
@@ -68,6 +68,11 @@ def test_typing_duration_respects_max_length():
     long_text = "A" * 300
     duration = typing_duration_seconds(long_text, speed_cps=10)
     assert duration == MAX_MESSAGE_LENGTH / 10.0
+
+
+def test_truncate_text_respects_max_length():
+    assert truncate_text("A" * 300) == "A" * MAX_MESSAGE_LENGTH
+    assert truncate_text("Hello", max_length=2) == "He"
 
 
 def test_type_text_negative_elapsed():

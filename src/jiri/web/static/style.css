@@ -713,6 +713,37 @@ code { color: var(--bright-yellow); }
   background: var(--bright-blue);
 }
 
+.water-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.water-week-day {
+  border: 1px solid var(--selection);
+  background: var(--background);
+  padding: 10px 8px;
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.water-week-day.complete {
+  border-color: var(--bright-green);
+}
+
+.water-week-day strong {
+  color: var(--bright-white);
+}
+
+.water-week-day span {
+  color: var(--bright-blue);
+}
+
+.water-week-day small {
+  color: var(--bright-black);
+}
+
 /* ── card head flex ─────────────────────────────────────────── */
 .card-head-flex {
   display: flex;

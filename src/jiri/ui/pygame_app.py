@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import time
+from datetime import datetime
 
 from jiri.runtime import JiriRuntime
 
@@ -30,7 +31,9 @@ def run() -> int:
     fps = max(10, min(cfg.display.fps, 15))
     fonts = _load_fonts(pygame)
     snapshot = runtime.screen_snapshot()
-    model = build_display_view_model(snapshot)
+    message_key = _message_key(snapshot)
+    message_started_at = datetime.now()
+    model = build_display_view_model(snapshot, message_started_at=message_started_at, now=message_started_at)
     last_snapshot = 0.0
     pending: PendingConfirmation | None = None
     running = True
@@ -39,7 +42,10 @@ def run() -> int:
         now = time.monotonic()
         if now - last_snapshot >= 1.0:
             snapshot = runtime.screen_snapshot()
-            model = build_display_view_model(snapshot)
+            new_message_key = _message_key(snapshot)
+            if new_message_key != message_key:
+                message_key = new_message_key
+                message_started_at = datetime.now()
             last_snapshot = now
 
         for event in pygame.event.get():
@@ -51,8 +57,10 @@ def run() -> int:
                 action, pending = action_for_touch(event.pos, snapshot.face_state, snapshot.width, snapshot.height, pending=pending)
                 if action == "next_panel":
                     snapshot = runtime.screen_snapshot(panel=_next_panel(snapshot.panel))
-                    model = build_display_view_model(snapshot)
+                    message_key = _message_key(snapshot)
+                    message_started_at = datetime.now()
 
+        model = build_display_view_model(snapshot, message_started_at=message_started_at, now=datetime.now())
         _draw(pygame, surface, fonts, model)
         pygame.display.flip()
         clock.tick(fps)
@@ -77,7 +85,7 @@ def _draw(pygame, surface, fonts, model: DisplayViewModel) -> None:
     pygame.draw.rect(surface, theme.TEXT, _rect(layout.face), width=1, border_radius=10)
     pygame.draw.rect(surface, theme.ACCENT, _rect(layout.panel), width=1, border_radius=10)
     _text(surface, fonts["title"], model.panel_title, (10, 8), theme.TEXT)
-    _text(surface, fonts["small"], model.headline[:42], (10, model.height - 26), theme.TEXT)
+    _text(surface, fonts["small"], model.typed_headline[:42], (10, model.height - 26), theme.TEXT)
     face_text = f"{model.face.eye_left}   {model.face.eye_right}\n  {model.face.mouth}"
     _multiline(surface, fonts["face"], face_text, (layout.face.x + 38, layout.face.y + 42), theme.ACCENT)
     _text(surface, fonts["body"], model.subheadline[:30], (layout.face.x + 18, layout.face.y + layout.face.height - 34), theme.TEXT)
@@ -110,6 +118,10 @@ def _next_panel(panel: str) -> str:
     except ValueError:
         return panels[0]
     return panels[(index + 1) % len(panels)]
+
+
+def _message_key(snapshot) -> str:
+    return f"{snapshot.face_state}|{snapshot.panel}|{snapshot.headline}|{snapshot.subheadline}"
 
 
 if __name__ == "__main__":
