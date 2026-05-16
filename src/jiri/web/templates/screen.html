@@ -33,7 +33,7 @@
             <div class="mouth">{{ display.face.mouth }}</div>
           </div>
           <div class="face-copy">
-            <h2>{{ snapshot.headline }}</h2>
+            <h2 id="typed-headline" data-text="{{ snapshot.headline }}">{{ snapshot.headline }}</h2>
             <p>{{ snapshot.subheadline }}</p>
           </div>
         </article>
@@ -116,4 +116,28 @@
       </div>
     </div>
   </section>
+  <script>
+  (function() {
+    var el = document.getElementById("typed-headline");
+    if (!el) return;
+    var full = el.getAttribute("data-text") || "";
+    if (!full) return;
+    var speed = {{ snapshot.typing_speed_cps }};
+    var msPerChar = Math.max(25, Math.round(1000 / speed));
+    el.textContent = "";
+    var i = 0;
+    var cursor = true;
+    function type() {
+      if (i <= full.length) {
+        el.textContent = full.slice(0, i) + (cursor ? "\u2588" : " ");
+        i++;
+        cursor = !cursor;
+        setTimeout(type, msPerChar);
+      } else {
+        el.textContent = full;
+      }
+    }
+    setTimeout(type, 300);
+  })();
+  </script>
 {% endblock %}

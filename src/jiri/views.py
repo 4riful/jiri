@@ -42,6 +42,7 @@ class ScreenSnapshot:
     pending_count: int = 0
     overdue_count: int = 0
     note_count: int = 0
+    typing_speed_cps: int = 24
 
 
 @dataclass(frozen=True)
@@ -114,6 +115,7 @@ def build_screen_snapshot(
         pending_count=len(pending_todos),
         overdue_count=len(overdue_todos),
         note_count=len(all_notes),
+        typing_speed_cps=cfg.display.typing_speed_cps,
     )
 
 

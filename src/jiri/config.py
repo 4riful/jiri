@@ -19,6 +19,7 @@ class DisplayConfig:
     fullscreen: bool = True
     fps: int = 15
     rotate_seconds: int = 20
+    typing_speed_cps: int = 24
 
 
 @dataclass(frozen=True)
@@ -242,3 +243,5 @@ def _validate(cfg: AppConfig) -> None:
         raise ConfigError("Web port must be between 1 and 65535")
     if cfg.telegram.polling_timeout_seconds < 1 or cfg.telegram.polling_timeout_seconds > 50:
         raise ConfigError("Telegram polling timeout must be between 1 and 50 seconds")
+    if not 10 <= cfg.display.typing_speed_cps <= 40:
+        raise ConfigError("Display typing speed must be between 10 and 40 characters per second")

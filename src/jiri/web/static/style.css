@@ -1114,6 +1114,10 @@ a:focus-visible { outline: 2px solid var(--bright-cyan); outline-offset: 2px; }
 .mouth { color: var(--bright-cyan); font-size: 1.6rem; }
 .face-copy h2 { color: var(--bright-white); }
 
+#typed-headline {
+  min-height: 1.2em;
+}
+
 .panel-switcher { justify-content: center; }
 .panel-switcher .active { border-color: var(--bright-cyan); background: var(--selection); }
 

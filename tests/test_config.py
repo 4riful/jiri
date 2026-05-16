@@ -76,3 +76,24 @@ def test_invalid_weather_coordinates_rejected(tmp_path):
     cfg_path.write_text("[weather]\nlatitude = 91\nlongitude = 88.85\n", encoding="utf-8")
     with pytest.raises(ConfigError, match="latitude"):
         load_config(cfg_path)
+
+
+def test_typing_speed_default(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    cfg = load_config()
+    assert cfg.display.typing_speed_cps == 24
+
+
+def test_typing_speed_from_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text("[display]\ntyping_speed_cps = 30\n", encoding="utf-8")
+    cfg = load_config(cfg_path)
+    assert cfg.display.typing_speed_cps == 30
+
+
+def test_invalid_typing_speed_rejected(tmp_path):
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text("[display]\ntyping_speed_cps = 5\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="typing speed"):
+        load_config(cfg_path)

@@ -5,6 +5,7 @@ height = 320
 fullscreen = true
 fps = 15
 rotate_seconds = 20
+typing_speed_cps = 24
 
 [assistant]
 name = "JIRI"
