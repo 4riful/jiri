@@ -60,13 +60,6 @@ class WebConfig:
 
 
 @dataclass(frozen=True)
-class WorkerConfig:
-    enabled: bool = False
-    base_url: str = "http://pi-worker.local:5050"
-    timeout_seconds: int = 1
-
-
-@dataclass(frozen=True)
 class PerformanceConfig:
     max_ui_ram_mb: int = 250
     max_web_ram_mb: int = 150
@@ -86,6 +79,15 @@ class LlmConfig:
 
 
 @dataclass(frozen=True)
+class TelegramConfig:
+    bot_token: str = ""
+    allowed_chat_ids: tuple[int, ...] = ()
+    polling_timeout_seconds: int = 25
+    command_chat_id: int | None = None
+    enabled: bool = False
+
+
+@dataclass(frozen=True)
 class AppConfig:
     display: DisplayConfig = field(default_factory=DisplayConfig)
     assistant: AssistantConfig = field(default_factory=AssistantConfig)
@@ -93,9 +95,9 @@ class AppConfig:
     focus: FocusConfig = field(default_factory=FocusConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     web: WebConfig = field(default_factory=WebConfig)
-    worker: WorkerConfig = field(default_factory=WorkerConfig)
     performance: PerformanceConfig = field(default_factory=PerformanceConfig)
     llm: LlmConfig = field(default_factory=LlmConfig)
+    telegram: TelegramConfig = field(default_factory=TelegramConfig)
 
 
 class ConfigError(ValueError):
@@ -118,9 +120,9 @@ def load_config(path: str | os.PathLike[str] | None = None) -> AppConfig:
         focus=_section(FocusConfig, data.get("focus", {})),
         database=_section(DatabaseConfig, data.get("database", {})),
         web=_section(WebConfig, data.get("web", {})),
-        worker=_section(WorkerConfig, data.get("worker", {})),
         performance=_section(PerformanceConfig, data.get("performance", {})),
         llm=_section(LlmConfig, data.get("llm", {})),
+        telegram=_section(TelegramConfig, data.get("telegram", {})),
     )
     cfg = _apply_env(cfg)
     _validate(cfg)
@@ -140,6 +142,8 @@ def _apply_env(cfg: AppConfig) -> AppConfig:
     database = cfg.database
     weather = cfg.weather
     web = cfg.web
+    llm = cfg.llm
+    telegram = cfg.telegram
 
     if "JIRI_DISPLAY_DRIVER" in os.environ:
         display = replace(display, driver=os.environ["JIRI_DISPLAY_DRIVER"])
@@ -159,8 +163,25 @@ def _apply_env(cfg: AppConfig) -> AppConfig:
         web = replace(web, host=os.environ["JIRI_WEB_HOST"])
     if "JIRI_WEB_PORT" in os.environ:
         web = replace(web, port=_parse_int(os.environ["JIRI_WEB_PORT"], "JIRI_WEB_PORT"))
+    if "JIRI_LLM_SERVER_BINARY" in os.environ:
+        llm = replace(llm, server_binary=os.environ["JIRI_LLM_SERVER_BINARY"].strip())
+    if "JIRI_LLM_MODEL_PATH" in os.environ:
+        llm = replace(llm, model_path=os.environ["JIRI_LLM_MODEL_PATH"].strip())
+    if "JIRI_LLM_SERVER_PORT" in os.environ:
+        llm = replace(llm, server_port=_parse_int(os.environ["JIRI_LLM_SERVER_PORT"], "JIRI_LLM_SERVER_PORT"))
+    if "JIRI_TELEGRAM_BOT_TOKEN" in os.environ:
+        telegram = replace(telegram, bot_token=os.environ["JIRI_TELEGRAM_BOT_TOKEN"].strip())
+    if "JIRI_TELEGRAM_ALLOWED_CHAT_IDS" in os.environ:
+        telegram = replace(
+            telegram,
+            allowed_chat_ids=_parse_int_list(os.environ["JIRI_TELEGRAM_ALLOWED_CHAT_IDS"], "JIRI_TELEGRAM_ALLOWED_CHAT_IDS"),
+        )
+    if "JIRI_TELEGRAM_COMMAND_CHAT_ID" in os.environ:
+        telegram = replace(telegram, command_chat_id=_parse_optional_int(os.environ["JIRI_TELEGRAM_COMMAND_CHAT_ID"], "JIRI_TELEGRAM_COMMAND_CHAT_ID"))
+    if "JIRI_TELEGRAM_ENABLED" in os.environ:
+        telegram = replace(telegram, enabled=_parse_bool(os.environ["JIRI_TELEGRAM_ENABLED"], "JIRI_TELEGRAM_ENABLED"))
 
-    return replace(cfg, display=display, database=database, weather=weather, web=web)
+    return replace(cfg, display=display, database=database, weather=weather, web=web, llm=llm, telegram=telegram)
 
 
 def _parse_bool(value: str, name: str) -> bool:
@@ -177,6 +198,21 @@ def _parse_int(value: str, name: str) -> int:
         return int(value)
     except ValueError as exc:
         raise ConfigError(f"{name} must be an integer") from exc
+
+
+def _parse_optional_int(value: str, name: str) -> int | None:
+    clean = value.strip()
+    if not clean:
+        return None
+    return _parse_int(clean, name)
+
+
+def _parse_int_list(value: str, name: str) -> tuple[int, ...]:
+    parts = [part.strip() for part in value.split(",") if part.strip()]
+    try:
+        return tuple(int(part) for part in parts)
+    except ValueError as exc:
+        raise ConfigError(f"{name} must be a comma-separated list of integers") from exc
 
 
 def _validate(cfg: AppConfig) -> None:
@@ -202,7 +238,7 @@ def _validate(cfg: AppConfig) -> None:
         raise ConfigError("Focus break minutes must be at least 1")
     if cfg.focus.checkpoint_seconds < 10:
         raise ConfigError("Focus checkpoint seconds must be at least 10")
-    if cfg.worker.timeout_seconds > 1:
-        raise ConfigError("Worker timeout must not exceed 1 second")
     if cfg.web.port <= 0 or cfg.web.port > 65535:
         raise ConfigError("Web port must be between 1 and 65535")
+    if cfg.telegram.polling_timeout_seconds < 1 or cfg.telegram.polling_timeout_seconds > 50:
+        raise ConfigError("Telegram polling timeout must be between 1 and 50 seconds")

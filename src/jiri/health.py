@@ -35,7 +35,6 @@ def health_snapshot(db_path: str | None = None, config: AppConfig | None = None)
         "web": {"host": cfg.web.host, "port": cfg.web.port},
         "free_ram_mb": free_ram_mb(),
         "cpu_temperature_c": cpu_temperature_c(),
-        "worker": "enabled" if cfg.worker.enabled else "disabled",
         "llama": llama,
     }
 
@@ -57,7 +56,6 @@ def format_health(snapshot: dict[str, object]) -> str:
             f"web config: {web['host']}:{web['port']}",
             f"free RAM MB: {snapshot['free_ram_mb'] if snapshot['free_ram_mb'] is not None else 'unknown'}",
             f"CPU temperature C: {snapshot['cpu_temperature_c'] if snapshot['cpu_temperature_c'] is not None else 'unknown'}",
-            f"worker: {snapshot['worker']}",
         ]
     )
 

@@ -1,0 +1,71 @@
+{% from "macros/icons.html" import icon_gear, icon_check, icon_power %}
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-head">
+  <h1 class="section-title">{{ icon_gear(18) }} Persona Settings</h1>
+  <p class="meta-line">Quiet hours, cooldown intervals, and category toggles for the deterministic persona engine.</p>
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Quiet Hours</h2>
+  </div>
+  <form class="stack-form compact-form" method="post" action="{{ url_for('persona_save') }}">
+    <div class="form-row">
+      <label>
+        <span>Start</span>
+        <input name="quiet_start" value="{{ settings.quiet_start }}" placeholder="23:00">
+      </label>
+      <label>
+        <span>End</span>
+        <input name="quiet_end" value="{{ settings.quiet_end }}" placeholder="07:00">
+      </label>
+    </div>
+
+    <h2 style="margin-top:1.5rem">Category Intervals &amp; Toggles</h2>
+    <div class="table-scroll">
+      <table class="settings-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Interval (min)</th>
+            <th>Enabled</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cat, data in settings.categories.items() %}
+          <tr>
+            <td><code>{{ cat }}</code></td>
+            <td>
+              <input name="interval_{{ cat }}" value="{{ data.interval }}" type="number" min="1" max="1440" style="width:5rem">
+            </td>
+            <td>
+              <select name="enabled_{{ cat }}">
+                <option value="1" {% if data.enabled %}selected{% endif %}>Yes</option>
+                <option value="0" {% if not data.enabled %}selected{% endif %}>No</option>
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="stack-form-actions">
+      <button class="btn" type="submit">{{ icon_check(14) }} Save</button>
+    </div>
+  </form>
+</section>
+
+<style>
+.form-row { display:flex; gap:1rem; flex-wrap:wrap }
+.form-row label { display:flex; flex-direction:column; gap:0.25rem }
+.settings-table { width:100%; border-collapse:collapse; margin-top:0.75rem }
+.settings-table th,.settings-table td { text-align:left; padding:0.4rem 0.6rem; border-bottom:1px solid var(--surface0) }
+.settings-table th { color:var(--overlay2); font-weight:400; font-size:0.8rem }
+.settings-table td code { font-size:0.85rem }
+.table-scroll { overflow-x:auto }
+.stack-form-actions { margin-top:1rem }
+</style>
+{% endblock %}

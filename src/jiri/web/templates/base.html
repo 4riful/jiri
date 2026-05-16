@@ -1,4 +1,4 @@
-{% from "macros/icons.html" import icon_screen, icon_dashboard, icon_todos, icon_notes, icon_weather, icon_focus, icon_ai, icon_logout, icon_droplet %}
+{% from "macros/icons.html" import icon_screen, icon_dashboard, icon_todos, icon_notes, icon_weather, icon_focus, icon_ai, icon_logout, icon_droplet, icon_link, icon_gear, icon_database %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -15,7 +15,7 @@
         <pre class="ascii-face" id="ascii-face" aria-label="JIRI mood face">[ ^_^ ]</pre>
         <div>
           <div class="brand">{{ app_name }}</div>
-          <div class="tagline">Pi-first admin</div>
+          <div class="tagline">Companion control deck</div>
         </div>
       </div>
       <nav class="nav">
@@ -28,7 +28,10 @@
           <a href="{{ url_for('notes_view') }}">{{ icon_notes(14) }} Notes</a>
           <a href="{{ url_for('weather_view') }}">{{ icon_weather(14) }} Weather</a>
           <a href="{{ url_for('water_view') }}">{{ icon_droplet(14) }} Water</a>
+          <a href="{{ url_for('telegram_view') }}">{{ icon_link(14) }} Telegram</a>
           <a href="{{ url_for('focus_view') }}">{{ icon_focus(14) }} Focus</a>
+          <a href="{{ url_for('persona_view') }}">{{ icon_gear(14) }} Persona</a>
+          <a href="{{ url_for('db_browser') }}">{{ icon_database(14) }} DB</a>
           <a href="{{ url_for('llama_view') }}">{{ icon_ai(14) }} AI</a>
           {% if admin_authenticated %}
             <form method="post" action="{{ url_for('admin_logout') }}"><button class="nav-button" type="submit">{{ icon_logout(14) }} Logout</button></form>
@@ -50,7 +53,7 @@
 
     <footer class="footer">
       <span>JIRI {{ app_version }}</span>
-      <span>WSL testbed, Pi-first constraints</span>
+      <span>Desk companion cockpit</span>
     </footer>
   </div>
   <script>

@@ -37,11 +37,6 @@ backup_dir = "backups"
 host = "0.0.0.0"
 port = 5000
 
-[worker]
-enabled = false
-base_url = "http://pi-worker.local:5050"
-timeout_seconds = 1
-
 [performance]
 max_ui_ram_mb = 250
 max_web_ram_mb = 150
@@ -52,3 +47,19 @@ min_acceptable_fps = 10
 enabled = false
 provider = "none"
 model_path = ""
+server_binary = "llama-server"
+server_port = 8080
+server_context = 512
+server_threads = 2
+
+[telegram]
+# These are first-boot seed values. After SQLite is initialized, manage
+# Telegram from /admin/telegram; the database becomes the source of truth.
+# Environment variables can still seed a fresh database:
+# JIRI_TELEGRAM_BOT_TOKEN='123456:botfather-token'
+# JIRI_TELEGRAM_ALLOWED_CHAT_IDS='123456789,-1001234567890'
+enabled = false
+bot_token = ""
+allowed_chat_ids = []
+command_chat_id = ""
+polling_timeout_seconds = 25

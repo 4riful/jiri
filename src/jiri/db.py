@@ -6,7 +6,7 @@ import sqlite3
 from .config import load_config
 
 
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 
 
 def get_db_path(db_path: str | None = None) -> str:
@@ -68,8 +68,10 @@ def init_db(db_path: str | None = None) -> None:
             CREATE TABLE IF NOT EXISTS events_log (
                 id INTEGER PRIMARY KEY,
                 event_type TEXT NOT NULL,
+                event_key TEXT NOT NULL DEFAULT '',
                 message TEXT NOT NULL,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                UNIQUE(event_type, event_key)
             );
 
             CREATE TABLE IF NOT EXISTS focus_sessions (
@@ -95,9 +97,28 @@ def init_db(db_path: str | None = None) -> None:
             CREATE INDEX IF NOT EXISTS idx_focus_status_updated ON focus_sessions(status, updated_at);
             """
         )
+        current_ver = conn.execute("SELECT value FROM settings WHERE key = 'schema_version'").fetchone()
+        current_ver = str(current_ver["value"]) if current_ver else "0"
+        if current_ver != SCHEMA_VERSION:
+            _migrate(conn, current_ver)
         conn.execute(
             "INSERT OR REPLACE INTO settings(key, value) VALUES('schema_version', ?)",
             (SCHEMA_VERSION,),
+        )
+
+
+def _migrate(conn, current_ver: str) -> None:
+    if current_ver == "2" or (current_ver < "3" and current_ver != "0"):
+        conn.executescript("DROP TABLE IF EXISTS events_log;")
+        conn.execute(
+            """CREATE TABLE events_log (
+                id INTEGER PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                event_key TEXT NOT NULL DEFAULT '',
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(event_type, event_key)
+            )"""
         )
 
 
@@ -126,3 +147,9 @@ def set_setting(key: str, value: str, db_path: str | None = None) -> None:
             "INSERT OR REPLACE INTO settings(key, value) VALUES(?, ?)",
             (key, value),
         )
+
+
+def delete_setting(key: str, db_path: str | None = None) -> None:
+    init_db(db_path)
+    with connect(db_path) as conn:
+        conn.execute("DELETE FROM settings WHERE key = ?", (key,))

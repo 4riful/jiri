@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from jiri import weather
+from jiri import db, telegram, weather
 from jiri.web import create_app
 
 
@@ -32,6 +32,8 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     assert b"Focus" in logged_in.data
     assert b"Weather" in logged_in.data
     assert b"Water" in logged_in.data
+    assert b"Telegram" in logged_in.data
+    assert b"Token/chat allowlist needed" in logged_in.data
 
     screen = client.get("/screen")
     assert screen.status_code == 200
@@ -72,6 +74,56 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     water_goal = client.post("/admin/water/age", data={"age": "30", "sex": "male"}, follow_redirects=True)
     assert water_goal.status_code == 200
     assert b"3000ml" in water_goal.data
+
+    telegram_page = client.get("/admin/telegram")
+    assert telegram_page.status_code == 200
+    assert b"Telegram Binding" in telegram_page.data
+    assert b"Save Telegram" in telegram_page.data
+    assert b"Missing setup" in telegram_page.data
+    assert b"Check Bot API" in telegram_page.data
+    assert b"/todo add" in telegram_page.data
+
+    telegram_api = client.get("/api/telegram/status")
+    assert telegram_api.status_code == 200
+    assert telegram_api.json["configured"] is False
+
+    telegram_save = client.post(
+        "/admin/telegram/save",
+        data={
+            "enabled": "1",
+            "bot_token": "123456:test-token",
+            "allowed_chat_ids": "123456789,-1001234567890",
+            "command_chat_id": "123456789",
+            "polling_timeout_seconds": "5",
+        },
+        follow_redirects=True,
+    )
+    assert telegram_save.status_code == 200
+    assert b"Telegram settings saved" in telegram_save.data
+    assert db.get_setting(telegram.BOT_TOKEN_KEY, db_path=str(db_path)) == "123456:test-token"
+    assert db.get_setting(telegram.ALLOWED_CHAT_IDS_KEY, db_path=str(db_path)) == "123456789,-1001234567890"
+
+    telegram_api = client.get("/api/telegram/status")
+    assert telegram_api.status_code == 200
+    assert telegram_api.json["configured"] is True
+    assert telegram_api.json["enabled"] is True
+
+    add_chat = client.post("/admin/telegram/allowed/add", data={"chat_id": "-100222"}, follow_redirects=True)
+    assert add_chat.status_code == 200
+    assert b"-100222" in add_chat.data
+
+    remove_chat = client.post("/admin/telegram/allowed/remove", data={"chat_id": "-100222"}, follow_redirects=True)
+    assert remove_chat.status_code == 200
+    assert b"Allowed chat removed" in remove_chat.data
+
+    disable_page = client.post("/admin/telegram/disable", follow_redirects=True)
+    assert disable_page.status_code == 200
+    assert client.get("/api/telegram/status").json["enabled"] is False
+
+    clear_token = client.post("/admin/telegram/clear-token", follow_redirects=True)
+    assert clear_token.status_code == 200
+    assert b"Telegram token cleared" in clear_token.data
+    assert db.get_setting(telegram.BOT_TOKEN_KEY, db_path=str(db_path)) == ""
 
     update_page = client.post(
         "/admin/todos/1/update",
@@ -303,6 +355,219 @@ def test_admin_and_screen_surfaces_are_distinct(tmp_path, monkeypatch):
     assert screen_client.get("/api/display").status_code == 200
     assert screen_client.get("/admin").status_code == 404
     assert screen_client.post("/api/todos", json={"title": "blocked"}).status_code == 404
+
+
+def test_persona_web_page_renders(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+
+    app = create_app()
+    client = app.test_client()
+
+    locked = client.get("/admin/persona")
+    assert locked.status_code == 302
+
+    login(client)
+    page = client.get("/admin/persona")
+    assert page.status_code == 200
+    assert b"Persona Settings" in page.data
+    assert b"Quiet Hours" in page.data
+    assert b"todo_rage" in page.data
+    assert b"water" in page.data
+    assert b"ambient" in page.data
+
+
+def test_persona_web_save(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+
+    app = create_app()
+    client = app.test_client()
+    login(client)
+
+    save = client.post(
+        "/admin/persona/save",
+        data={
+            "quiet_start": "22:00",
+            "quiet_end": "08:00",
+            "interval_water": "60",
+            "enabled_water": "1",
+            "interval_todo_rage": "5",
+            "enabled_todo_rage": "1",
+            "interval_ambient": "15",
+            "enabled_ambient": "0",
+        },
+        follow_redirects=True,
+    )
+    assert save.status_code == 200
+    assert b"Persona settings saved" in save.data
+
+    from jiri import persona_settings
+    assert persona_settings.get_quiet_start(db_path=str(db_path)) == "22:00"
+    assert persona_settings.get_quiet_end(db_path=str(db_path)) == "08:00"
+    assert persona_settings.get_interval("water", db_path=str(db_path)) == 60
+    assert persona_settings.get_interval("todo_rage", db_path=str(db_path)) == 5
+    assert persona_settings.get_interval("ambient", db_path=str(db_path)) == 15
+    assert persona_settings.is_enabled("ambient", db_path=str(db_path)) is False
+
+
+def test_persona_web_rejects_invalid_values(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+
+    app = create_app()
+    client = app.test_client()
+    login(client)
+
+    save = client.post(
+        "/admin/persona/save",
+        data={
+            "quiet_start": "99:00",
+            "quiet_end": "07:00",
+            "interval_water": "60",
+            "enabled_water": "1",
+        },
+        follow_redirects=True,
+    )
+    assert save.status_code == 200
+    assert b"Persona settings saved" not in save.data
+    assert b"Time must be between" in save.data or b"error" in save.data
+
+
+def test_persona_web_nav_link_in_base(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+
+    app = create_app()
+    client = app.test_client()
+    login(client)
+
+    page = client.get("/admin")
+    assert page.status_code == 200
+    assert b"/admin/persona" in page.data
+
+
+def test_db_browser_page_renders(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+
+    app = create_app()
+    client = app.test_client()
+
+    locked = client.get("/admin/db-browser")
+    assert locked.status_code == 302
+
+    login(client)
+    page = client.get("/admin/db-browser")
+    assert page.status_code == 200
+    assert b"Database Browser" in page.data
+    assert b"todos" in page.data
+    assert b"notes" in page.data
+    assert b"settings" in page.data
+
+
+def test_db_browser_shows_table_data(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+
+    from jiri import todos
+    todos.add_todo("Browser test todo", db_path=str(db_path))
+
+    app = create_app()
+    client = app.test_client()
+    login(client)
+
+    page = client.get("/admin/db-browser?table=todos")
+    assert page.status_code == 200
+    assert b"Browser test todo" in page.data
+    assert b"pending" in page.data
+
+
+def test_db_browser_handles_bad_limit(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+
+    app = create_app()
+    client = app.test_client()
+    login(client)
+
+    bad_limit = client.get("/admin/db-browser?table=todos&limit=bad")
+    assert bad_limit.status_code == 200
+    assert b"limit 100" in bad_limit.data
+
+    negative_limit = client.get("/admin/db-browser?table=todos&limit=-20")
+    assert negative_limit.status_code == 200
+    assert b"limit 1" in negative_limit.data
+
+
+def test_db_browser_nav_link_in_base(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+
+    app = create_app()
+    client = app.test_client()
+    login(client)
+
+    page = client.get("/admin")
+    assert page.status_code == 200
+    assert b"/admin/db-browser" in page.data
+
+
+def test_llama_page_reports_missing_binary_cleanly(tmp_path, monkeypatch):
+    db_path = tmp_path / "jiri.db"
+    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+    monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
+    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
+    monkeypatch.setenv("JIRI_WIDTH", "480")
+    monkeypatch.setenv("JIRI_HEIGHT", "320")
+    monkeypatch.setenv("JIRI_LLM_SERVER_BINARY", "definitely-missing-llama-server")
+
+    app = create_app()
+    client = app.test_client()
+    login(client)
+
+    page = client.get("/admin/llama")
+    assert page.status_code == 200
+    assert b"Binary available" in page.data
+    assert b"No" in page.data
+    assert b"JIRI_LLM_SERVER_BINARY" in page.data
+
+    start = client.post("/admin/llama/start", data={"model_path": str(tmp_path / "missing.gguf")}, follow_redirects=True)
+    assert start.status_code == 200
+    assert b"AI server binary not found" in start.data
+    assert b"[Errno 2]" not in start.data
 
 
 def test_web_response_budget_smoke(tmp_path, monkeypatch):

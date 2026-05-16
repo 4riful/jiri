@@ -12,14 +12,13 @@ Gemma owns wording, summaries, and personality.
 
 ## Current Product Direction
 
-JIRI is now planned as a two-Pi desk companion:
+JIRI is now planned as a single-Pi desk companion:
 
-- `jiri-main.local`: Raspberry Pi 3B+ body/controller/source of truth.
-- `jiri-ai.local`: Raspberry Pi 3B AI/persona sidecar after benchmark acceptance.
+- `jiri.local`: Raspberry Pi 3B/3B+ body/controller/source of truth.
 
-The main Pi owns SQLite, todos, notes, focus sessions, weather cache, emotion rules, display state, touch confirmations, config, health, web dashboard, and later Telegram control.
+The Pi owns SQLite, todos, notes, focus sessions, weather cache, emotion rules, display state, touch confirmations, config, health, web dashboard, Telegram control, and any accepted local AI process.
 
-The AI Pi may only rewrite, summarize, and add personality from facts supplied by Python. It must never own state, write SQLite, run shell commands, control systemd, mark todos done, change due dates, or be required for boot.
+Optional local AI may only rewrite, summarize, and add personality from facts supplied by Python. It must never own state, write SQLite, run shell commands, control systemd, mark todos done, change due dates, or be required for boot.
 
 WSL/local Gemma ctx512 development is allowed only as an explicit compatibility preflight. It must keep the same Pi-oriented limits and must not be treated as Stage E or Stage F acceptance.
 
@@ -34,12 +33,12 @@ Implemented in code:
 - Stage B: WSL browser-driven Flask admin, todo/note CRUD, weather/location controls, JSON APIs, `/screen` preview.
 - Stage C: Focus Assist core, CLI, web/API controls, no per-second SQLite writes.
 - Stage D: WSL-safe display foundation, shared display view model, touch zones, critical face guardrails, mock-safe Pygame entrypoint.
-- Stage E: AI worker benchmark scaffolding scripts and WSL safety tests.
+- Stage E: local AI benchmark scaffolding scripts and WSL safety tests.
 
 Implemented but still hardware-gated:
 
 - Stage D ASCII/touch display final acceptance requires real 3.5-inch display confirmation.
-- Stage E AI worker benchmark final acceptance requires real Raspberry Pi 3B measurements.
+- Stage E local AI benchmark final acceptance requires real Raspberry Pi 3B/3B+ measurements.
 
 Not yet implemented:
 
@@ -56,7 +55,7 @@ Use the handbook build order from now on:
 | B | Web Admin | Passed in WSL | Confirm response/RAM budgets on Pi later. |
 | C | Focus Assist | Passed in WSL | No SQLite writes every second. |
 | D | ASCII/Touch Display | Scaffolded in WSL | Needs Pi display/touch confirmation before acceptance. |
-| E | AI Worker Benchmark | Scripts ready | Local ctx512 preflight allowed; no claims before real Pi measurement. |
+| E | Local AI Benchmark | Scripts ready | Local ctx512 preflight allowed; no claims before real Pi measurement. |
 | F | AI Integration | Blocked for acceptance | Disabled-by-default local work only; production only after benchmark passes. |
 | G | Telegram Admin | Later | Polling first, whitelist users. |
 
@@ -67,7 +66,7 @@ WSL-local Gemma preflight setup plus hardware confirmation and gate alignment be
 Scope:
 
 - Run Stage D display/touch checks on the real Pi 3B+.
-- Run Stage E AI baseline and Gemma benchmark scripts on the real Pi 3B.
+- Run Stage E AI baseline and Gemma benchmark scripts on the real Pi target.
 - Use `JIRI_LOCAL_DEV=1` only for local Gemma ctx512 preflight; do not count it as acceptance.
 - Keep WSL tests green while preparing Telegram/admin work.
 - Do not implement AI integration until benchmark acceptance exists.
@@ -91,7 +90,7 @@ Hard limits:
 - Do not write SQLite every frame or every focus countdown tick.
 - Do not implement Gemma as accepted. It is selected for benchmark only.
 - Do not treat WSL/local Gemma results as acceptance; compare against real Pi measurements later.
-- Do not add AI worker code before the deterministic main app and relevant gates are stable.
+- Do not add AI-controlled behavior before the deterministic app and relevant gates are stable.
 - If hardware behavior is unknown, create a Pi confirmation checklist instead of guessing.
 
 ## Verification Commands
@@ -117,7 +116,7 @@ python -m jiri.cli weather refresh
 
 ## Pi Confirmation Still Needed
 
-- Exact Pi 3B+ and Pi 3B OS versions.
+- Exact Raspberry Pi OS version.
 - 32-bit vs 64-bit OS.
 - Power supply stability.
 - SD card health and free space.
@@ -126,7 +125,7 @@ python -m jiri.cli weather refresh
 - Idle CPU temperatures.
 - Free RAM after boot.
 - Exact 3.5-inch display model, driver, framebuffer behavior, rotation, touch behavior.
-- AI Pi Gemma benchmark measurements before acceptance.
+- Local Gemma benchmark measurements before acceptance.
 
 Useful read-only Pi commands later:
 

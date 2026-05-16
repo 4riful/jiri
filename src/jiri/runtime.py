@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from . import db, focus, health, notes, todos, weather, llama, water
+from . import db, focus, health, notes, telegram, todos, weather, llama, water
 from .config import AppConfig, load_config
 from .views import DashboardSnapshot, ScreenSnapshot, build_dashboard_snapshot, build_screen_snapshot
 
@@ -18,6 +18,9 @@ class JiriRuntime:
         cfg = config or load_config()
         path = db_path or cfg.database.path
         db.init_db(path)
+        from . import telegram
+
+        telegram.ensure_settings(db_path=path, config=cfg)
         return cls(config=cfg, db_path=path)
 
     def init_db(self) -> None:
@@ -128,6 +131,18 @@ class JiriRuntime:
     def health_text(self) -> str:
         return health.format_health(self.health_snapshot())
 
+    def telegram_status(self):
+        return telegram.binding_status(config=self.config, db_path=self.db_path)
+
+    def telegram_check(self):
+        return telegram.check_bot(config=self.config)
+
+    def telegram_discover_chats(self):
+        return telegram.discover_chats(config=self.config, db_path=self.db_path)
+
+    def telegram_poll_once(self):
+        return telegram.poll_once(self)
+
     def water_snapshot(self):
         return water.water_snapshot(db_path=self.db_path)
 
@@ -167,7 +182,7 @@ class JiriRuntime:
         )
 
     def llama_status(self):
-        return llama.llama_status(port=self.config.llm.server_port)
+        return llama.llama_status(port=self.config.llm.server_port, binary=self.config.llm.server_binary)
 
     def llama_start(self, model_path: str | None = None, port: int | None = None, context: int | None = None, threads: int | None = None):
         cfg = self.config.llm

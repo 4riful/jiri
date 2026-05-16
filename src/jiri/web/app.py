@@ -3,13 +3,17 @@ from __future__ import annotations
 from dataclasses import asdict
 from functools import wraps
 import hmac
+import logging
 import os
 
 from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
 
 from jiri import __version__
+from jiri import db
 from jiri.config import AppConfig
 from jiri.runtime import JiriRuntime
+from jiri import telegram
+from jiri import persona_settings
 from jiri.ui.view_model import build_display_view_model
 
 
@@ -339,6 +343,186 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
         runtime.reset_water()
         return redirect(url_for("water_view", notice="Water progress reset."))
 
+    @app.get("/admin/telegram")
+    @admin_required
+    def telegram_view():
+        return render_template(
+            "telegram.html",
+            snapshot=runtime.dashboard_snapshot(panel="system"),
+            telegram_status=telegram.binding_status(config=runtime.config, db_path=runtime.db_path),
+            discovered_chats=(),
+            chat_id_to_edit="",
+            notice=request.args.get("notice", ""),
+            error=request.args.get("error", ""),
+        )
+
+    @app.post("/admin/telegram/save")
+    @admin_required
+    def telegram_save():
+        try:
+            telegram.save_settings(
+                enabled=request.form.get("enabled") == "1",
+                bot_token=request.form.get("bot_token", ""),
+                allowed_chat_ids=request.form.get("allowed_chat_ids", ""),
+                command_chat_id=request.form.get("command_chat_id", ""),
+                polling_timeout_seconds=_int_form(request.form.get("polling_timeout_seconds"), default=25),
+                db_path=runtime.db_path,
+                config=runtime.config,
+            )
+            if request.form.get("clear_token") == "1":
+                telegram.clear_token(db_path=runtime.db_path, config=runtime.config)
+            return redirect(url_for("telegram_view", notice="Telegram settings saved."))
+        except Exception as exc:
+            return redirect(url_for("telegram_view", error=str(exc)))
+
+    @app.post("/admin/telegram/enable")
+    @admin_required
+    def telegram_enable():
+        try:
+            telegram.toggle_enabled(True, db_path=runtime.db_path, config=runtime.config)
+            return redirect(url_for("telegram_view", notice="Telegram enabled."))
+        except Exception as exc:
+            return redirect(url_for("telegram_view", error=str(exc)))
+
+    @app.post("/admin/telegram/disable")
+    @admin_required
+    def telegram_disable():
+        try:
+            telegram.toggle_enabled(False, db_path=runtime.db_path, config=runtime.config)
+            return redirect(url_for("telegram_view", notice="Telegram disabled."))
+        except Exception as exc:
+            return redirect(url_for("telegram_view", error=str(exc)))
+
+    @app.post("/admin/telegram/allowed/add")
+    @admin_required
+    def telegram_allowed_add():
+        try:
+            telegram.add_allowed_chat(request.form.get("chat_id", ""), db_path=runtime.db_path, config=runtime.config)
+            return redirect(url_for("telegram_view", notice="Allowed chat added."))
+        except Exception as exc:
+            return redirect(url_for("telegram_view", error=str(exc)))
+
+    @app.post("/admin/telegram/allowed/remove")
+    @admin_required
+    def telegram_allowed_remove():
+        try:
+            telegram.remove_allowed_chat(request.form.get("chat_id", ""), db_path=runtime.db_path, config=runtime.config)
+            return redirect(url_for("telegram_view", notice="Allowed chat removed."))
+        except Exception as exc:
+            return redirect(url_for("telegram_view", error=str(exc)))
+
+    @app.post("/admin/telegram/clear-token")
+    @admin_required
+    def telegram_clear_token():
+        try:
+            telegram.clear_token(db_path=runtime.db_path, config=runtime.config)
+            return redirect(url_for("telegram_view", notice="Telegram token cleared."))
+        except Exception as exc:
+            return redirect(url_for("telegram_view", error=str(exc)))
+
+    @app.post("/admin/telegram/reset-state")
+    @admin_required
+    def telegram_reset_state():
+        telegram.reset_runtime_state(db_path=runtime.db_path)
+        return redirect(url_for("telegram_view", notice="Telegram runtime state cleared."))
+
+    @app.post("/admin/telegram/check")
+    @admin_required
+    def telegram_check():
+        try:
+            bot = telegram.check_bot_for_db(db_path=runtime.db_path, config=runtime.config)
+            username = bot.get("username") or bot.get("first_name") or "unknown"
+            return redirect(url_for("telegram_view", notice=f"Telegram bot reachable: @{username}."))
+        except Exception as exc:
+            return redirect(url_for("telegram_view", error=str(exc)))
+
+    @app.post("/admin/telegram/discover")
+    @admin_required
+    def telegram_discover():
+        try:
+            chats = runtime.telegram_discover_chats()
+            notice = f"Found {len(chats)} recent Telegram chat(s)." if chats else "No recent chats found. Send /start to the bot, then retry."
+            return render_template(
+                "telegram.html",
+                snapshot=runtime.dashboard_snapshot(panel="system"),
+                telegram_status=telegram.binding_status(config=runtime.config, db_path=runtime.db_path),
+                discovered_chats=chats,
+                chat_id_to_edit="",
+                notice=notice,
+                error="",
+            )
+        except Exception as exc:
+            return redirect(url_for("telegram_view", error=str(exc)))
+
+    @app.get("/admin/persona")
+    @admin_required
+    def persona_view():
+        return render_template(
+            "persona.html",
+            settings=persona_settings.load_all(db_path=runtime.db_path),
+            notice=request.args.get("notice", ""),
+            error=request.args.get("error", ""),
+        )
+
+    @app.post("/admin/persona/save")
+    @admin_required
+    def persona_save():
+        try:
+            quiet_start = request.form.get("quiet_start", "").strip()
+            quiet_end = request.form.get("quiet_end", "").strip()
+            if quiet_start and quiet_end:
+                persona_settings.set_quiet_hours(quiet_start, quiet_end, db_path=runtime.db_path)
+            for cat in persona_settings.CATEGORIES:
+                interval_raw = request.form.get(f"interval_{cat}", "").strip()
+                if interval_raw:
+                    persona_settings.set_interval(cat, int(interval_raw), db_path=runtime.db_path)
+                enabled_raw = request.form.get(f"enabled_{cat}", "")
+                persona_settings.set_enabled(cat, enabled_raw == "1", db_path=runtime.db_path)
+            return redirect(url_for("persona_view", notice="Persona settings saved."))
+        except (ValueError, TypeError) as exc:
+            return redirect(url_for("persona_view", error=str(exc)))
+
+    @app.get("/admin/db-browser")
+    @admin_required
+    def db_browser():
+        table = request.args.get("table", "")
+        try:
+            limit = int(request.args.get("limit", "100"))
+        except ValueError:
+            limit = 100
+        limit = max(1, min(limit, 1000))
+        tables = _list_tables(runtime.db_path)
+        if table and table in tables:
+            rows = _table_data(runtime.db_path, table, limit)
+            return render_template(
+                "db_browser.html",
+                tables=tables,
+                table=table,
+                rows=rows,
+                limit=limit,
+            )
+        return render_template(
+            "db_browser.html",
+            tables=tables,
+            table="",
+            rows=(),
+            limit=limit,
+        )
+
+    def _list_tables(db_path):
+        with db.connect(db_path) as conn:
+            rows = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            ).fetchall()
+        return [str(r["name"]) for r in rows]
+
+    def _table_data(db_path, table, limit):
+        with db.connect(db_path) as conn:
+            cols = conn.execute(f"PRAGMA table_info({table})").fetchall()
+            column_names = [str(c["name"]) for c in cols]
+            rows = conn.execute(f"SELECT * FROM {table} ORDER BY rowid DESC LIMIT ?", (limit,)).fetchall()
+        return {"columns": column_names, "rows": [dict(r) for r in rows]}
+
     @app.post("/admin/weather/search")
     @admin_required
     def weather_search():
@@ -499,6 +683,16 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
     @app.get("/api/llama/status")
     def api_llama_status():
         return jsonify(runtime.llama_status())
+
+    @app.get("/api/telegram/status")
+    @admin_required
+    def api_telegram_status():
+        return jsonify(runtime.telegram_status())
+
+    @app.get("/api/telegram/status-light")
+    @admin_required
+    def api_telegram_status_light():
+        return jsonify(telegram.binding_status(config=runtime.config, db_path=runtime.db_path))
 
     @app.get("/api/status")
     def api_status():
@@ -737,7 +931,13 @@ def _admin_authenticated() -> bool:
     return session.get("jiri_admin_authenticated") is True
 
 
-if __name__ == "__main__":
+def main() -> None:
+    if os.environ.get("JIRI_WEB_QUIET", "").strip().lower() in {"1", "true", "yes", "on"}:
+        logging.getLogger("werkzeug").setLevel(logging.ERROR)
     app = create_app()
     runtime = app.jiri_runtime  # type: ignore[attr-defined]
     app.run(host=runtime.config.web.host, port=runtime.config.web.port)
+
+
+if __name__ == "__main__":
+    main()

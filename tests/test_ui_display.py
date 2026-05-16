@@ -14,6 +14,10 @@ from jiri.views import build_screen_snapshot
 def test_face_frames_and_focus_eyes():
     assert face_frame_for_state("idle").eye_left == "o"
     assert face_frame_for_state("rage").mouth == "###"
+    assert face_frame_for_state("curious").eye_right == "O"
+    assert face_frame_for_state("smirk").mouth == "__/"
+    assert face_frame_for_state("weather_rain").mouth == "~~~"
+    assert face_frame_for_state("weather_hot").eye_left == "~"
     assert focus_eyes("24:59") == ("24", "59")
     assert is_critical_face_state("rage") is True
     assert is_critical_face_state("idle") is False

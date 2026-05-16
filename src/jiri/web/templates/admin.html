@@ -21,6 +21,15 @@
     {% endif %}
   </article>
 
+  <article class="stat-card stat-telegram">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_link(14) }} Telegram</span>
+      <span class="stat-head-badge badge-dim" id="telegram-card-badge">Setup</span>
+    </div>
+    <strong class="stat-big" id="telegram-card-count">--</strong>
+    <p id="telegram-card-copy">Checking binding...</p>
+  </article>
+
   <article class="stat-card stat-datetime">
     <strong class="stat-big" id="clock-time">{{ snapshot.now.strftime('%I:%M %p').lstrip('0').lower() if snapshot.now else '--:--' }}</strong>
     <p id="clock-date">{{ snapshot.now.strftime('%a %b %d, %Y') if snapshot.now else '---' }}</p>
@@ -212,6 +221,26 @@ function toggleSystem() {
     timeEl.textContent = displayHours + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + suffix;
     dateEl.textContent = d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'2-digit', year:'numeric'});
   }, 1000);
+})();
+
+(function(){
+  var badge = document.getElementById("telegram-card-badge");
+  var count = document.getElementById("telegram-card-count");
+  var copy = document.getElementById("telegram-card-copy");
+  if(!badge || !count || !copy) return;
+  fetch("{{ url_for('api_telegram_status_light') }}", {credentials: "same-origin"})
+    .then(function(resp){ return resp.ok ? resp.json() : null; })
+    .then(function(data){
+      if(!data) throw new Error("no data");
+      count.textContent = data.allowed_chat_count;
+      badge.textContent = data.configured ? "Ready" : "Setup";
+      badge.className = "stat-head-badge " + (data.configured ? "badge-green" : "badge-dim");
+      copy.textContent = data.configured ? "chat(s) allowed" : "Token/chat allowlist needed";
+    })
+    .catch(function(){
+      count.textContent = "?";
+      copy.textContent = "Status unavailable";
+    });
 })();
 </script>
 {% endblock %}

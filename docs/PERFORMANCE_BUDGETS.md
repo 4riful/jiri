@@ -9,7 +9,7 @@
 - UI frame loop must not perform HTTP requests.
 - UI frame loop must not perform slow database scans.
 - Weather fetch timeout: max 3 seconds.
-- Worker Pi HTTP timeout: max 1 second.
+- Local AI HTTP timeout: max 1 second.
 - Web API response target: under 500ms locally.
 - Telegram command response target: under 2 seconds.
 - Startup target: under 30 seconds after login.

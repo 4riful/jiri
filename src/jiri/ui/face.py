@@ -2,7 +2,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-FACE_STATES = {"idle", "happy", "alert", "annoyed", "angry", "rage", "sleeping"}
+FACE_STATES = {
+    "idle",
+    "happy",
+    "alert",
+    "annoyed",
+    "angry",
+    "rage",
+    "sleeping",
+    "blink",
+    "curious",
+    "smirk",
+    "focused",
+    "weather_hot",
+    "weather_rain",
+    "ai_offline",
+    "system_warning",
+}
 CRITICAL_FACE_STATES = {"angry", "rage"}
 
 
@@ -23,6 +39,14 @@ FACE_FRAMES = {
     "angry": FaceFrame("angry", ">", "<", "---", "Angry"),
     "rage": FaceFrame("rage", "!", "!", "###", "Rage"),
     "sleeping": FaceFrame("sleeping", "z", "z", "___", "Sleeping"),
+    "blink": FaceFrame("blink", "-", "-", "___", "Blink"),
+    "curious": FaceFrame("curious", "o", "O", "___", "Curious"),
+    "smirk": FaceFrame("smirk", "^", "o", "__/", "Smirk"),
+    "focused": FaceFrame("focused", "o", "o", "---", "Focused"),
+    "weather_hot": FaceFrame("weather_hot", "~", "~", "---", "Hot"),
+    "weather_rain": FaceFrame("weather_rain", "o", "o", "~~~", "Rain"),
+    "ai_offline": FaceFrame("ai_offline", "x", "x", "___", "AI offline"),
+    "system_warning": FaceFrame("system_warning", "!", "!", "---", "System warning"),
 }
 
 

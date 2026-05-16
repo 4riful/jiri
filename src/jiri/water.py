@@ -33,9 +33,10 @@ DRINK_TARGETS_ML = {
 }
 
 
-def water_snapshot(db_path: str | None = None, now: datetime | None = None) -> dict[str, object]:
+def water_snapshot(db_path: str | None = None, now: datetime | None = None, reset_daily: bool = True) -> dict[str, object]:
     current = now or datetime.now()
-    _reset_if_new_day(db_path=db_path, now=current)
+    if reset_daily:
+        _reset_if_new_day(db_path=db_path, now=current)
     goal_ml = _goal_ml(db_path=db_path)
     progress_ml = _int_setting(WATER_PROGRESS_KEY, 0, db_path=db_path)
     percent = min(100, int((progress_ml / goal_ml) * 100)) if goal_ml > 0 else 0

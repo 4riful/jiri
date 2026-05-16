@@ -2,7 +2,7 @@
 
 Document status: source-of-truth handbook  
 Project: JIRI, AI-assisted Raspberry Pi desk companion  
-Target hardware: Raspberry Pi 3B+ plus Raspberry Pi 3B  
+Target hardware: one Raspberry Pi 3B/3B+  
 Last updated: 2026-05-15  
 Engineering rule: no claim in this handbook is production-approved until it is confirmed by source, calculated from explicit assumptions, or measured on real hardware.
 
@@ -30,7 +30,7 @@ DESIGN DECISION: development may happen WSL-first, including local Gemma 3 270M 
 Local Gemma development is permitted only as a compatibility preflight:
 
 - Use the same Pi-oriented shape: 512 context, short prompts, short outputs, strict timeouts, and deterministic fallback.
-- Keep `ai_worker.enabled = false` by default until the real Pi benchmark passes.
+- Keep local AI disabled by default until the real Pi benchmark passes.
 - Use explicit opt-in such as `JIRI_LOCAL_DEV=1` for off-Pi Gemma run/benchmark scripts.
 - Do not add desktop-only dependencies, desktop-sized context windows, or features that assume WSL CPU/RAM.
 - Treat WSL/local benchmark results as development evidence only.
@@ -50,22 +50,21 @@ Target features:
 - Weather and location support.
 - Proactive personality messages.
 - Web dashboard by IP.
-- Later Telegram admin control.
-- Dedicated AI sidecar running Gemma 3 270M Q4_K_M only after benchmark acceptance.
+- Telegram admin control by polling.
+- Optional on-device AI wording layer after benchmark acceptance.
 
-## Two-Pi Architecture
+## Single-Pi Architecture
 
 DESIGN DECISION:
 
 ```text
 Router
-|- Ethernet -> Raspberry Pi 3B+  hostname: jiri-main.local
-|- Ethernet -> Raspberry Pi 3B   hostname: jiri-ai.local
+|- Ethernet/Wi-Fi -> Raspberry Pi 3B/3B+  hostname: jiri.local
 ```
 
-### jiri-main: Raspberry Pi 3B+
+### Raspberry Pi 3B/3B+
 
-The main Pi is JIRI's body, controller, and source of truth.
+The Pi is JIRI's body, controller, and source of truth.
 
 Responsibilities:
 
@@ -84,9 +83,9 @@ Responsibilities:
 - Proactive behavior engine.
 - Web dashboard by IP.
 - Telegram bot later.
-- AI client with fallback.
+- Optional local AI client with deterministic fallback.
 
-`jiri-main` owns:
+The Pi owns:
 
 - Todos.
 - Notes.
@@ -97,28 +96,10 @@ Responsibilities:
 - Touch confirmations.
 - Config.
 - System health.
+- Optional llama.cpp / llama-server process after benchmark acceptance.
+- Optional Gemma 3 270M Q4_K_M rewrite/summarization from Python-supplied facts.
 
-### jiri-ai: Raspberry Pi 3B
-
-The AI Pi is JIRI's language/persona sidecar.
-
-Responsibilities:
-
-- Raspberry Pi OS Lite.
-- No display.
-- No database authority.
-- No dashboard.
-- No Telegram.
-- llama.cpp or llama-server.
-- Gemma 3 270M Q4_K_M benchmark candidate.
-- Message rewrite.
-- Short summaries.
-- Suggestion wording.
-- Behavior feedback.
-- Weather commentary from facts.
-- AI health and benchmark scripts.
-
-`jiri-ai` must never be required for boot. If it is offline, `jiri-main` continues with deterministic template messages.
+Local AI must never be required for boot. If the AI process is unavailable, JIRI continues with deterministic template messages.
 
 ## Evidence And Assumptions
 
@@ -132,7 +113,7 @@ CONFIRMED: llama.cpp server is documented as a lightweight C/C++ HTTP server wit
 
 CALCULATED: Gemma 3 270M Q4_K_M planning weight size is treated as 241-253 MB. Runtime overhead, buffers, tokenizer, mmap behavior, and KV cache are additional memory costs.
 
-BENCHMARK REQUIRED on real `jiri-ai`:
+BENCHMARK REQUIRED on the real Raspberry Pi target:
 
 - Model load success.
 - Free RAM after model load.
@@ -141,7 +122,7 @@ BENCHMARK REQUIRED on real `jiri-ai`:
 - Short rewrite latency.
 - Todo/behavior summary latency.
 - SSH responsiveness.
-- Main Pi behavior when AI Pi is offline.
+- Main behavior when local AI is offline.
 
 ## Gemma Decision
 
@@ -191,7 +172,7 @@ Gemma must never do:
 - Control systemd.
 - Become required for boot.
 
-## AI Worker Memory Envelope
+## Local AI Memory Envelope
 
 Assumptions:
 
@@ -226,7 +207,7 @@ Context decision:
 
 ## Swap Rule
 
-DESIGN DECISION: `jiri-ai` may use a 1GB swap safety net, but swap is not VRAM.
+DESIGN DECISION: the single Pi may use a 1GB swap safety net for AI experiments, but swap is not VRAM.
 
 ```text
 Swap is emergency overflow memory.
@@ -245,7 +226,7 @@ Fallbacks:
 1. SmolLM2-135M-Instruct Q4_K_M.
 2. Template-only mode.
 
-## AI Worker Acceptance Gate
+## Local AI Acceptance Gate
 
 Gemma is accepted only if the real Raspberry Pi 3B passes:
 
@@ -256,7 +237,7 @@ Gemma is accepted only if the real Raspberry Pi 3B passes:
 - Short rewrite below 8 seconds.
 - Todo/behavior summary below 15 seconds.
 - SSH remains responsive.
-- Main Pi still works when AI Pi is offline.
+- JIRI still works when local AI is offline.
 
 Reject or downgrade if:
 
@@ -267,7 +248,7 @@ Reject or downgrade if:
 - Summary above 30 seconds.
 - SSH is laggy.
 - llama-server crashes.
-- Main Pi freezes waiting for AI.
+- JIRI freezes waiting for AI.
 
 ## AI Capability Modes
 
@@ -275,14 +256,14 @@ Mode A: Templates only.
 
 - Always available.
 - Instant response.
-- Used when AI worker is offline, slow, or during boot.
+- Used when local AI is offline, slow, or during boot.
 
 Mode B: AI rewrite.
 
 ```text
 1. Python creates factual base message.
 2. Display shows base message immediately.
-3. Main Pi sends small facts to AI worker.
+3. Python sends small facts to the local AI process.
 4. Gemma rewrites the message.
 5. Display updates only if response arrives before timeout.
 ```
@@ -303,15 +284,15 @@ Mode D: Short casual chat.
 - Not a ChatGPT replacement.
 - Not used for system control.
 
-## Main Pi / AI Pi Data Flow
+## Deterministic / AI Data Flow
 
 ```text
-Event happens on jiri-main
+Event happens on JIRI
 -> Python updates truth/state
 -> Emotion engine chooses emotion
 -> Message engine creates fallback message
 -> Display shows fallback immediately
--> AI client optionally sends facts to jiri-ai
+-> AI client optionally sends facts to local llama-server
 -> Gemma rewrites/summarizes
 -> If response arrives in time, display updates
 -> If AI fails, fallback remains
@@ -431,7 +412,7 @@ Layer 1: Deterministic emotion engine.
 - Focus running -> focus.
 - Focus complete -> task_done/happy.
 - Night + idle -> sleepy.
-- Worker offline -> worker_offline.
+- Local AI offline -> ai_offline.
 - Hot weather -> weather_hot.
 - Rain -> weather_rain.
 - Nothing happening -> idle.
@@ -442,7 +423,7 @@ Layer 2: Deterministic message engine.
 - `task_done`: Task complete. Humanity gains one point.
 - `focus_started`: Focus mode engaged. I will guard your attention.
 - `overdue_angry`: You are late. My disappointment database has grown.
-- `worker_offline`: Worker Pi offline. Running solo mode.
+- `ai_offline`: Local AI offline. Running deterministic mode.
 
 Layer 3: Gemma personality rewrite.
 
@@ -472,7 +453,7 @@ Allowed proactive events:
 - Focus almost done.
 - Focus complete.
 - Weather hot/rain tip.
-- Worker offline.
+- AI offline.
 - Long idle check-in.
 - Night sleepy message.
 
@@ -481,7 +462,7 @@ Cooldown rules:
 - Idle comment: every 30 minutes max.
 - Overdue reminder: every 10 minutes per task.
 - Weather tip: every 60 minutes.
-- Worker offline: once, then every 30 minutes.
+- AI offline: once, then every 30 minutes.
 - Focus milestones: once per session.
 - During focus: no random jokes unless explicitly allowed.
 
@@ -495,7 +476,7 @@ Behavior priority order:
 | 90 | Task overdue severe | overdue 120+ minutes -> rage | no |
 | 80 | Focus active | running, paused, almost done | no |
 | 70 | Task due/overdue | due soon, 10+ min late, 30+ min late | no |
-| 60 | Worker/AI state | AI offline, worker hot | no |
+| 60 | AI/system state | AI offline, system hot | no |
 | 50 | Weather warning | rain likely, very hot | warning no, wording yes |
 | 40 | User interaction | tap, dashboard action, Telegram command | limited |
 | 30 | Proactive suggestion | next focus, idle check-in | wording only |
@@ -514,7 +495,7 @@ Scenario rules:
 - Weather rain now: weather_rain face unless higher priority state exists.
 - Very hot weather: weather_hot face unless higher priority state exists.
 - Weather unavailable: neutral/system_info face, no hallucinated weather.
-- AI offline: worker_offline if no higher priority state exists.
+- AI offline: ai_offline if no higher priority state exists.
 - System warning: system_warning, no AI rewrite if safety-critical.
 
 ## Engineering Event Model
@@ -541,8 +522,8 @@ weather_rain_now
 weather_rain_likely
 weather_hot
 weather_unavailable
-ai_worker_online
-ai_worker_offline
+ai_online
+ai_offline
 system_warning
 idle_long
 morning_greeting
@@ -579,7 +560,7 @@ State snapshot shape for UI:
   "right_panel": "todo",
   "focus": {"active": false},
   "weather": {"available": true, "condition": "rain", "temperature_c": 31, "rain_chance": 70},
-  "ai_worker": {"online": true, "last_latency_ms": 3200},
+  "ai": {"online": true, "last_latency_ms": 3200},
   "touch_confirmation": null
 }
 ```
@@ -690,8 +671,8 @@ DESIGN DECISION: the web dashboard is separate from the 3.5-inch display.
 URLs:
 
 ```text
-Admin dashboard: http://jiri-main.local:5000/admin
-Screen preview:   http://jiri-main.local:5001/screen
+Admin dashboard: http://jiri.local:5000/admin
+Screen preview:   http://jiri.local:5001/screen
 ```
 
 Admin and screen preview run as distinct web surfaces. The admin surface must not serve `/screen`; the screen surface must not serve `/admin/*`.
@@ -704,7 +685,7 @@ Dashboard responsibilities:
 - Focus history.
 - Focus controls later.
 - Persona settings.
-- AI worker status.
+- Local AI status.
 - Logs and health.
 
 Performance gate:
@@ -845,19 +826,14 @@ rain_tip_minutes = 60
 critical_emotion_persistent = true
 touch_can_override_critical = false
 
-[ai_worker]
-enabled = false
-base_url = "http://jiri-ai.local:8080"
-timeout_seconds = 3
-fallback_to_templates = true
-
 [llm]
-model_name = "Gemma-3-270M-Instruct-Q4_K_M"
-mode = "rewrite"
-context_tokens = 512
-max_prompt_tokens = 350
-max_output_tokens = 80
-temperature = 0.7
+enabled = false
+provider = "none"
+model_path = ""
+server_binary = "llama-server"
+server_port = 8080
+server_context = 512
+server_threads = 2
 
 [telegram]
 enabled = false
@@ -866,7 +842,7 @@ allowed_user_ids = []
 poll_seconds = 3
 ```
 
-Note: `ai_worker.enabled` starts false until the real Pi benchmark passes.
+Note: `[llm].enabled` stays false until the real Pi benchmark passes.
 
 ## Build Order
 
@@ -901,21 +877,21 @@ Stage D: ASCII/Touch Display.
 - Touch zones.
 - Focus eyes countdown.
 
-Stage E: AI Worker Benchmark.
+Stage E: Local AI Benchmark.
 
 - Safe debloat.
 - 1GB swap safety net.
 - Install/build llama.cpp.
 - Run Gemma 3 270M Q4_K_M at 512 context.
 - Benchmark RAM/swap/temp/latency.
-- Test main Pi fallback when AI worker is offline.
+- Test deterministic fallback when local AI is offline.
 - Optional WSL/local preflight with `JIRI_LOCAL_DEV=1`; not an acceptance gate.
 
 Stage F: AI Integration.
 
 - Production acceptance only after the real Pi benchmark passes.
 - Local development must remain disabled by default and Pi-compatible.
-- Main Pi AI client.
+- Local AI client.
 - Background requests only.
 - No render-loop waiting.
 - Fallback templates.
@@ -927,7 +903,7 @@ Stage G: Telegram Admin.
 - Summary command.
 - Security whitelist.
 
-## Required AI Worker Scripts
+## Required AI Scripts
 
 Document and implement later:
 
@@ -998,18 +974,18 @@ Fallback gate passes if:
 
 - Main Pi boots without AI worker.
 - Template messages work without AI.
-- Display does not freeze if AI worker is unplugged.
-- Web dashboard still works if AI worker is offline.
+- Display does not freeze if local AI is unavailable.
+- Web dashboard still works if local AI is offline.
 
 ## Failure Handling
 
 | Failure | Required behavior |
 | --- | --- |
-| AI worker offline | Use template messages and show AI offline indicator. |
+| Local AI offline | Use template messages and show AI offline indicator. |
 | Gemma timeout | Keep fallback message and do not retry aggressively. |
 | Weather API fails | Use weather cache. |
 | No weather cache | Show unavailable weather message. |
-| Worker Pi overheats | Disable AI requests and show warning. |
+| Pi overheats | Disable AI requests and show warning. |
 | Database locked | Show friendly error and do not crash display. |
 | Touch driver unavailable | Display remains read-only. |
 | Telegram offline | JIRI core continues normally. |
@@ -1018,9 +994,9 @@ Fallback gate passes if:
 ## Final Engineering Summary
 
 ```text
-JIRI is a two-Pi AI-assisted desk companion.
-The main Pi is the source of truth.
-The AI Pi is a language/persona sidecar.
+JIRI is a single-Pi AI-assisted desk companion.
+The Pi is the source of truth.
+Local AI is an optional wording layer.
 Gemma is selected for benchmark, not assumed accepted.
 The display is a living face, not an admin dashboard.
 Normal idle, no-task, rain, focus, overdue, and touch behaviors are explicitly defined.

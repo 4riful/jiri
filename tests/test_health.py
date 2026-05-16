@@ -13,7 +13,6 @@ def test_health_snapshot_contains_required_fields(tmp_path, monkeypatch):
     snapshot = health_snapshot(db_path=str(db_path), config=cfg)
     assert snapshot["database_writable"] is True
     assert snapshot["todos_count"] == 1
-    assert snapshot["worker"] == "disabled"
     text = format_health(snapshot)
     assert "app version:" in text
     assert "database path:" in text

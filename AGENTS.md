@@ -4,7 +4,7 @@ These rules are mandatory for future Codex sessions working on JIRI.
 
 - `docs/ENGINEERING_HANDBOOK.md` is the source-of-truth design and gate document.
 - Target hardware is Raspberry Pi 3B/3B+.
-- Final architecture uses `jiri-main` on Raspberry Pi 3B+ and `jiri-ai` on Raspberry Pi 3B.
+- Final architecture uses a single Raspberry Pi 3B/3B+ with optional on-device AI.
 - Development happens in WSL, but production is Raspberry Pi OS.
 - Do not optimize for desktop-class WSL hardware.
 - WSL/local Gemma 3 270M Q4_K_M development is allowed only with explicit opt-in such as `JIRI_LOCAL_DEV=1`, 512 context, short outputs, strict timeouts, and deterministic fallback.

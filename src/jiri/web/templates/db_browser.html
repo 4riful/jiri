@@ -1,0 +1,80 @@
+{% from "macros/icons.html" import icon_database %}
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-head">
+  <h1 class="section-title">{{ icon_database(18) }} Database Browser</h1>
+  <p class="meta-line">Raw SQLite data inspection. Read-only — no writes from this page.</p>
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Tables</h2>
+    <span class="meta-line">{{ tables|length }} table(s)</span>
+  </div>
+  <div class="table-list">
+    {% for t in tables %}
+    <a href="{{ url_for('db_browser', table=t, limit=limit) }}" class="table-link{% if table == t %} active{% endif %}">
+      {{ t }}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+{% if table %}
+<section class="card">
+  <div class="card-head-flex">
+    <h2>{{ table }} <span class="meta-line">({{ rows.rows|length }} row(s), limit {{ limit }})</span></h2>
+    <div class="limit-select">
+      <label>
+        Rows:
+        <select onchange="location.search='table={{ table }}&limit='+this.value">
+          <option value="25" {% if limit==25 %}selected{% endif %}>25</option>
+          <option value="50" {% if limit==50 %}selected{% endif %}>50</option>
+          <option value="100" {% if limit==100 %}selected{% endif %}>100</option>
+          <option value="500" {% if limit==500 %}selected{% endif %}>500</option>
+          <option value="1000" {% if limit==1000 %}selected{% endif %}>1000</option>
+        </select>
+      </label>
+    </div>
+  </div>
+  {% if rows.rows %}
+  <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          {% for col in rows.columns %}
+          <th>{{ col }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows.rows %}
+        <tr>
+          {% for col in rows.columns %}
+          <td>{{ row[col] if row[col] is not none else '<em>null</em>' }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="meta-line">No rows in {{ table }}.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<style>
+.table-list { display:flex; flex-direction:column; gap:0.25rem; margin-top:0.75rem }
+.table-link { display:flex; align-items:center; gap:0.4rem; padding:0.35rem 0.6rem; color:var(--text); text-decoration:none; border:1px solid transparent }
+.table-link:hover { background:var(--surface0); border-color:var(--surface1) }
+.table-link.active { background:var(--surface0); border-color:var(--lavender) }
+.data-table { width:100%; border-collapse:collapse; margin-top:0.75rem; font-size:0.85rem }
+.data-table th,.data-table td { text-align:left; padding:0.3rem 0.5rem; border-bottom:1px solid var(--surface0); white-space:nowrap; max-width:20rem; overflow:hidden; text-overflow:ellipsis }
+.data-table th { color:var(--overlay2); font-weight:400; font-size:0.75rem; text-transform:uppercase }
+.data-table td em { color:var(--overlay0) }
+.limit-select { margin-left:auto }
+.limit-select select { background:var(--surface0); color:var(--text); border:1px solid var(--surface1); padding:0.2rem 0.4rem }
+</style>
+{% endblock %}

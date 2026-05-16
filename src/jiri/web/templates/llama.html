@@ -55,9 +55,14 @@
         <div><dt>Running</dt><dd>{{ 'Yes' if llama_status.running else 'No' }}</dd></div>
         {% if llama_status.pid %}<div><dt>PID</dt><dd>{{ llama_status.pid }}</dd></div>{% endif %}
         {% if llama_status.port %}<div><dt>Port</dt><dd>{{ llama_status.port }}</dd></div>{% endif %}
+        <div><dt>Binary</dt><dd>{{ llama_status.binary_path or llama_status.binary }}</dd></div>
+        <div><dt>Binary available</dt><dd>{{ 'Yes' if llama_status.binary_available else 'No' }}</dd></div>
         {% if llama_status.model_name %}<div><dt>Model</dt><dd>{{ llama_status.model_name }}</dd></div>{% endif %}
         {% if llama_status.uptime %}<div><dt>Uptime</dt><dd>{{ llama_status.uptime }}</dd></div>{% endif %}
       </dl>
+      {% if not llama_status.binary_available %}
+        <p class="meta-line">Install llama.cpp or set <code>JIRI_LLM_SERVER_BINARY</code> / <code>[llm].server_binary</code> to the full llama-server path before starting AI.</p>
+      {% endif %}
     </article>
 
     <article class="card">

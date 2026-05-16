@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from . import focus, health, messages, mood, notes, todos, weather, water
+from . import focus, health, messages, mood, notes, persona, todos, weather, water
 from .config import AppConfig, load_config
 from .models import Note, Todo
 
@@ -82,6 +82,15 @@ def build_screen_snapshot(
     selected_panel = _resolve_panel(panel, current, cfg.display.rotate_seconds)
     headline = _headline_for(face_state, selected_panel, pending_todos, weather_state, focus_state, recent_notes)
     subheadline = _subheadline_for(selected_panel, pending_todos, weather_state, focus_state, recent_notes, overdue_todos)
+    persona_moment = persona.screen_moment(
+        now=current,
+        db_path=db_path,
+        base_face_state=face_state,
+        base_headline=headline,
+        base_subheadline=subheadline,
+        focus_snapshot=focus_state,
+        weather_snapshot=weather_state,
+    )
     system_snapshot = health.health_snapshot(db_path=db_path, config=cfg)
 
     return ScreenSnapshot(
@@ -90,9 +99,9 @@ def build_screen_snapshot(
         app_name=cfg.assistant.name,
         panel=selected_panel,
         panel_title=PANEL_TITLES.get(selected_panel, "System"),
-        face_state=face_state,
-        headline=headline,
-        subheadline=subheadline,
+        face_state=persona_moment.face_state,
+        headline=persona_moment.headline,
+        subheadline=persona_moment.subheadline,
         weather=weather_state,
         focus=focus_state,
         active_location=active_location,

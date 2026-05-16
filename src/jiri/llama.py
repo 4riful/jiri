@@ -3,13 +3,15 @@ from __future__ import annotations
 import os
 import re
 import signal
+import shutil
 import subprocess
 from pathlib import Path
 
 import requests
 
 
-def llama_status(port: int = 8080) -> dict[str, object]:
+def llama_status(port: int = 8080, binary: str = "llama-server") -> dict[str, object]:
+    binary_path = _resolve_binary(binary)
     pid = _find_pid_on_port(port)
     if pid is None:
         return {
@@ -18,6 +20,9 @@ def llama_status(port: int = 8080) -> dict[str, object]:
             "port": port,
             "model_name": None,
             "uptime": None,
+            "binary": binary,
+            "binary_path": binary_path,
+            "binary_available": binary_path is not None,
         }
     model_name = _extract_model_name(pid)
     uptime = _process_uptime(pid)
@@ -27,6 +32,9 @@ def llama_status(port: int = 8080) -> dict[str, object]:
         "port": port,
         "model_name": model_name,
         "uptime": uptime,
+        "binary": binary,
+        "binary_path": binary_path,
+        "binary_available": binary_path is not None,
     }
 
 
@@ -37,14 +45,19 @@ def llama_start(
     threads: int = 2,
     binary: str = "llama-server",
 ) -> dict[str, object]:
-    if llama_status(port)["running"]:
+    resolved_binary = _resolve_binary(binary)
+    if resolved_binary is None:
+        raise RuntimeError(
+            f"AI server binary not found: {binary}. Install llama.cpp or set [llm].server_binary / JIRI_LLM_SERVER_BINARY to the llama-server path."
+        )
+    if llama_status(port, binary=binary)["running"]:
         raise RuntimeError(f"Llama server already running on port {port}")
     if not Path(model_path).exists():
         raise FileNotFoundError(f"Model not found: {model_path}")
     env = os.environ.copy()
     env["LLAMA_CACHE"] = "/tmp/jiri-llama-cache"
     cmd = [
-        binary,
+        resolved_binary,
         "--model", str(model_path),
         "--host", "127.0.0.1",
         "--port", str(port),
@@ -62,6 +75,18 @@ def llama_start(
             start_new_session=True,
         )
     return {"pid": proc.pid, "model_path": model_path, "port": port, "log": str(log_path)}
+
+
+def _resolve_binary(binary: str) -> str | None:
+    clean = binary.strip()
+    if not clean:
+        return None
+    if "/" in clean:
+        path = Path(clean)
+        if path.exists() and os.access(path, os.X_OK):
+            return str(path)
+        return None
+    return shutil.which(clean)
 
 
 def llama_stop(pid: int | None = None, port: int = 8080) -> dict[str, object]:

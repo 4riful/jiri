@@ -1,0 +1,183 @@
+{% from "macros/icons.html" import icon_link, icon_check, icon_gear, icon_database %}
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-head">
+  <h1 class="section-title">{{ icon_link(18) }} Telegram Binding</h1>
+  <p class="meta-line">Pi-safe setup status. Telegram settings are stored in SQLite and masked in the web UI.</p>
+</section>
+
+<section class="telegram-layout">
+  <article class="card">
+    <div class="card-head-flex">
+      <h2>Status</h2>
+      {% if telegram_status.configured %}
+      <span class="status-pill status-green">Configured</span>
+      {% else %}
+      <span class="status-pill status-red">Missing setup</span>
+      {% endif %}
+    </div>
+    <form class="stack-form compact-form" method="post" action="{{ url_for('telegram_save') }}">
+      <label>
+        <span>Enable Telegram</span>
+        <select name="enabled">
+          <option value="1" {% if telegram_status.enabled %}selected{% endif %}>Enabled</option>
+          <option value="0" {% if not telegram_status.enabled %}selected{% endif %}>Disabled</option>
+        </select>
+      </label>
+      <label>
+        <span>Bot Token</span>
+        <input name="bot_token" value="{{ telegram_status.bot_token or '' }}" placeholder="123456:ABC-DEF...">
+      </label>
+      <label>
+        <span>Allowed Chat IDs</span>
+        <textarea name="allowed_chat_ids" rows="3" placeholder="123456789,-1001234567890">{{ telegram_status.allowed_chat_ids_text }}</textarea>
+      </label>
+      <label>
+        <span>Command Chat ID</span>
+        <input name="command_chat_id" value="{{ telegram_status.command_chat_id or '' }}" placeholder="Optional default command chat">
+      </label>
+      <label>
+        <span>Polling Timeout Seconds</span>
+        <input name="polling_timeout_seconds" type="number" min="1" max="50" value="{{ telegram_status.polling_timeout_seconds }}">
+      </label>
+      <div class="inline-actions">
+        <button class="button" type="submit">Save Telegram</button>
+      </div>
+    </form>
+    <dl class="details">
+      <div>
+        <dt>Mode</dt>
+        <dd>{{ telegram_status.mode }}</dd>
+      </div>
+      <div>
+        <dt>Webhook</dt>
+        <dd>{{ 'Required' if telegram_status.webhook_required else 'Not required' }}</dd>
+      </div>
+      <div>
+        <dt>Bot Token</dt>
+        <dd>{{ telegram_status.token_preview }}</dd>
+      </div>
+      <div>
+        <dt>Allowed Chats</dt>
+        <dd>{{ telegram_status.allowed_chat_count }}</dd>
+      </div>
+      <div>
+        <dt>Bot ID</dt>
+        <dd>{{ telegram_status.bot_id or 'unknown' }}</dd>
+      </div>
+      <div>
+        <dt>Bot Username</dt>
+        <dd>{{ telegram_status.bot_username or 'unknown' }}</dd>
+      </div>
+      <div>
+        <dt>Poll Timeout</dt>
+        <dd>{{ telegram_status.polling_timeout_seconds }}s</dd>
+      </div>
+      <div>
+        <dt>Offset</dt>
+        <dd>{{ telegram_status.update_offset if telegram_status.update_offset is not none else 'not started' }}</dd>
+      </div>
+      <div>
+        <dt>Last Poll</dt>
+        <dd>{{ telegram_status.last_poll_at or 'never' }}</dd>
+      </div>
+      <div>
+        <dt>Last Update</dt>
+        <dd>{{ telegram_status.last_update_at or 'never' }}</dd>
+      </div>
+    </dl>
+    {% if telegram_status.last_error %}
+    <p class="banner banner-error">{{ telegram_status.last_error }}</p>
+    {% endif %}
+    {% if telegram_status.last_unauthorized_chat_id %}
+    <p class="meta-line">Last blocked chat: {{ telegram_status.last_unauthorized_chat_id }}</p>
+    {% endif %}
+    <div class="inline-actions compact-form">
+      <form method="post" action="{{ url_for('telegram_enable') }}"><button class="button" type="submit">Enable</button></form>
+      <form method="post" action="{{ url_for('telegram_disable') }}"><button class="button" type="submit">Disable</button></form>
+      <form method="post" action="{{ url_for('telegram_clear_token') }}"><button class="button button-danger" type="submit">Clear Token</button></form>
+      <form method="post" action="{{ url_for('telegram_reset_state') }}"><button class="button button-soft" type="submit">Reset Runtime State</button></form>
+    </div>
+    {% if telegram_status.allowed_chat_ids %}
+    <h3>Allowed Chat IDs</h3>
+    <ul class="compact-list">
+      {% for chat_id in telegram_status.allowed_chat_ids %}
+      <li>
+        <strong>{{ chat_id }}</strong>
+        <span>Allowed chat</span>
+        <form method="post" action="{{ url_for('telegram_allowed_remove') }}">
+          <input type="hidden" name="chat_id" value="{{ chat_id }}">
+          <button class="button" type="submit">Remove</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </article>
+
+  <article class="card">
+    <h2>{{ icon_gear(16) }} Actions</h2>
+    <p>These use the token and allowlist saved in SQLite. They do not require editing config files manually.</p>
+    <div class="inline-actions">
+      <form method="post" action="{{ url_for('telegram_check') }}">
+        <button class="button" type="submit">Check Bot API</button>
+      </form>
+      <form method="post" action="{{ url_for('telegram_discover') }}">
+        <button class="button" type="submit">Discover Recent Chats</button>
+      </form>
+    </div>
+    {% if discovered_chats %}
+    <h3>Discovered Chats</h3>
+    <ul class="compact-list">
+      {% for chat in discovered_chats %}
+      <li><strong>{{ chat.id }}</strong><span>{{ chat.type }} · {{ chat.title }} · {{ chat.source }}</span></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <h3>Boot Guardrails</h3>
+    <ul class="compact-list">
+      <li><strong>First start</strong><span>Settings are seeded into SQLite automatically.</span></li>
+      <li><strong>Reuse</strong><span>Existing Telegram settings are loaded from the previous database on boot.</span></li>
+      <li><strong>Source of truth</strong><span>Database wins after the first boot seed.</span></li>
+    </ul>
+  </article>
+
+  <article class="card telegram-wide-card">
+    <h2>Implemented Commands</h2>
+    <ul class="compact-list">
+      <li><strong>/status</strong><span>Dashboard health, pending todos, focus, weather, and water.</span></li>
+      <li><strong>/todos</strong><span>List pending todos.</span></li>
+      <li><strong>/todo add &lt;title&gt;</strong><span>Add a deterministic todo.</span></li>
+      <li><strong>/todo done &lt;id&gt;</strong><span>Mark a todo done.</span></li>
+      <li><strong>/notes</strong><span>List recent notes.</span></li>
+      <li><strong>/note add &lt;title&gt; | &lt;body&gt;</strong><span>Add a note.</span></li>
+      <li><strong>/weather</strong><span>Show cached/auto-refreshed weather facts.</span></li>
+      <li><strong>/focus status|start|pause|resume|complete|stop</strong><span>Control focus sessions.</span></li>
+      <li><strong>/water</strong><span>Show hydration status.</span></li>
+      <li><strong>/water add &lt;ml&gt;</strong><span>Add water intake.</span></li>
+    </ul>
+  </article>
+
+  <article class="card telegram-wide-card">
+    <h2>{{ icon_check(16) }} Setup Checklist</h2>
+    <ol class="step-list">
+      <li>Create the bot with <code>@BotFather</code> and copy the token.</li>
+      <li>Send a private <code>/start</code> message to the bot, or add it to the exact group/channel you want to allow.</li>
+      <li>Call <code>getUpdates</code> once to read the numeric <code>chat.id</code>.</li>
+      <li>Set <code>JIRI_TELEGRAM_BOT_TOKEN</code> and <code>JIRI_TELEGRAM_ALLOWED_CHAT_IDS</code> on the Pi.</li>
+      <li>Start the JIRI Telegram polling worker with <code>scripts/run_telegram.sh</code>.</li>
+    </ol>
+  </article>
+
+  <article class="card telegram-wide-card">
+    <h2>{{ icon_database(16) }} Current Scope</h2>
+    <p>This page is a binding/status surface. It intentionally does not save tokens through the browser and does not execute Telegram commands from the web UI.</p>
+    <ul class="compact-list">
+      <li><strong>Allowed</strong><span>Polling, explicit allowlist, deterministic JIRI commands.</span></li>
+      <li><strong>Blocked</strong><span>Shell execution, systemd control, AI-owned state changes, implicit geocoding.</span></li>
+      <li><strong>Next</strong><span>Telegram poller implementation will use <code>getUpdates</code> and <code>sendMessage</code>.</span></li>
+    </ul>
+  </article>
+</section>
+{% endblock %}

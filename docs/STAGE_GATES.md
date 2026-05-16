@@ -104,7 +104,20 @@ Status: scaffolded in WSL. Real display/touch acceptance still required.
 - UI runs 30 minutes without crash.
 - Confirm real display behavior on Raspberry Pi before finalizing the UI.
 
-### Stage E: AI Worker Benchmark
+### Stage P: Persona And Proactive Behavior
+
+Status: P0/P1 implemented in WSL. P2-P5 remain planned or hardware/AI blocked.
+
+- Deterministic persona engine follows handbook priority order.
+- Screen persona decisions do not write SQLite.
+- Proactive Telegram nudges are rate-limited and allowlisted.
+- Quiet hours suppress low-priority proactive messages.
+- Focus suppresses random idle chatter.
+- Per-task overdue cooldowns prevent one task from silencing another.
+- Typed mouth effect and real display acceptance remain Stage D/P3 hardware work.
+- AI rewrite remains blocked until Stage E and Stage F acceptance.
+
+### Stage E: Local AI Benchmark
 
 Status: scripts ready. Real Raspberry Pi 3B benchmark still required.
 
@@ -117,7 +130,7 @@ WSL/local Gemma ctx512 runs are allowed only as opt-in compatibility preflight. 
 - Short rewrite below 8 seconds.
 - Summary below 15 seconds.
 - SSH remains responsive.
-- Main Pi works if AI Pi is offline.
+- JIRI works if local AI is offline.
 - Benchmark on a real Raspberry Pi 3B, not WSL.
 
 ### Stage F: AI Integration

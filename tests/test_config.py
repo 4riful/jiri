@@ -13,7 +13,6 @@ def test_load_defaults_when_config_missing(tmp_path, monkeypatch):
     assert cfg.weather.provider == "open_meteo"
     assert cfg.weather.location == "auto"
     assert cfg.weather.timeout_seconds == 3
-    assert cfg.worker.timeout_seconds == 1
 
 
 def test_env_overrides_for_wsl(tmp_path, monkeypatch):
@@ -35,6 +34,34 @@ def test_env_overrides_for_wsl(tmp_path, monkeypatch):
     assert cfg.weather.fake is True
     assert cfg.web.host == "127.0.0.1"
     assert cfg.web.port == 5001
+
+
+def test_telegram_env_overrides(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("JIRI_TELEGRAM_BOT_TOKEN", "123456:abc")
+    monkeypatch.setenv("JIRI_TELEGRAM_ALLOWED_CHAT_IDS", "123456789, -1001234567890")
+    cfg = load_config()
+    assert cfg.telegram.bot_token == "123456:abc"
+    assert cfg.telegram.allowed_chat_ids == (123456789, -1001234567890)
+
+
+def test_llm_env_overrides(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("JIRI_LLM_SERVER_BINARY", "/opt/llama.cpp/llama-server")
+    monkeypatch.setenv("JIRI_LLM_MODEL_PATH", "/models/gemma.gguf")
+    monkeypatch.setenv("JIRI_LLM_SERVER_PORT", "8088")
+    cfg = load_config()
+    assert cfg.llm.server_binary == "/opt/llama.cpp/llama-server"
+    assert cfg.llm.model_path == "/models/gemma.gguf"
+    assert cfg.llm.server_port == 8088
+
+
+def test_telegram_config_defaults(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    cfg = load_config()
+    assert cfg.telegram.enabled is False
+    assert cfg.telegram.command_chat_id is None
+    assert cfg.telegram.polling_timeout_seconds == 25
 
 
 def test_invalid_weather_timeout_rejected(tmp_path):

@@ -776,6 +776,29 @@ code { color: var(--bright-yellow); }
 .legend-temp { background: var(--bright-yellow); }
 .legend-rain { background: var(--bright-blue); }
 
+/* ── telegram binding page ───────────────────────────────────── */
+.telegram-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.telegram-wide-card { grid-column: 1 / -1; }
+
+.step-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+.step-list li {
+  border: 1px solid var(--selection);
+  background: var(--background);
+  padding: 9px;
+}
+
 /* ── professional weather page ───────────────────────────────── */
 .weather-hero-layout {
   display: grid;
@@ -1128,6 +1151,7 @@ a:focus-visible { outline: 2px solid var(--bright-cyan); outline-offset: 2px; }
   .stat-grid,
   .compact-stats,
   .stats-dashboard,
+  .telegram-layout,
   .hero-metrics,
   .system-grid,
   .dash-stats,
