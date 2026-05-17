@@ -1346,8 +1346,8 @@ a:focus-visible { outline: 2px solid var(--bright-cyan); outline-offset: 2px; }
   --nothing-text-dim: #666666;
   --nothing-accent: #D71921;
   --nothing-border: #333333;
-  --nothing-font: "LetteraMonoLL-Regular", "LL Lettera Mono", "Lettera Mono", "Space Mono", ui-monospace, monospace;
-  --nothing-mono: "LetteraMonoLL-Regular", "LL Lettera Mono", "Lettera Mono", "Space Mono", ui-monospace, monospace;
+  --nothing-font: "JetBrains Mono", "JetBrainsMono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --nothing-mono: "JetBrains Mono", "JetBrainsMono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --nothing-dot: "Ndot-Regular", "Ndot-55", "Nothing Dot", "OCR A Std", ui-monospace, monospace;
 }
 
