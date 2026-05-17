@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   {% block head %}{% endblock %}
 </head>
-<body class="{{ body_class|default('') }}">
+<body class="{{ body_class|default('') }} theme-{{ ui_theme|default('catppuccin') }}">
   <div class="app-shell">
     <header class="topbar">
       <div class="brand-lockup">

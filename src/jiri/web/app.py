@@ -47,6 +47,7 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
             "app_version": __version__,
             "admin_authenticated": _admin_authenticated(),
             "web_surface": web_surface,
+            "ui_theme": persona_settings.get_ui_theme(db_path=runtime.db_path),
         }
 
     @app.get("/")
@@ -469,6 +470,9 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
     @admin_required
     def persona_save():
         try:
+            theme_raw = request.form.get("ui_theme", "").strip()
+            if theme_raw:
+                persona_settings.set_ui_theme(theme_raw, db_path=runtime.db_path)
             quiet_start = request.form.get("quiet_start", "").strip()
             quiet_end = request.form.get("quiet_end", "").strip()
             if quiet_start and quiet_end:

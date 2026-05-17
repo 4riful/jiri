@@ -4,10 +4,28 @@
 {% block content %}
 <section class="page-head">
   <h1 class="section-title">{{ icon_gear(18) }} Persona Settings</h1>
-  <p class="meta-line">Quiet hours, cooldown intervals, and category toggles for the deterministic persona engine.</p>
+  <p class="meta-line">Quiet hours, cooldown intervals, category toggles, and UI theme for the deterministic persona engine.</p>
 </section>
 
 <section class="card">
+  <div class="card-head-flex">
+    <h2>UI Theme</h2>
+  </div>
+  <form class="stack-form compact-form" method="post" action="{{ url_for('persona_save') }}">
+    <label>
+      <span>Theme</span>
+      <select name="ui_theme">
+        <option value="catppuccin" {% if settings.ui_theme == 'catppuccin' %}selected{% endif %}>Catppuccin Mocha</option>
+        <option value="nothing" {% if settings.ui_theme == 'nothing' %}selected{% endif %}>Nothing UI</option>
+      </select>
+    </label>
+    <div class="stack-form-actions">
+      <button class="btn" type="submit">{{ icon_check(14) }} Save Theme</button>
+    </div>
+  </form>
+</section>
+
+<section class="card" style="margin-top:1rem">
   <div class="card-head-flex">
     <h2>Quiet Hours</h2>
   </div>

@@ -1201,3 +1201,283 @@ a:focus-visible { outline: 2px solid var(--bright-cyan); outline-offset: 2px; }
   .priority-row { flex-wrap: wrap; gap: 8px; }
   .todo-meta-row { gap: 4px; }
 }
+
+/* ── Nothing UI theme ────────────────────────────────────────── */
+.theme-nothing {
+  --nothing-bg: #000000;
+  --nothing-surface: #0A0A0A;
+  --nothing-surface-alt: #141414;
+  --nothing-text: #FFFFFF;
+  --nothing-text-dim: #666666;
+  --nothing-accent: #D71921;
+  --nothing-border: #333333;
+  --nothing-font: "Courier New", "Liberation Mono", monospace;
+}
+
+.theme-nothing body {
+  color: var(--nothing-text);
+  font-family: var(--nothing-font);
+  letter-spacing: 0.04em;
+}
+
+.theme-nothing .topbar,
+.theme-nothing .footer,
+.theme-nothing .banner,
+.theme-nothing .card,
+.theme-nothing .stat-card {
+  border: 1px solid var(--nothing-border);
+  background: var(--nothing-surface);
+}
+
+.theme-nothing .brand,
+.theme-nothing .ascii-face {
+  color: var(--nothing-text);
+}
+
+.theme-nothing .ascii-face {
+  border-color: var(--nothing-border);
+  background: var(--nothing-bg);
+}
+
+.theme-nothing .tagline,
+.theme-nothing .footer,
+.theme-nothing .meta-line,
+.theme-nothing .eyebrow,
+.theme-nothing .card p,
+.theme-nothing .stat-card p,
+.theme-nothing .details dt,
+.theme-nothing .compact-list span,
+.theme-nothing .item-row p,
+.theme-nothing .search-card p,
+.theme-nothing .stat-label,
+.theme-nothing .inline-metrics dt,
+.theme-nothing .system-list dt,
+.theme-nothing .forecast-strip span,
+.theme-nothing .forecast-strip small {
+  color: var(--nothing-text-dim);
+}
+
+.theme-nothing a:hover,
+.theme-nothing .nav-button:hover,
+.theme-nothing .button:hover,
+.theme-nothing .panel-switcher a:hover {
+  border-color: var(--nothing-accent);
+  color: var(--nothing-accent);
+}
+
+.theme-nothing .nav a,
+.theme-nothing .nav-button,
+.theme-nothing .button,
+.theme-nothing .panel-switcher a {
+  border-color: var(--nothing-border);
+  background: var(--nothing-bg);
+  color: var(--nothing-text);
+}
+
+.theme-nothing .panel-switcher .active {
+  border-color: var(--nothing-accent);
+  background: var(--nothing-surface-alt);
+  color: var(--nothing-accent);
+}
+
+.theme-nothing .banner-notice { border-color: var(--nothing-text); }
+.theme-nothing .banner-error { border-color: var(--nothing-accent); color: var(--nothing-accent); }
+
+.theme-nothing .card h2,
+.theme-nothing .card h3,
+.theme-nothing .screen-top h1 {
+  color: var(--nothing-text);
+}
+
+.theme-nothing .section-title { color: var(--nothing-text); }
+.theme-nothing .section-icon { color: var(--nothing-accent); }
+
+.theme-nothing .face {
+  border-color: var(--nothing-border);
+  background: var(--nothing-bg);
+}
+
+.theme-nothing .eye { color: var(--nothing-text); }
+.theme-nothing .mouth { color: var(--nothing-accent); }
+.theme-nothing .face-copy h2 { color: var(--nothing-text); }
+
+.theme-nothing .details div,
+.theme-nothing .stat-grid div,
+.theme-nothing .compact-list li,
+.theme-nothing .item-row,
+.theme-nothing .search-card {
+  border-color: var(--nothing-border);
+  background: var(--nothing-bg);
+}
+
+.theme-nothing .details dd { color: var(--nothing-text); }
+.theme-nothing .stat-big { color: var(--nothing-text); }
+.theme-nothing .stat-head-label { color: var(--nothing-text-dim); }
+.theme-nothing .stat-head-label .icon { color: var(--nothing-accent); }
+
+.theme-nothing input,
+.theme-nothing textarea,
+.theme-nothing select {
+  border-color: var(--nothing-border);
+  background: var(--nothing-bg);
+  color: var(--nothing-text);
+}
+
+.theme-nothing .water-fill { background: var(--nothing-accent); }
+.theme-nothing .water-meter { border-color: var(--nothing-border); background: var(--nothing-bg); }
+
+.theme-nothing .water-week-day {
+  border-color: var(--nothing-border);
+  background: var(--nothing-bg);
+}
+
+.theme-nothing .water-week-day.complete { border-color: var(--nothing-accent); }
+.theme-nothing .water-week-day strong { color: var(--nothing-text); }
+.theme-nothing .water-week-day span { color: var(--nothing-accent); }
+.theme-nothing .water-week-day small { color: var(--nothing-text-dim); }
+
+.theme-nothing .status-pill { border-color: var(--nothing-border); background: var(--nothing-bg); }
+.theme-nothing .status-pill.status-green { border-color: var(--nothing-accent); color: var(--nothing-accent); }
+.theme-nothing .status-pill.status-dim { color: var(--nothing-text-dim); }
+.theme-nothing .status-pill.status-red { border-color: var(--nothing-accent); color: var(--nothing-accent); }
+
+.theme-nothing .todo-title { color: var(--nothing-text); }
+.theme-nothing .todo-title.todo-done { color: var(--nothing-text-dim); }
+.theme-nothing .todo-id { color: var(--nothing-text-dim); }
+
+.theme-nothing .terminal-table th { background: var(--nothing-bg); color: var(--nothing-accent); }
+.theme-nothing .terminal-table th,
+.theme-nothing .terminal-table td { border-color: var(--nothing-border); }
+
+.theme-nothing .forecast-card { border-color: var(--nothing-border); background: var(--nothing-surface); }
+.theme-nothing .forecast-time { color: var(--nothing-text-dim); }
+.theme-nothing .forecast-card strong { color: var(--nothing-text); }
+.theme-nothing .forecast-rain { color: var(--nothing-accent); }
+
+.theme-nothing .simple-hour-item { border-color: var(--nothing-border); background: var(--nothing-bg); }
+.theme-nothing .simple-hour-time { color: var(--nothing-text-dim); }
+.theme-nothing .simple-hour-item strong { color: var(--nothing-text); }
+.theme-nothing .simple-hour-rain { color: var(--nothing-accent); }
+
+.theme-nothing .daily-simple-item { border-color: var(--nothing-border); background: var(--nothing-surface); }
+.theme-nothing .daily-simple-day { color: var(--nothing-text); }
+.theme-nothing .daily-simple-condition { color: var(--nothing-text-dim); }
+.theme-nothing .daily-simple-range { color: var(--nothing-text); }
+
+.theme-nothing .metric-tile { border-color: var(--nothing-border); background: var(--nothing-bg); }
+.theme-nothing .metric-tile.metric-temp { border-left: 3px solid var(--nothing-accent); }
+.theme-nothing .metric-tile.metric-feels { border-left: 3px solid var(--nothing-text-dim); }
+.theme-nothing .metric-tile.metric-rain { border-left: 3px solid var(--nothing-accent); }
+.theme-nothing .metric-tile.metric-wind { border-left: 3px solid var(--nothing-text-dim); }
+.theme-nothing .metric-icon { color: var(--nothing-text-dim); }
+.theme-nothing .metric-label { color: var(--nothing-text-dim); }
+.theme-nothing .metric-content strong { color: var(--nothing-text); }
+
+.theme-nothing .hero-status { color: var(--nothing-accent); border-color: var(--nothing-accent); }
+.theme-nothing .collapse-toggle { border-color: var(--nothing-border); background: var(--nothing-bg); color: var(--nothing-text-dim); }
+.theme-nothing .collapse-toggle:hover { color: var(--nothing-accent); border-color: var(--nothing-accent); }
+.theme-nothing .log-block { border-color: var(--nothing-border); background: var(--nothing-bg); color: var(--nothing-text-dim); }
+.theme-nothing .screen-frame { border-color: var(--nothing-border); background: var(--nothing-surface); }
+.theme-nothing .status-pill,
+.theme-nothing .screen-stats span,
+.theme-nothing .meta-line { border-color: var(--nothing-border); background: var(--nothing-bg); }
+.theme-nothing .step-list li { border-color: var(--nothing-border); background: var(--nothing-bg); }
+
+.theme-nothing .weather-place-block { border-color: var(--nothing-border); background: var(--nothing-bg); }
+.theme-nothing .weather-place { color: var(--nothing-text); }
+.theme-nothing .weather-temp-large { color: var(--nothing-text); }
+.theme-nothing .weather-condition-large { color: var(--nothing-text); }
+.theme-nothing .weather-range { color: var(--nothing-text-dim); }
+.theme-nothing .weather-metric { border-color: var(--nothing-border); background: var(--nothing-bg); }
+.theme-nothing .weather-metric span { color: var(--nothing-text-dim); }
+.theme-nothing .weather-metric strong { color: var(--nothing-text); }
+
+.theme-nothing .priority-label { color: var(--nothing-text); }
+.theme-nothing .priority-label input[type="radio"] { accent-color: var(--nothing-accent); }
+.theme-nothing .button-danger { color: var(--nothing-accent); border-color: var(--nothing-accent); }
+.theme-nothing .button-soft { color: var(--nothing-text-dim); }
+.theme-nothing .badge-green { color: var(--nothing-accent); border-color: var(--nothing-accent); }
+.theme-nothing .badge-dim { color: var(--nothing-text-dim); border-color: var(--nothing-border); }
+.theme-nothing .stat-big.stat-big-dim { color: var(--nothing-text-dim); }
+.theme-nothing .stat-water .stat-big { color: var(--nothing-accent); }
+.theme-nothing .icon-in-heading .icon { color: var(--nothing-accent); }
+.theme-nothing .card-sub { color: var(--nothing-text-dim); }
+.theme-nothing .card-head-flex { border-color: var(--nothing-border); }
+
+.theme-nothing .settings-table th,
+.theme-nothing .settings-table td { border-color: var(--nothing-border); }
+.theme-nothing .settings-table th { color: var(--nothing-text-dim); }
+.theme-nothing .settings-table td code { color: var(--nothing-text); }
+
+.theme-nothing .todo-scrollbox { border-color: var(--nothing-border); }
+.theme-nothing .todo-item { border-color: var(--nothing-border); }
+.theme-nothing .todo-meta { border-color: var(--nothing-border); }
+.theme-nothing .todo-meta.status.pending { color: var(--nothing-text); border-color: var(--nothing-text); }
+.theme-nothing .todo-meta.status.done { color: var(--nothing-text-dim); border-color: var(--nothing-text-dim); }
+.theme-nothing .todo-meta.status.cancelled { color: var(--nothing-accent); border-color: var(--nothing-accent); }
+.theme-nothing .todo-meta.priority.p1 { color: var(--nothing-accent); border-color: var(--nothing-accent); }
+.theme-nothing .todo-meta.priority.p2 { color: var(--nothing-text); border-color: var(--nothing-text); }
+.theme-nothing .todo-meta.priority.p3 { color: var(--nothing-text-dim); border-color: var(--nothing-text-dim); }
+.theme-nothing .todo-meta.priority.p4 { color: var(--nothing-text-dim); border-color: var(--nothing-border); }
+.theme-nothing .todo-meta.priority.p5 { color: var(--nothing-text-dim); border-color: var(--nothing-border); }
+.theme-nothing .todo-meta.due { color: var(--nothing-text-dim); border-color: var(--nothing-border); }
+
+.theme-nothing .empty-state { color: var(--nothing-text-dim); }
+.theme-nothing .list-count { color: var(--nothing-text-dim); }
+.theme-nothing .forecast-legend { color: var(--nothing-text-dim); }
+.theme-nothing .legend-temp { background: var(--nothing-text); }
+.theme-nothing .legend-rain { background: var(--nothing-accent); }
+
+.theme-nothing .forecast-icon-sun { color: var(--nothing-text); }
+.theme-nothing .forecast-icon-cloud { color: var(--nothing-text-dim); }
+.theme-nothing .forecast-icon-rain { color: var(--nothing-accent); }
+.theme-nothing .forecast-icon-storm { color: var(--nothing-accent); }
+.theme-nothing .forecast-icon-snow { color: var(--nothing-text); }
+.theme-nothing .forecast-icon-fog { color: var(--nothing-text-dim); }
+
+.theme-nothing .stat-datetime { border-color: var(--nothing-border); background: var(--nothing-surface); }
+.theme-nothing .stat-datetime #clock-time { color: var(--nothing-text); }
+.theme-nothing .stat-datetime #clock-date { color: var(--nothing-text-dim); }
+
+.theme-nothing .dash-hero-card { border-color: var(--nothing-border); background: var(--nothing-surface); }
+.theme-nothing .dash-panel-card { border-color: var(--nothing-border); background: var(--nothing-surface); }
+.theme-nothing .panel-header h3 { color: var(--nothing-text); }
+.theme-nothing .panel-header h3 .icon { color: var(--nothing-accent); }
+
+.theme-nothing .system-tile { border-color: var(--nothing-border); background: var(--nothing-bg); }
+.theme-nothing .system-tile-icon { color: var(--nothing-text-dim); }
+.theme-nothing .system-tile-label { color: var(--nothing-text-dim); }
+.theme-nothing .system-tile strong { color: var(--nothing-text); }
+
+.theme-nothing .weather-source { color: var(--nothing-text-dim); }
+.theme-nothing .weather-main h2 { color: var(--nothing-text); }
+.theme-nothing .weather-main-temp { color: var(--nothing-text); }
+.theme-nothing .weather-main-cond,
+.theme-nothing .weather-main-range,
+.theme-nothing .weather-main-loc { color: var(--nothing-text-dim); }
+.theme-nothing .weather-details span { color: var(--nothing-text-dim); }
+
+.theme-nothing .login-shell { border-color: var(--nothing-border); background: var(--nothing-surface); }
+.theme-nothing .search-card { border-color: var(--nothing-border); background: var(--nothing-bg); }
+.theme-nothing .search-results { border-color: var(--nothing-border); background: var(--nothing-bg); }
+.theme-nothing .inline-edit { border-color: var(--nothing-border); background: var(--nothing-bg); }
+.theme-nothing .stack-form label { color: var(--nothing-text-dim); }
+.theme-nothing .form-row label { color: var(--nothing-text-dim); }
+
+.theme-nothing .btn { border-color: var(--nothing-border); background: var(--nothing-bg); color: var(--nothing-text); }
+.theme-nothing .btn:hover { border-color: var(--nothing-accent); color: var(--nothing-accent); }
+.theme-nothing .stack-form-actions { border-color: var(--nothing-border); }
+.theme-nothing .table-scroll { border-color: var(--nothing-border); }
+.theme-nothing .settings-table { border-color: var(--nothing-border); }
+.theme-nothing .page-head { border-color: var(--nothing-border); }
+.theme-nothing .section-title.no-margin { border-color: var(--nothing-border); }
+.theme-nothing .collapse-section { border-color: var(--nothing-border); }
+.theme-nothing .collapse-body { border-color: var(--nothing-border); }
+.theme-nothing .forecast-panel { border-color: var(--nothing-border); }
+.theme-nothing .forecast-head { color: var(--nothing-text-dim); }
+.theme-nothing .weather-simple-card { border-color: var(--nothing-border); }
+.theme-nothing .weather-current-card { border-color: var(--nothing-border); }
+.theme-nothing .weather-minimal-grid { border-color: var(--nothing-border); }
+.theme-nothing .today-chart { border-color: var(--nothing-border); }
+.theme-nothing .daily-row { border-color: var(--nothing-border); }
+.theme-nothing .daily-condition { color: var(--nothing-text-dim); }

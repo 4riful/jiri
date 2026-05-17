@@ -232,3 +232,31 @@ def test_persona_water_interval_override(tmp_path):
     moment = persona.screen_moment(now=datetime(2026, 5, 15, 14, 0), db_path=db_path)
     assert moment.category == "water"
     assert moment.interval_minutes == 45
+
+
+def test_persona_ui_theme_defaults_to_catppuccin(tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    settings = persona_settings.load_all(db_path=db_path)
+    assert settings["ui_theme"] == "catppuccin"
+
+
+def test_persona_ui_theme_set_and_get(tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    persona_settings.set_ui_theme("nothing", db_path=db_path)
+    assert persona_settings.get_ui_theme(db_path=db_path) == "nothing"
+
+
+def test_persona_ui_theme_invalid_rejected(tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    try:
+        persona_settings.set_ui_theme("dark", db_path=db_path)
+        assert False
+    except ValueError:
+        pass
+
+
+def test_persona_ui_theme_persists_in_load_all(tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    persona_settings.set_ui_theme("nothing", db_path=db_path)
+    settings = persona_settings.load_all(db_path=db_path)
+    assert settings["ui_theme"] == "nothing"

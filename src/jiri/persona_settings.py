@@ -4,6 +4,9 @@ from . import db
 
 
 PREFIX = "persona."
+UI_THEME_KEY = PREFIX + "ui_theme"
+VALID_THEMES = ("catppuccin", "nothing")
+DEFAULT_THEME = "catppuccin"
 
 DEFAULT_QUIET_START = "23:00"
 DEFAULT_QUIET_END = "07:00"
@@ -98,6 +101,7 @@ def set_enabled(category: str, enabled: bool, db_path: str | None = None) -> Non
 
 def load_all(db_path: str | None = None) -> dict[str, object]:
     return {
+        "ui_theme": get_ui_theme(db_path=db_path),
         "quiet_start": get_quiet_start(db_path=db_path),
         "quiet_end": get_quiet_end(db_path=db_path),
         "categories": {
@@ -108,6 +112,19 @@ def load_all(db_path: str | None = None) -> dict[str, object]:
             for cat in CATEGORIES
         },
     }
+
+
+def get_ui_theme(db_path: str | None = None) -> str:
+    raw = db.get_setting(UI_THEME_KEY, db_path=db_path)
+    if raw in VALID_THEMES:
+        return raw
+    return DEFAULT_THEME
+
+
+def set_ui_theme(theme: str, db_path: str | None = None) -> None:
+    if theme not in VALID_THEMES:
+        raise ValueError(f"Theme must be one of: {', '.join(VALID_THEMES)}")
+    db.set_setting(UI_THEME_KEY, theme, db_path=db_path)
 
 
 def _validate_time(value: str) -> None:
