@@ -51,6 +51,8 @@ def water_snapshot(db_path: str | None = None, now: datetime | None = None, rese
         "complete": progress_ml >= goal_ml,
         "message": "Hydration goal complete." if progress_ml >= goal_ml else "Keep sipping water.",
         "week": weekly_history(db_path=db_path, now=current),
+        "month": monthly_history(db_path=db_path, now=current),
+        "year": yearly_history(db_path=db_path, now=current),
     }
 
 
@@ -116,6 +118,87 @@ def weekly_history(db_path: str | None = None, now: datetime | None = None) -> t
         }
         for day in days
     )
+
+
+def monthly_history(db_path: str | None = None, now: datetime | None = None) -> tuple[dict[str, object], ...]:
+    current = now or datetime.now()
+    goal_ml = _goal_ml(db_path=db_path)
+    days = [(current.date() - timedelta(days=offset)).isoformat() for offset in range(29, -1, -1)]
+    totals = {day: 0 for day in days}
+    db.init_db(db_path)
+    with db.connect(db_path) as conn:
+        rows = conn.execute(
+            """SELECT day, COALESCE(SUM(amount_ml), 0) AS total_ml
+            FROM water_log
+            WHERE day BETWEEN ? AND ?
+            GROUP BY day""",
+            (days[0], days[-1]),
+        ).fetchall()
+    for row in rows:
+        totals[str(row["day"])] = int(row["total_ml"] or 0)
+    return tuple(
+        {
+            "date": day,
+            "label": datetime.fromisoformat(day).strftime("%d"),
+            "amount_ml": totals[day],
+            "goal_ml": goal_ml,
+            "percent": min(100, int((totals[day] / goal_ml) * 100)) if goal_ml > 0 else 0,
+            "complete": totals[day] >= goal_ml,
+        }
+        for day in days
+    )
+
+
+def yearly_history(db_path: str | None = None, now: datetime | None = None) -> tuple[dict[str, object], ...]:
+    current = now or datetime.now()
+    goal_ml = _goal_ml(db_path=db_path)
+    months = []
+    for offset in range(11, -1, -1):
+        target = current.date().replace(day=1)
+        for _ in range(offset):
+            if target.month == 1:
+                target = target.replace(year=target.year - 1, month=12)
+            else:
+                target = target.replace(month=target.month - 1)
+        months.append((target.year, target.month))
+
+    db.init_db(db_path)
+    with db.connect(db_path) as conn:
+        rows = conn.execute(
+            """SELECT substr(day, 1, 7) AS month_key, COALESCE(SUM(amount_ml), 0) AS total_ml, COUNT(DISTINCT day) AS active_days
+            FROM water_log
+            GROUP BY month_key""",
+        ).fetchall()
+
+    totals = {}
+    active = {}
+    for row in rows:
+        key = str(row["month_key"])
+        totals[key] = int(row["total_ml"] or 0)
+        active[key] = int(row["active_days"] or 0)
+
+    result = []
+    for year, month in months:
+        key = f"{year:04d}-{month:02d}"
+        total = totals.get(key, 0)
+        days_in_month = (datetime(year, month, 1).replace(month=month % 12 + 1, year=year if month < 12 else year + 1) - datetime(year, month, 1)).days
+        month_goal = goal_ml * days_in_month
+        days_active = active.get(key, 0)
+        avg_daily = int(total / days_active) if days_active > 0 else 0
+        result.append(
+            {
+                "month_key": key,
+                "label": datetime(year, month, 1).strftime("%b %Y"),
+                "amount_ml": total,
+                "month_goal": month_goal,
+                "days_in_month": days_in_month,
+                "days_active": days_active,
+                "avg_daily_ml": avg_daily,
+                "percent": min(100, int((total / month_goal) * 100)) if month_goal > 0 else 0,
+                "complete": total >= month_goal,
+            }
+        )
+    return tuple(result)
 
 
 def goal_for_profile(age: int, sex: str) -> int:

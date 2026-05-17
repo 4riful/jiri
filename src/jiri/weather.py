@@ -555,7 +555,7 @@ def _parse_open_meteo_response(location: dict[str, object], raw: dict[str, Any])
             "humidity": _optional_int(current.get("relative_humidity_2m")),
             "rain_chance": _optional_int(rain_chance),
             "wind_kmh": _optional_float(current.get("wind_speed_10m")),
-            "hourly_forecast": _slice_from_now(hourly, current.get("time")),
+            "hourly_forecast": _slice_hourly_forecast(hourly, current_time=current.get("time")),
             "daily_forecast": _open_meteo_daily_forecast(raw),
             "fetched_at": _now_iso(),
             "raw_json": json.dumps(raw, separators=(",", ":"), sort_keys=True),
@@ -582,7 +582,7 @@ def _parse_wttr_response(location: dict[str, object], raw: dict[str, Any]) -> di
             "humidity": _optional_int(current.get("humidity")),
             "rain_chance": _optional_int(_wttr_rain_chance(raw)),
             "wind_kmh": _optional_float(current.get("windspeedKmph")),
-            "hourly_forecast": _wttr_hourly_forecast(raw),
+            "hourly_forecast": _slice_hourly_forecast(_wttr_hourly_forecast(raw)),
             "daily_forecast": _wttr_daily_forecast(raw),
             "fetched_at": _now_iso(),
             "raw_json": json.dumps(raw, separators=(",", ":"), sort_keys=True),
@@ -693,12 +693,12 @@ def _base_weather(location: str, source: str) -> dict[str, object]:
     }
 
 
-def _open_meteo_hourly_forecast(raw: dict[str, Any], limit: int = 24) -> list[dict[str, object]]:
+def _open_meteo_hourly_forecast(raw: dict[str, Any], limit: int = 48) -> list[dict[str, object]]:
     hourly = raw.get("hourly")
     if not isinstance(hourly, dict):
         return []
     times = hourly.get("time")
-    if not isinstance(times, list):
+    if not isinstance(times, list) or not times:
         return []
     rows: list[dict[str, object]] = []
     temperatures = hourly.get("temperature_2m") if isinstance(hourly.get("temperature_2m"), list) else []
@@ -722,6 +722,34 @@ def _open_meteo_hourly_forecast(raw: dict[str, Any], limit: int = 24) -> list[di
             }
         )
     return rows
+
+
+def _slice_hourly_forecast(hourly: list[dict[str, object]], count: int = 12, current_time: object | None = None) -> list[dict[str, object]]:
+    if not hourly:
+        return []
+    current_hour = _parse_hour(current_time) if current_time is not None else None
+    if current_hour is None:
+        current_hour = datetime.now().replace(minute=0, second=0, microsecond=0)
+
+    start_index = None
+    for index, row in enumerate(hourly):
+        hour_time = _parse_hour(row.get("timestamp"))
+        if hour_time is not None and hour_time >= current_hour:
+            start_index = index
+            break
+
+    if start_index is None:
+        return hourly[:count]
+    return hourly[start_index : start_index + count]
+
+
+def _parse_hour(value: object | None) -> datetime | None:
+    if value is None:
+        return None
+    try:
+        return datetime.fromisoformat(str(value)).replace(minute=0, second=0, microsecond=0)
+    except (ValueError, TypeError):
+        return None
 
 
 def _open_meteo_daily_forecast(raw: dict[str, Any], limit: int = 7) -> list[dict[str, object]]:
@@ -768,9 +796,12 @@ def _wttr_hourly_forecast(raw: dict[str, Any], limit: int = 24) -> list[dict[str
                 continue
             desc = _first(item.get("weatherDesc"))
             condition = str(desc.get("value")) if isinstance(desc, dict) and desc.get("value") else ""
+            hour_value = item.get("time", 0)
+            timestamp = f"{date}T{str(hour_value).zfill(4)[:2]}:{str(hour_value).zfill(4)[2:]}" if date else ""
             rows.append(
                 {
-                    "time": _wttr_hour(date, item.get("time")),
+                    "time": _wttr_hour(date, hour_value),
+                    "timestamp": timestamp,
                     "temperature_c": _optional_float(item.get("tempC")),
                     "rain_chance": _optional_int(item.get("chanceofrain")),
                     "rain_mm": _optional_float(item.get("precipMM")),
@@ -810,26 +841,6 @@ def _wttr_daily_forecast(raw: dict[str, Any], limit: int = 7) -> list[dict[str, 
     return rows
 
 
-def _slice_from_now(hourly: list[dict[str, object]], current_time: object | None = None) -> list[dict[str, object]]:
-    if current_time is not None:
-        try:
-            current = datetime.fromisoformat(str(current_time)).replace(minute=0, second=0, microsecond=0)
-        except ValueError:
-            current = None
-        if current is not None:
-            for index, row in enumerate(hourly):
-                try:
-                    timestamp = datetime.fromisoformat(str(row.get("timestamp"))).replace(minute=0, second=0, microsecond=0)
-                except ValueError:
-                    continue
-                if timestamp >= current:
-                    return hourly[index:]
-    now_hour = datetime.now().hour
-    if 0 <= now_hour < len(hourly):
-        return hourly[now_hour:]
-    return hourly
-
-
 def _normalize_hourly_rows(rows: list[object]) -> list[dict[str, object]]:
     normalized = []
     for row in rows:
@@ -853,6 +864,7 @@ def _fake_hourly_forecast() -> list[dict[str, object]]:
         rows.append(
             {
                 "time": _format_hour_12(timestamp.isoformat()),
+                "timestamp": timestamp.isoformat(),
                 "temperature_c": temp,
                 "rain_chance": rain[index],
                 "rain_mm": 0.0,

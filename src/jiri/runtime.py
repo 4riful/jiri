@@ -149,6 +149,12 @@ class JiriRuntime:
     def water_weekly_history(self):
         return water.weekly_history(db_path=self.db_path)
 
+    def water_monthly_history(self):
+        return water.monthly_history(db_path=self.db_path)
+
+    def water_yearly_history(self):
+        return water.yearly_history(db_path=self.db_path)
+
     def add_water(self, amount_ml: int):
         return water.add_water(amount_ml, db_path=self.db_path)
 

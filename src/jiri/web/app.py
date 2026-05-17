@@ -5,6 +5,7 @@ from functools import wraps
 import hmac
 import logging
 import os
+from pathlib import Path
 
 from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
 
@@ -14,6 +15,7 @@ from jiri.config import AppConfig
 from jiri.runtime import JiriRuntime
 from jiri import telegram
 from jiri import persona_settings
+from jiri import update_checker
 from jiri.ui.view_model import build_display_view_model
 
 
@@ -100,6 +102,17 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
             notice=request.args.get("notice", ""),
             error=request.args.get("error", ""),
         )
+
+    @app.post("/admin/update-check")
+    @admin_required
+    def update_check():
+        status = update_checker.check_updates(repo_path=str(Path(__file__).resolve().parents[3]))
+        message = str(status.get("message") or "Update check finished.")
+        if status.get("status") == "update_available":
+            message = f"{message} Local {status.get('local_sha')} / remote {status.get('remote_sha')}."
+        if status.get("status") == "unavailable":
+            return redirect(url_for("admin", error=message))
+        return redirect(url_for("admin", notice=message))
 
     @app.get("/admin/focus")
     @admin_required
@@ -305,6 +318,8 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
             "water.html",
             snapshot=snapshot,
             water_week=runtime.water_weekly_history(),
+            water_month=runtime.water_monthly_history(),
+            water_year=runtime.water_yearly_history(),
             notice=request.args.get("notice", ""),
             error=request.args.get("error", ""),
         )
@@ -470,6 +485,12 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
     @admin_required
     def persona_save():
         try:
+            toggle_raw = request.form.get("toggle_theme", "").strip()
+            if toggle_raw == "1":
+                current = persona_settings.get_ui_theme(db_path=runtime.db_path)
+                new_theme = "nothing" if current == "catppuccin" else "catppuccin"
+                persona_settings.set_ui_theme(new_theme, db_path=runtime.db_path)
+                return redirect(request.referrer or url_for("admin"))
             theme_raw = request.form.get("ui_theme", "").strip()
             if theme_raw:
                 persona_settings.set_ui_theme(theme_raw, db_path=runtime.db_path)

@@ -99,6 +99,13 @@ The Pi owns:
 - Optional llama.cpp / llama-server process after benchmark acceptance.
 - Optional Gemma 3 270M Q4_K_M rewrite/summarization from Python-supplied facts.
 
+Safe update rule:
+
+- GitHub update detection may check remote SHAs or releases without modifying files.
+- Every code update must create and verify a SQLite backup first.
+- Database restore must be tested before automatic updates are enabled.
+- See `docs/SAFE_UPDATE_METHODOLOGY.md` for the required update, backup, and restore process.
+
 Local AI must never be required for boot. If the AI process is unavailable, JIRI continues with deterministic template messages.
 
 ## Evidence And Assumptions

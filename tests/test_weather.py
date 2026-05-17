@@ -200,6 +200,25 @@ def test_cached_open_meteo_weather_preserves_secondary_fields(tmp_path):
     assert cached["location_meta"]["latitude"] == 26.1167
 
 
+def test_open_meteo_hourly_forecast_keeps_next_12_across_midnight():
+    payload = open_meteo_payload()
+    payload["current"]["time"] = "2026-05-15T23:00"
+    payload["hourly"]["time"] = [f"2026-05-15T{hour:02d}:00" for hour in range(24)] + [
+        f"2026-05-16T{hour:02d}:00" for hour in range(24)
+    ]
+    payload["hourly"]["temperature_2m"] = [float(hour) for hour in range(48)]
+    payload["hourly"]["precipitation_probability"] = list(range(48))
+    payload["hourly"]["rain"] = [0.0 for _ in range(48)]
+    payload["hourly"]["relative_humidity_2m"] = [70 for _ in range(48)]
+    payload["hourly"]["weather_code"] = [2 for _ in range(48)]
+
+    result = weather._parse_open_meteo_response(location(), payload)
+
+    assert len(result["hourly_forecast"]) == 12
+    assert result["hourly_forecast"][0]["timestamp"] == "2026-05-15T23:00"
+    assert result["hourly_forecast"][-1]["timestamp"] == "2026-05-16T10:00"
+
+
 def test_fake_weather_mode_does_not_require_network(monkeypatch):
     monkeypatch.setenv("JIRI_WEATHER_FAKE", "true")
 

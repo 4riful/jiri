@@ -13,7 +13,7 @@
   <img alt="SQLite" src="https://img.shields.io/badge/storage-SQLite-a6e3a1">
   <img alt="Flask" src="https://img.shields.io/badge/web-Flask-cba6f7">
   <img alt="Pygame" src="https://img.shields.io/badge/display-Pygame-f9e2af">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-131%20passing-a6e3a1">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-145%20passing-a6e3a1">
   <img alt="Target" src="https://img.shields.io/badge/target-Raspberry%20Pi%203B%2F3B%2B-f38ba8">
 </p>
 
@@ -21,7 +21,7 @@
 
 ## What It Is
 
-JIRI is a small personal desk assistant designed for weak, practical hardware: a Raspberry Pi 3B/3B+, 1 GB RAM, SQLite storage, and a compact display. It manages todos, notes, weather, focus sessions, hydration, persona nudges, Telegram control, and a read-only database browser from a lightweight Flask admin dashboard.
+JIRI is a small personal desk assistant designed for weak, practical hardware: a Raspberry Pi 3B/3B+, 1 GB RAM, SQLite storage, and a compact display. It manages todos, notes, weather, focus sessions, hydration, persona nudges, Telegram control, update checks, safe database backups, and a read-only database browser from a lightweight Flask admin dashboard.
 
 The project is deliberately not a cloud chatbot, not a kiosk website, and not a heavyweight home server stack. It is a deterministic Python application that can optionally use local AI later for wording only.
 
@@ -56,6 +56,9 @@ Most “AI assistant” projects put the model in charge too early. JIRI does th
 | Focus Assist | Working | Start, pause, resume, complete, cancel, no per-second DB writes. |
 | Persona engine | Working | Deterministic priority/cooldown rules and Telegram nudges. |
 | Telegram | Working | Polling bot, allowlist, commands, DB-backed settings. |
+| Themes | Working | Catppuccin Mocha default and Nothing UI alternative. |
+| Water history | Working | Today, weekly, 30-day, and 12-month SQLite-backed views. |
+| Safe updates | Documented + tools | GitHub update check, verified SQLite backup, restore script, rollback methodology. |
 | DB browser | Working | Read-only raw SQLite inspection in admin. |
 | Local AI | Scaffolded | `llama-server` integration is disabled by default and benchmark-gated. |
 | Real Pi display | Hardware-gated | Needs final 3.5-inch display/touch confirmation. |
@@ -106,10 +109,11 @@ Available at `http://127.0.0.1:5000/admin` during local development.
 - Notes with tags.
 - Weather location search, saved coordinates, refresh controls, current/hourly/daily forecast display.
 - Focus sessions with pause/resume/complete/cancel controls.
-- Water tracking and profile-based daily targets.
+- Water tracking with profile-based daily targets, weekly history, 30-day history, and 12-month aggregation.
 - Telegram binding, bot status, chat allowlist, token management.
-- Persona settings for quiet hours, category cooldowns, and category toggles.
+- Persona settings for quiet hours, category cooldowns, category toggles, and UI theme selection.
 - AI status page with clean missing-binary handling for `llama-server`.
+- Update checker button that compares local Git state with the configured upstream without applying changes.
 - Read-only DB browser for inspecting raw SQLite tables.
 
 ### Screen Surface
@@ -154,6 +158,39 @@ critical overdue > focus > normal overdue > weather > quiet hours > water > ambi
 
 The persona can be tuned in `/admin/persona` without changing code.
 
+### Themes
+
+The web dashboard has two lightweight themes:
+
+| Theme | Notes |
+| --- | --- |
+| Catppuccin Mocha | Default, soft terminal-inspired palette. |
+| Nothing UI | Black/white/red system using Nothing-style typography when available. |
+
+Theme selection is stored in SQLite through persona settings. The navbar theme button toggles between the available themes.
+
+### Safe Updates And Backups
+
+JIRI includes an update checker and a safe update methodology, but it does not blindly auto-update by default.
+
+- `/admin` has an **Updates** button that checks the configured Git upstream with `git ls-remote`.
+- The checker does not run `git pull`, `git reset`, or mutate the codebase.
+- `scripts/backup_db.sh` uses SQLite's online backup API and writes a manifest with SHA-256, schema version, table names, row counts, and integrity status.
+- `scripts/restore_db.sh <backup.db>` verifies the backup before restore and backs up the current DB before replacement.
+- The full process is documented in `docs/SAFE_UPDATE_METHODOLOGY.md`.
+
+Backup manually:
+
+```bash
+scripts/backup_db.sh
+```
+
+Restore manually:
+
+```bash
+scripts/restore_db.sh backups/jiri-YYYYMMDD-HHMMSS.db
+```
+
 ## Quick Start
 
 ### 1. Clone and enter the project
@@ -179,7 +216,7 @@ PYTHONPATH=src python -m pytest tests/ -q
 Expected current result:
 
 ```text
-131 passed
+145 passed
 ```
 
 ### 4. Start admin and screen surfaces
@@ -308,6 +345,7 @@ It does not write, delete, or mutate database rows.
 | `scripts/run_telegram.sh` | Start Telegram polling worker. |
 | `scripts/run_ui.sh` | Start Pygame UI. |
 | `scripts/backup_db.sh` | Back up SQLite database. |
+| `scripts/restore_db.sh` | Restore a verified SQLite backup after backing up the current DB. |
 | `scripts/install_pi.sh` | Raspberry Pi installation helper. |
 | `scripts/pi_smoke_test.sh` | Pi deployment smoke test. |
 | `scripts/ai_*.sh` | Local AI benchmark and monitoring helpers. |
@@ -332,11 +370,14 @@ The suite covers:
 - Config/env loading.
 - SQLite schema and migration behavior.
 - Todos, notes, focus, water, weather.
+- Monthly/yearly water history.
+- Weather next-12-hour forecast slicing across midnight.
 - Persona priority/cooldown rules.
 - Event emission and deduplication.
 - Telegram polling and command dispatch.
 - Flask admin/screen/API surfaces.
 - DB browser read-only inspection.
+- Update checker logic.
 - Pygame display model and touch zones.
 - AI script guardrails.
 
@@ -428,6 +469,7 @@ This keeps the project small enough to debug over SSH and realistic on Raspberry
 | `docs/STAGE_GATES.md` | Acceptance gates by stage. |
 | `docs/ROADMAP.md` | Short progress tracker. |
 | `docs/PI_DEPLOYMENT.md` | Raspberry Pi deployment notes. |
+| `docs/SAFE_UPDATE_METHODOLOGY.md` | Safe GitHub update, backup, restore, and rollback rules. |
 | `docs/TROUBLESHOOTING.md` | Common issues and fixes. |
 | `docs/PERSONA_IMPLEMENTATION_PLAN.md` | Persona staged implementation plan. |
 

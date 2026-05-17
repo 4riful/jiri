@@ -13,6 +13,7 @@
 - Stage D: ASCII/Touch Display foundation. Status: scaffolded in WSL, hardware confirmation required.
 - Stage P0/P1: Deterministic persona and proactive Telegram nudges. Status: passed in WSL.
 - Stage E: Local AI benchmark scripts. Status: scaffolded in WSL, local ctx512 preflight allowed, real Pi benchmark required.
+- Safe update methodology: documented with verified SQLite backup/restore scripts; automatic update remains opt-in until real Pi smoke acceptance.
 
 ## New Handbook Build Order
 
@@ -26,6 +27,7 @@
 | E | Local AI Benchmark | Scripts ready | Safe debloat, llama.cpp, Gemma 3 270M Q4_K_M benchmark at 512 ctx; WSL/local preflight is not acceptance. |
 | F | AI Integration | Blocked for acceptance | Local AI client remains disabled by default; production acceptance only after real Pi benchmark acceptance. |
 | G | Telegram Admin | Passed in WSL | Polling bot, CRUD/control commands, summary command, user whitelist, and deterministic destructive confirmations. |
+| U | Safe Updates | Methodology documented | GitHub update checks, mandatory SQLite backup manifests, restore flow, and future opt-in systemd timers. |
 
 ## Blockers Before Hardware Stages
 

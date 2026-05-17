@@ -1,4 +1,4 @@
-{% from "macros/icons.html" import icon_screen, icon_dashboard, icon_todos, icon_notes, icon_weather, icon_focus, icon_ai, icon_logout, icon_droplet, icon_link, icon_gear, icon_database %}
+{% from "macros/icons.html" import icon_screen, icon_dashboard, icon_todos, icon_notes, icon_weather, icon_focus, icon_ai, icon_logout, icon_droplet, icon_link, icon_gear, icon_database, icon_theme %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -14,29 +14,33 @@
       <div class="brand-lockup">
         <pre class="ascii-face" id="ascii-face" aria-label="JIRI mood face">[ ^_^ ]</pre>
         <div>
-          <div class="brand">{{ app_name }}</div>
-          <div class="tagline">Companion control deck</div>
+          <div class="brand">JIRI</div>
+          <div class="tagline">DeskCompanion</div>
         </div>
       </div>
       <nav class="nav">
         {% if web_surface in ('screen', 'all') %}
-          <a href="{{ url_for('screen') }}">{{ icon_screen(14) }} Screen</a>
+          <a href="{{ url_for('screen') }}" aria-label="Screen" title="Screen">{{ icon_screen(14) }} <span class="nav-label">Screen</span></a>
         {% endif %}
         {% if web_surface in ('admin', 'all') %}
-          <a href="{{ url_for('admin') }}">{{ icon_dashboard(14) }} Dashboard</a>
-          <a href="{{ url_for('todos_view') }}">{{ icon_todos(14) }} Todos</a>
-          <a href="{{ url_for('notes_view') }}">{{ icon_notes(14) }} Notes</a>
-          <a href="{{ url_for('weather_view') }}">{{ icon_weather(14) }} Weather</a>
-          <a href="{{ url_for('water_view') }}">{{ icon_droplet(14) }} Water</a>
-          <a href="{{ url_for('telegram_view') }}">{{ icon_link(14) }} Telegram</a>
-          <a href="{{ url_for('focus_view') }}">{{ icon_focus(14) }} Focus</a>
-          <a href="{{ url_for('persona_view') }}">{{ icon_gear(14) }} Persona</a>
-          <a href="{{ url_for('db_browser') }}">{{ icon_database(14) }} DB</a>
-          <a href="{{ url_for('llama_view') }}">{{ icon_ai(14) }} AI</a>
+          <a class="nav-icon-button" href="{{ url_for('admin') }}" aria-label="Dashboard" title="Dashboard">{{ icon_dashboard(14) }}</a>
+          <a href="{{ url_for('todos_view') }}" aria-label="Todos" title="Todos">{{ icon_todos(14) }} <span class="nav-label">Todos</span></a>
+          <a href="{{ url_for('notes_view') }}" aria-label="Notes" title="Notes">{{ icon_notes(14) }} <span class="nav-label">Notes</span></a>
+          <a href="{{ url_for('weather_view') }}" aria-label="Weather" title="Weather">{{ icon_weather(14) }} <span class="nav-label">Weather</span></a>
+          <a href="{{ url_for('water_view') }}" aria-label="Water" title="Water">{{ icon_droplet(14) }} <span class="nav-label">Water</span></a>
+          <a href="{{ url_for('focus_view') }}" aria-label="Focus" title="Focus">{{ icon_focus(14) }} <span class="nav-label">Focus</span></a>
+          <a href="{{ url_for('telegram_view') }}" aria-label="Telegram" title="Telegram">{{ icon_link(14) }} <span class="nav-label">Telegram</span></a>
+          <a href="{{ url_for('llama_view') }}" aria-label="AI" title="AI">{{ icon_ai(14) }} <span class="nav-label">AI</span></a>
+          <a class="nav-icon-button" href="{{ url_for('persona_view') }}" aria-label="Persona" title="Persona">{{ icon_gear(14) }}</a>
+          <a href="{{ url_for('db_browser') }}" aria-label="Database" title="Database">{{ icon_database(14) }} <span class="nav-label">DB</span></a>
+          <form method="post" action="{{ url_for('persona_save') }}" class="theme-toggle-form">
+            <input type="hidden" name="toggle_theme" value="1">
+            <button class="nav-button theme-toggle" type="submit" aria-label="Toggle theme">{{ icon_theme(14) }}</button>
+          </form>
           {% if admin_authenticated %}
-            <form method="post" action="{{ url_for('admin_logout') }}"><button class="nav-button" type="submit">{{ icon_logout(14) }} Logout</button></form>
+            <form method="post" action="{{ url_for('admin_logout') }}"><button class="nav-button nav-icon-button" type="submit" aria-label="Logout" title="Logout">{{ icon_logout(14) }}</button></form>
           {% else %}
-            <a href="{{ url_for('admin_login') }}">Login</a>
+            <a href="{{ url_for('admin_login') }}"><span class="nav-label">Login</span></a>
           {% endif %}
         {% endif %}
       </nav>

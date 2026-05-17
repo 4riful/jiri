@@ -1,8 +1,46 @@
-{% from "macros/icons.html" import icon_todos, icon_notes, icon_weather, icon_focus, icon_system, icon_ai, icon_chevron_down, icon_chevron_up, icon_thermometer, icon_cloud_rain, icon_wind, icon_memory, icon_cpu, icon_globe, icon_monitor, icon_database, icon_check, icon_cloud, icon_cloud_fog, icon_cloud_lightning, icon_cloud_snow, icon_gear, icon_tag, icon_link, icon_play, icon_stop, icon_droplet %}
+{% from "macros/icons.html" import icon_todos, icon_notes, icon_weather, icon_focus, icon_system, icon_ai, icon_chevron_down, icon_chevron_up, icon_thermometer, icon_cloud_rain, icon_wind, icon_memory, icon_cpu, icon_globe, icon_monitor, icon_database, icon_check, icon_cloud, icon_cloud_fog, icon_cloud_lightning, icon_cloud_snow, icon_gear, icon_tag, icon_link, icon_play, icon_stop, icon_droplet, icon_refresh %}
 {% extends "base.html" %}
 
 {% block content %}
 <section class="dash-stats">
+  <article class="stat-card stat-datetime">
+    <strong class="stat-big" id="clock-time">{{ snapshot.now.strftime('%I:%M %p').lstrip('0').lower() if snapshot.now else '--:--' }}</strong>
+    <p id="clock-date">{{ snapshot.now.strftime('%a %b %d, %Y') if snapshot.now else '---' }}</p>
+  </article>
+
+  <article class="stat-card stat-water">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_droplet(14) }} Water</span>
+      <span class="stat-head-badge {{ 'badge-green' if snapshot.water.complete else 'badge-dim' }}">{{ snapshot.water.percent }}%</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.water.progress_ml }}ml</strong>
+    <p>{{ snapshot.water.remaining_ml }}ml left · goal {{ snapshot.water.goal_ml }}ml</p>
+  </article>
+
+  <article class="stat-card stat-focus">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_focus(14) }} Focus</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.focus.remaining_text if snapshot.focus.active else '--:--' }}</strong>
+    <p>{{ snapshot.focus.title if snapshot.focus.active else 'No active session' }}</p>
+  </article>
+
+  <article class="stat-card stat-notes">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_notes(14) }} Notes</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.notes|length }}</strong>
+    <p>{{ (snapshot.notes[0].title or '')[:30] if snapshot.notes else 'Empty' }}</p>
+  </article>
+
+  <article class="stat-card stat-todos">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_todos(14) }} Todos</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.screen.pending_count }}</strong>
+    <p>{{ snapshot.screen.overdue_count }} overdue &middot; {{ snapshot.todos|length }} total</p>
+  </article>
+
   <article class="stat-card stat-llama">
     <div class="stat-head">
       <span class="stat-head-label">{{ icon_ai(14) }} AI Server</span>
@@ -28,44 +66,6 @@
     </div>
     <strong class="stat-big" id="telegram-card-count">--</strong>
     <p id="telegram-card-copy">Checking binding...</p>
-  </article>
-
-  <article class="stat-card stat-datetime">
-    <strong class="stat-big" id="clock-time">{{ snapshot.now.strftime('%I:%M %p').lstrip('0').lower() if snapshot.now else '--:--' }}</strong>
-    <p id="clock-date">{{ snapshot.now.strftime('%a %b %d, %Y') if snapshot.now else '---' }}</p>
-  </article>
-
-  <article class="stat-card stat-todos">
-    <div class="stat-head">
-      <span class="stat-head-label">{{ icon_todos(14) }} Todos</span>
-    </div>
-    <strong class="stat-big">{{ snapshot.screen.pending_count }}</strong>
-    <p>{{ snapshot.screen.overdue_count }} overdue &middot; {{ snapshot.todos|length }} total</p>
-  </article>
-
-  <article class="stat-card stat-focus">
-    <div class="stat-head">
-      <span class="stat-head-label">{{ icon_focus(14) }} Focus</span>
-    </div>
-    <strong class="stat-big">{{ snapshot.focus.remaining_text if snapshot.focus.active else '--:--' }}</strong>
-    <p>{{ snapshot.focus.title if snapshot.focus.active else 'No active session' }}</p>
-  </article>
-
-  <article class="stat-card stat-notes">
-    <div class="stat-head">
-      <span class="stat-head-label">{{ icon_notes(14) }} Notes</span>
-    </div>
-    <strong class="stat-big">{{ snapshot.notes|length }}</strong>
-    <p>{{ (snapshot.notes[0].title or '')[:30] if snapshot.notes else 'Empty' }}</p>
-  </article>
-
-  <article class="stat-card stat-water">
-    <div class="stat-head">
-      <span class="stat-head-label">{{ icon_droplet(14) }} Water</span>
-      <span class="stat-head-badge {{ 'badge-green' if snapshot.water.complete else 'badge-dim' }}">{{ snapshot.water.percent }}%</span>
-    </div>
-    <strong class="stat-big">{{ snapshot.water.progress_ml }}ml</strong>
-    <p>{{ snapshot.water.remaining_ml }}ml left · goal {{ snapshot.water.goal_ml }}ml</p>
   </article>
 </section>
 
@@ -134,6 +134,9 @@
       <h3>{{ icon_system(16) }} System</h3>
       <div style="display:flex;align-items:center;gap:12px">
         <span class="hero-status">{{ 'Healthy' if snapshot.health.database_writable else 'Issues' }}</span>
+        <form method="post" action="{{ url_for('update_check') }}">
+          <button class="collapse-toggle" type="submit">{{ icon_refresh(14) }} Updates</button>
+        </form>
         <button class="collapse-toggle" onclick="toggleSystem()" aria-expanded="false" aria-controls="system-extra">
           <span class="toggle-label">Details</span>
           {{ icon_chevron_down(14) }}
