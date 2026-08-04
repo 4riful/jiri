@@ -1,0 +1,85 @@
+name: Feature request
+description: Suggest something JIRI should be able to do.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before you write this up, two things save everyone time.
+
+        **The target machine is a Raspberry Pi 3B/3B+ with 1 GB of RAM.** Ideas are judged
+        against that, not against a desktop.
+
+        **Some things are already decided and closed.** React, Node, Electron, Docker,
+        Kubernetes, PostgreSQL, MongoDB, Redis, Celery, and a browser kiosk display are out.
+        On-device LLM inference was measured and rejected; see
+        [docs/AI_STRATEGY.md](https://github.com/4riful/jiri/blob/main/docs/AI_STRATEGY.md).
+        AI may supply wording only, never state or actions.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is annoying or missing today? Describe the situation, not the solution.
+      placeholder: "I never notice that a focus session finished if I have walked away from the desk."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like JIRI to do
+      description: Your proposed behaviour. Be concrete about what appears where.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of JIRI
+      options:
+        - Admin dashboard
+        - Screen / display face
+        - Persona engine or wording
+        - Todos, notes, focus, or water
+        - Weather
+        - Telegram
+        - CLI
+        - AI wording layer
+        - Updates, backups, or deployment
+        - Docs
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead
+      description: Workarounds, other tools, or settings you already looked at.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Fits the project
+      description: Have a think about each of these. An honest "no" is fine, it just means the idea needs shaping.
+      options:
+        - label: This works on a Pi 3B/3B+ within the limits in `docs/PERFORMANCE_BUDGETS.md`.
+          required: false
+        - label: This does not need a new heavy dependency.
+          required: false
+        - label: This keeps working with no network and with AI disabled.
+          required: false
+        - label: This does not put AI in charge of state, timing, or actions.
+          required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Sketches, ASCII mockups, links, prior art.
+    validations:
+      required: false

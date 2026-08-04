@@ -1,0 +1,86 @@
+name: Persona line
+description: Suggest something for JIRI to say. No code, no hardware, no setup.
+title: "[line] "
+labels: ["persona", "good first issue"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Write JIRI a line. That is the whole task.
+
+        JIRI is dry, brief, and mildly unimpressed. It is not a cheerleader and it is not a
+        therapist. Think of a colleague who is very good at their job and not especially
+        excited about yours.
+
+        ```
+        "Systems calm. Suspiciously calm."
+        "No pending tasks. I will allow it."
+        "Desk assistant idle. Try not to break anything."
+        ```
+
+        One rule above all others: **JIRI jokes about the situation or about itself, never
+        about the user.**
+
+        One more that catches people out: **JIRI gets quieter as you fall behind, not louder.**
+        The face does the escalating, so overdue wording stays flat and short. Save the
+        personality for the calm moments.
+
+        Suggest as many as you like in one issue. If you would rather send a pull request,
+        the lines live in `src/jiri/messages.py` and
+        [CONTRIBUTING.md](https://github.com/4riful/jiri/blob/main/CONTRIBUTING.md) has the details.
+
+  - type: dropdown
+    id: pool
+    attributes:
+      label: When would JIRI say this?
+      options:
+        - Idle / ambient (nothing is happening)
+        - Celebration (a todo was completed)
+        - Focus session started
+        - Focus milestone (halfway, nearly done)
+        - Water reminder
+        - Weather, hot
+        - Weather, rain
+        - Sleep / quiet hours
+        - Not sure, you decide
+    validations:
+      required: true
+
+  - type: textarea
+    id: lines
+    attributes:
+      label: Your line or lines
+      description: One per line. Plain text only, no markdown and no emoji.
+      placeholder: |
+        Nothing due. I remain professionally suspicious.
+        Inbox of tasks: empty. Enjoy it while it lasts.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: slots
+    attributes:
+      label: Placeholders used
+      description: |
+        Optional. Todos offer `{task}` and `{minutes}`, water offers `{amount}` and `{goal}`,
+        weather offers `{temp}` and `{condition}`. Leave blank if you used none.
+      placeholder: "{task}"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Quick check
+      options:
+        - label: Under 160 characters once any placeholder is filled in.
+          required: true
+        - label: Plain text. No markdown, no emoji, no wrapping quotes.
+          required: true
+        - label: The joke is about the situation or about JIRI, not about the user.
+          required: true
+        - label: Funny is welcome. Mean is not. It has to be readable at 8am on a Monday.
+          required: true
+        - label: I only used placeholders that exist for this moment (or none at all).
+          required: false

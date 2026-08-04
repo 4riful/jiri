@@ -1,0 +1,113 @@
+name: Bug report
+description: Something in JIRI does not work the way it should.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The more exactly you describe what you ran, the faster this gets fixed.
+
+        If this is a security issue, please do not file it here. See [SECURITY.md](https://github.com/4riful/jiri/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what did you get instead?
+      placeholder: |
+        Expected: the focus timer to resume where it paused.
+        Got: it restarted from 25:00.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Exact commands, clicks, or Telegram messages. Include the command line if there was one.
+      placeholder: |
+        1. PYTHONPATH=src .venv/bin/python -m jiri.cli focus start --minutes 25 --title "Test"
+        2. PYTHONPATH=src .venv/bin/python -m jiri.cli focus pause
+        3. PYTHONPATH=src .venv/bin/python -m jiri.cli focus resume
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface
+      description: Where you saw it.
+      options:
+        - Admin dashboard (:5000)
+        - Screen preview (:5001)
+        - Pygame display
+        - CLI
+        - Telegram bot
+        - Tests
+        - AI wording layer
+        - Something else / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: hardware
+    attributes:
+      label: Where you are running JIRI
+      options:
+        - WSL
+        - Linux desktop or server
+        - macOS
+        - Raspberry Pi 3B / 3B+
+        - Another Raspberry Pi model
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      description: Output of `python --version` from inside your virtualenv.
+      placeholder: "3.11.9"
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Output of `git rev-parse --short HEAD`.
+      placeholder: "c712a62"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Traceback or output
+      description: Paste the full traceback if there is one. It will be formatted as code automatically.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: health
+    attributes:
+      label: Health output
+      description: Optional but very useful. Run `PYTHONPATH=src .venv/bin/python -m jiri.cli health` and paste the result.
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched existing issues and this is not already reported.
+          required: true
+        - label: I am on the latest commit of `main`, or I said which commit above.
+          required: false
+        - label: This is not a secret, token, or password leak (those go through SECURITY.md).
+          required: true

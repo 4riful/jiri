@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup or "how do I" question
+    url: https://github.com/4riful/jiri/discussions
+    about: Questions about installing, configuring, or running JIRI belong in Discussions.
+  - name: Something is broken and the docs might already cover it
+    url: https://github.com/4riful/jiri/blob/main/docs/TROUBLESHOOTING.md
+    about: Missing jiri module, admin password, weather, ports, AI lines not appearing.
+  - name: Security vulnerability
+    url: https://github.com/4riful/jiri/security/advisories
+    about: Report privately. Please do not open a public issue.
+  - name: Raspberry Pi deployment
+    url: https://github.com/4riful/jiri/blob/main/docs/PI_DEPLOYMENT.md
+    about: Install, systemd units, display and hardware notes.
