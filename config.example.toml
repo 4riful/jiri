@@ -9,7 +9,7 @@ typing_speed_cps = 24
 
 [assistant]
 name = "JIRI"
-personality = "funny_sarcastic"
+personality = "playful_joyful"
 rage_mode_enabled = true
 
 [weather]
@@ -44,14 +44,37 @@ max_web_ram_mb = 150
 target_fps = 15
 min_acceptable_fps = 10
 
-[llm]
+[ai]
+# Hosted-LLM wording layer. Optional and off by default.
+# JIRI is fully functional with this disabled - it uses built-in wording.
+#
+# AI generates persona line TEMPLATES in the background; the display only ever
+# reads the local SQLite cache. No user data (todo titles, notes, location) is
+# ever sent to a provider - templates use {task}/{minutes} placeholders that are
+# filled in locally on the device.
 enabled = false
-provider = "none"
-model_path = ""
-server_binary = "llama-server"
-server_port = 8080
-server_context = 512
-server_threads = 2
+timeout_seconds = 8.0
+daily_request_cap = 200
+max_output_chars = 160
+min_lines_per_bucket = 12
+max_lines_per_bucket = 60
+
+# Providers are tried in order. Each is any OpenAI-compatible endpoint.
+# Keys come from the environment: GEMINI_API_KEY / GROQ_API_KEY
+# (or JIRI_GEMINI_API_KEY / JIRI_GROQ_API_KEY).
+#
+# [[ai.providers]]
+# name = "gemini"                 # best free-tier creative writing
+# model = "gemini-3.5-flash"
+#
+# [[ai.providers]]
+# name = "groq"                   # free tier, does not train on your data
+# model = "qwen/qwen3.6-27b"
+#
+# [[ai.providers]]
+# name = "ollama"                 # a LAN box, no key needed
+# base_url = "http://192.168.1.50:11434/v1"
+# model = "llama3.1:8b"
 
 [telegram]
 # These are first-boot seed values. After SQLite is initialized, manage

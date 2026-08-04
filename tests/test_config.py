@@ -45,15 +45,34 @@ def test_telegram_env_overrides(tmp_path, monkeypatch):
     assert cfg.telegram.allowed_chat_ids == (123456789, -1001234567890)
 
 
-def test_llm_env_overrides(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("JIRI_LLM_SERVER_BINARY", "/opt/llama.cpp/llama-server")
-    monkeypatch.setenv("JIRI_LLM_MODEL_PATH", "/models/gemma.gguf")
-    monkeypatch.setenv("JIRI_LLM_SERVER_PORT", "8088")
-    cfg = load_config()
-    assert cfg.llm.server_binary == "/opt/llama.cpp/llama-server"
-    assert cfg.llm.model_path == "/models/gemma.gguf"
-    assert cfg.llm.server_port == 8088
+def test_ai_providers_parse_and_env_overrides(tmp_path, monkeypatch):
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        """
+[ai]
+enabled = true
+daily_request_cap = 50
+
+[[ai.providers]]
+name = "gemini"
+model = "gemini-3.5-flash"
+
+[[ai.providers]]
+name = "groq"
+model = "qwen/qwen3.6-27b"
+""",
+        encoding="utf-8",
+    )
+    cfg = load_config(cfg_path)
+    assert cfg.ai.enabled is True
+    assert [p.name for p in cfg.ai.providers] == ["gemini", "groq"]
+
+    monkeypatch.setenv("JIRI_AI_ENABLED", "false")
+    monkeypatch.setenv("JIRI_AI_DAILY_CAP", "7")
+    cfg = load_config(cfg_path)
+    assert cfg.ai.enabled is False
+    assert cfg.ai.daily_request_cap == 7
+
 
 
 def test_telegram_config_defaults(tmp_path, monkeypatch):

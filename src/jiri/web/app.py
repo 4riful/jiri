@@ -643,72 +643,42 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
                 error=str(exc),
             )
 
-    @app.get("/admin/llama")
+    @app.get("/admin/ai")
     @admin_required
-    def llama_view():
-        status = runtime.llama_status()
-        logs = runtime.llama_logs(tail=40)
+    def ai_view():
         return render_template(
-            "llama.html",
-            snapshot=runtime.dashboard_snapshot(panel="system"),
-            llama_status=status,
-            llama_logs=logs,
+            "ai.html",
+            snapshot=runtime.dashboard_snapshot(panel="ai"),
+            ai_status=runtime.ai_status(),
             notice=request.args.get("notice", ""),
             error=request.args.get("error", ""),
         )
 
-    @app.post("/admin/llama/start")
+    @app.post("/admin/ai/refill")
     @admin_required
-    def llama_start():
+    def ai_refill():
         try:
-            result = runtime.llama_start(
-                model_path=request.form.get("model_path") or None,
-                port=_int_form(request.form.get("port"), default=None),
-                context=_int_form(request.form.get("context"), default=None),
-                threads=_int_form(request.form.get("threads"), default=None),
-            )
-            return redirect(url_for("llama_view", notice=f"Started llama server (PID {result['pid']})."))
+            result = runtime.ai_refill()
+            if result.get("skipped"):
+                return redirect(url_for("ai_view", notice=f"Skipped: {result['skipped']}."))
+            return redirect(url_for("ai_view", notice=(
+                f"Refill made {result['calls']} call(s), stored {result['stored']} new line(s)."
+            )))
         except Exception as exc:
-            return redirect(url_for("llama_view", error=str(exc)))
+            return redirect(url_for("ai_view", error=str(exc)))
 
-    @app.post("/admin/llama/stop")
+    @app.post("/admin/ai/clear")
     @admin_required
-    def llama_stop():
+    def ai_clear():
         try:
-            pid = _int_form(request.form.get("pid"), default=None)
-            result = runtime.llama_stop(pid=pid)
-            if result.get("stopped"):
-                return redirect(url_for("llama_view", notice="Llama server stopped."))
-            return redirect(url_for("llama_view", notice=result.get("reason", "Already stopped.")))
+            removed = runtime.ai_clear_cache()
+            return redirect(url_for("ai_view", notice=f"Cleared {removed} cached line(s)."))
         except Exception as exc:
-            return redirect(url_for("llama_view", error=str(exc)))
+            return redirect(url_for("ai_view", error=str(exc)))
 
-    @app.post("/admin/llama/test")
-    @admin_required
-    def llama_test():
-        try:
-            port = _int_form(request.form.get("port"), default=None) or runtime.config.llm.server_port
-            result = runtime.llama_test(port=port)
-            notice = f"Server responded {result['status_code']}" if result["ok"] else f"Test failed: {result['response']}"
-            return redirect(url_for("llama_view", notice=notice))
-        except Exception as exc:
-            return redirect(url_for("llama_view", error=str(exc)))
-
-    @app.post("/admin/llama/test_chat")
-    @admin_required
-    def llama_test_chat():
-        try:
-            prompt = request.form.get("prompt", "Hello")
-            result = runtime.llama_test_chat(prompt=prompt)
-            if result["ok"]:
-                return redirect(url_for("llama_view", notice=f"Model reply: {result['response']}"))
-            return redirect(url_for("llama_view", error=f"Chat test failed: {result['response']}"))
-        except Exception as exc:
-            return redirect(url_for("llama_view", error=str(exc)))
-
-    @app.get("/api/llama/status")
-    def api_llama_status():
-        return jsonify(runtime.llama_status())
+    @app.get("/api/ai/status")
+    def api_ai_status():
+        return jsonify(runtime.ai_status())
 
     @app.get("/api/telegram/status")
     @admin_required

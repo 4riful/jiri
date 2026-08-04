@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from . import db, focus, health, notes, telegram, todos, weather, llama, water
+from . import ai, db, focus, health, notes, telegram, todos, weather, water
 from .config import AppConfig, load_config
 from .views import DashboardSnapshot, ScreenSnapshot, build_dashboard_snapshot, build_screen_snapshot
 
@@ -190,27 +190,17 @@ class JiriRuntime:
             error=error,
         )
 
-    def llama_status(self):
-        return llama.llama_status(port=self.config.llm.server_port, binary=self.config.llm.server_binary)
 
-    def llama_start(self, model_path: str | None = None, port: int | None = None, context: int | None = None, threads: int | None = None):
-        cfg = self.config.llm
-        return llama.llama_start(
-            model_path=model_path or cfg.model_path,
-            port=port or cfg.server_port,
-            context=context or cfg.server_context,
-            threads=threads or cfg.server_threads,
-            binary=cfg.server_binary,
+    def ai_status(self):
+        return ai.status(config=self.config.ai, db_path=self.db_path)
+
+    def ai_refill(self, max_buckets: int = ai.MAX_BUCKETS_PER_REFILL):
+        return ai.refill(
+            config=self.config.ai,
+            personality=self.config.assistant.personality,
+            db_path=self.db_path,
+            max_buckets=max_buckets,
         )
 
-    def llama_stop(self, pid: int | None = None):
-        return llama.llama_stop(pid=pid, port=self.config.llm.server_port)
-
-    def llama_test(self, port: int | None = None):
-        return llama.llama_test(port=port or self.config.llm.server_port)
-
-    def llama_test_chat(self, prompt: str = "Hello"):
-        return llama.llama_test_chat(port=self.config.llm.server_port, prompt=prompt)
-
-    def llama_logs(self, tail: int = 50):
-        return llama.llama_logs(tail=tail)
+    def ai_clear_cache(self):
+        return ai.clear_cache(db_path=self.db_path)

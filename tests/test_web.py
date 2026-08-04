@@ -555,29 +555,19 @@ def test_db_browser_nav_link_in_base(tmp_path, monkeypatch):
     assert b"/admin/db-browser" in page.data
 
 
-def test_llama_page_reports_missing_binary_cleanly(tmp_path, monkeypatch):
-    db_path = tmp_path / "jiri.db"
-    monkeypatch.setenv("JIRI_DB_PATH", str(db_path))
+def test_ai_page_renders_with_ai_disabled(tmp_path, monkeypatch):
+    monkeypatch.setenv("JIRI_DB_PATH", str(tmp_path / "jiri.db"))
     monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
-    monkeypatch.setenv("JIRI_FULLSCREEN", "false")
-    monkeypatch.setenv("JIRI_WIDTH", "480")
-    monkeypatch.setenv("JIRI_HEIGHT", "320")
-    monkeypatch.setenv("JIRI_LLM_SERVER_BINARY", "definitely-missing-llama-server")
-
+    monkeypatch.setenv("JIRI_WEATHER_FAKE", "true")
     app = create_app()
     client = app.test_client()
     login(client)
-
-    page = client.get("/admin/llama")
+    page = client.get("/admin/ai", follow_redirects=True)
     assert page.status_code == 200
-    assert b"Binary available" in page.data
-    assert b"No" in page.data
-    assert b"JIRI_LLM_SERVER_BINARY" in page.data
+    assert b"AI Wording" in page.data
+    # Disabled AI is a supported mode, not an error state.
+    assert b"deterministic wording" in page.data
 
-    start = client.post("/admin/llama/start", data={"model_path": str(tmp_path / "missing.gguf")}, follow_redirects=True)
-    assert start.status_code == 200
-    assert b"AI server binary not found" in start.data
-    assert b"[Errno 2]" not in start.data
 
 
 def test_web_response_budget_smoke(tmp_path, monkeypatch):

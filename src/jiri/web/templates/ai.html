@@ -1,0 +1,111 @@
+{% from "macros/icons.html" import icon_ai, icon_check, icon_power %}
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-head">
+  <h1 class="section-title">{{ icon_ai(18) }} AI Wording</h1>
+  <p class="meta-line">
+    Hosted models generate persona line <em>templates</em> in the background. The display
+    only ever reads the local cache, so AI can never slow down or break the screen.
+  </p>
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Status</h2>
+    <span class="stat-pill {{ 'badge-green' if ai_status.enabled else 'badge-dim' }}">{{ 'enabled' if ai_status.enabled else 'disabled' }}</span>
+  </div>
+  <dl class="kv-grid">
+    <dt>Cached lines</dt><dd>{{ ai_status.cache_total }}</dd>
+    <dt>Requests today</dt><dd>{{ ai_status.used_today }} / {{ ai_status.daily_cap }}</dd>
+    <dt>Target per bucket</dt><dd>{{ ai_status.min_lines_per_bucket }}</dd>
+    <dt>Max line length</dt><dd>{{ ai_status.max_output_chars }} chars</dd>
+  </dl>
+  {% if not ai_status.enabled %}
+  <p class="meta-line">
+    AI is off. JIRI is using its built-in deterministic wording, which is a fully
+    supported mode &mdash; nothing is broken.
+  </p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Providers</h2>
+  </div>
+  {% if ai_status.providers %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Name</th><th>Model</th><th>State</th><th>Detail</th></tr>
+    </thead>
+    <tbody>
+      {% for p in ai_status.providers %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td><code>{{ p.model }}</code></td>
+        <td>
+          {% if p.breaker_open %}circuit open
+          {% elif p.ready and p.enabled %}ready
+          {% elif not p.enabled %}disabled
+          {% else %}not ready{% endif %}
+        </td>
+        <td class="meta-line">
+          {{ p.detail }}
+          {% if p.failures %} &middot; {{ p.failures }} recent failure(s){% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-face" aria-hidden="true">[ -_- ]</span>
+    <strong>No providers configured</strong>
+    <span>Add <code>[[ai.providers]]</code> entries to your config if you want me to borrow someone else's vocabulary.</span>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Cache by bucket</h2>
+  </div>
+  {% if ai_status.buckets %}
+  <table class="data-table">
+    <thead><tr><th>Category</th><th>Mood</th><th>Lines</th></tr></thead>
+    <tbody>
+      {% for b in ai_status.buckets %}
+      <tr>
+        <td>{{ b.category }}</td>
+        <td>{{ b.mood }}</td>
+        <td>{{ b.lines }}{% if b.lines < ai_status.min_lines_per_bucket %} <span class="meta-line">(low)</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-face" aria-hidden="true">[ ^_~ ]</span>
+    <strong>Cache is empty</strong>
+    <span>JIRI is speaking its deterministic lines. Honestly, they are the good ones anyway.</span>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Actions</h2>
+  </div>
+  <form method="post" action="{{ url_for('ai_refill') }}" class="inline-form">
+    <button class="button" type="submit">{{ icon_check(14) }} Refill now</button>
+  </form>
+  <form method="post" action="{{ url_for('ai_clear') }}" class="inline-form"
+        onsubmit="return confirm('Delete every cached AI line? JIRI falls back to built-in wording.');">
+    <button class="button button-danger" type="submit">{{ icon_power(14) }} Clear cache</button>
+  </form>
+  <p class="meta-line">
+    Refill runs in the foreground here for convenience. In normal operation it runs
+    from the background worker.
+  </p>
+</section>
+{% endblock %}

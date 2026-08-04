@@ -25,7 +25,7 @@ class DisplayConfig:
 @dataclass(frozen=True)
 class AssistantConfig:
     name: str = "JIRI"
-    personality: str = "funny_sarcastic"
+    personality: str = "playful_joyful"
     rage_mode_enabled: bool = True
 
 
@@ -69,14 +69,35 @@ class PerformanceConfig:
 
 
 @dataclass(frozen=True)
-class LlmConfig:
+class AiProviderConfig:
+    """One OpenAI-compatible chat-completions endpoint.
+
+    `name` selects a preset in `jiri.ai.PROVIDER_PRESETS` (groq, gemini, xai,
+    ollama); `base_url` and `api_key_env` override the preset when set.
+    """
+
+    name: str = ""
+    model: str = ""
+    base_url: str = ""
+    api_key_env: str = ""
+    enabled: bool = True
+
+
+@dataclass(frozen=True)
+class AiConfig:
+    """Hosted-LLM wording layer. Never on the render path — see `jiri.ai`."""
+
     enabled: bool = False
-    provider: str = "none"
-    model_path: str = ""
-    server_binary: str = "llama-server"
-    server_port: int = 8080
-    server_context: int = 512
-    server_threads: int = 2
+    timeout_seconds: float = 8.0
+    daily_request_cap: int = 200
+    max_output_chars: int = 160
+    max_tokens: int = 400
+    # High temperature is deliberate: this layer wants variety, not accuracy.
+    # Groq requires 0 < temperature <= 2 and rewrites 0 to 1e-8.
+    temperature: float = 1.1
+    min_lines_per_bucket: int = 12
+    max_lines_per_bucket: int = 60
+    providers: tuple[AiProviderConfig, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -97,7 +118,7 @@ class AppConfig:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     web: WebConfig = field(default_factory=WebConfig)
     performance: PerformanceConfig = field(default_factory=PerformanceConfig)
-    llm: LlmConfig = field(default_factory=LlmConfig)
+    ai: AiConfig = field(default_factory=AiConfig)
     telegram: TelegramConfig = field(default_factory=TelegramConfig)
 
 
@@ -122,7 +143,7 @@ def load_config(path: str | os.PathLike[str] | None = None) -> AppConfig:
         database=_section(DatabaseConfig, data.get("database", {})),
         web=_section(WebConfig, data.get("web", {})),
         performance=_section(PerformanceConfig, data.get("performance", {})),
-        llm=_section(LlmConfig, data.get("llm", {})),
+        ai=_ai_section(data.get("ai", {})),
         telegram=_section(TelegramConfig, data.get("telegram", {})),
     )
     cfg = _apply_env(cfg)
@@ -138,12 +159,30 @@ def _section(cls: type[Any], values: dict[str, Any]) -> Any:
     return cls(**values)
 
 
+def _ai_section(values: dict[str, Any]) -> AiConfig:
+    """Parse `[ai]` plus its `[[ai.providers]]` array of tables."""
+    scalars = {k: v for k, v in values.items() if k != "providers"}
+    raw_providers = values.get("providers", [])
+    if not isinstance(raw_providers, list):
+        raise ConfigError("[ai].providers must be an array of tables")
+    providers = []
+    for index, entry in enumerate(raw_providers):
+        if not isinstance(entry, dict):
+            raise ConfigError(f"[[ai.providers]] entry {index + 1} must be a table")
+        provider = _section(AiProviderConfig, entry)
+        if not provider.name.strip():
+            raise ConfigError(f"[[ai.providers]] entry {index + 1} needs a name")
+        providers.append(provider)
+    base = _section(AiConfig, scalars)
+    return replace(base, providers=tuple(providers))
+
+
 def _apply_env(cfg: AppConfig) -> AppConfig:
     display = cfg.display
     database = cfg.database
     weather = cfg.weather
     web = cfg.web
-    llm = cfg.llm
+    ai = cfg.ai
     telegram = cfg.telegram
 
     if "JIRI_DISPLAY_DRIVER" in os.environ:
@@ -164,12 +203,10 @@ def _apply_env(cfg: AppConfig) -> AppConfig:
         web = replace(web, host=os.environ["JIRI_WEB_HOST"])
     if "JIRI_WEB_PORT" in os.environ:
         web = replace(web, port=_parse_int(os.environ["JIRI_WEB_PORT"], "JIRI_WEB_PORT"))
-    if "JIRI_LLM_SERVER_BINARY" in os.environ:
-        llm = replace(llm, server_binary=os.environ["JIRI_LLM_SERVER_BINARY"].strip())
-    if "JIRI_LLM_MODEL_PATH" in os.environ:
-        llm = replace(llm, model_path=os.environ["JIRI_LLM_MODEL_PATH"].strip())
-    if "JIRI_LLM_SERVER_PORT" in os.environ:
-        llm = replace(llm, server_port=_parse_int(os.environ["JIRI_LLM_SERVER_PORT"], "JIRI_LLM_SERVER_PORT"))
+    if "JIRI_AI_ENABLED" in os.environ:
+        ai = replace(ai, enabled=_parse_bool(os.environ["JIRI_AI_ENABLED"], "JIRI_AI_ENABLED"))
+    if "JIRI_AI_DAILY_CAP" in os.environ:
+        ai = replace(ai, daily_request_cap=_parse_int(os.environ["JIRI_AI_DAILY_CAP"], "JIRI_AI_DAILY_CAP"))
     if "JIRI_TELEGRAM_BOT_TOKEN" in os.environ:
         telegram = replace(telegram, bot_token=os.environ["JIRI_TELEGRAM_BOT_TOKEN"].strip())
     if "JIRI_TELEGRAM_ALLOWED_CHAT_IDS" in os.environ:
@@ -182,7 +219,7 @@ def _apply_env(cfg: AppConfig) -> AppConfig:
     if "JIRI_TELEGRAM_ENABLED" in os.environ:
         telegram = replace(telegram, enabled=_parse_bool(os.environ["JIRI_TELEGRAM_ENABLED"], "JIRI_TELEGRAM_ENABLED"))
 
-    return replace(cfg, display=display, database=database, weather=weather, web=web, llm=llm, telegram=telegram)
+    return replace(cfg, display=display, database=database, weather=weather, web=web, ai=ai, telegram=telegram)
 
 
 def _parse_bool(value: str, name: str) -> bool:
@@ -245,3 +282,20 @@ def _validate(cfg: AppConfig) -> None:
         raise ConfigError("Telegram polling timeout must be between 1 and 50 seconds")
     if not 18 <= cfg.display.typing_speed_cps <= 30:
         raise ConfigError("Display typing speed must be between 18 and 30 characters per second")
+    if cfg.ai.enabled and not cfg.ai.providers:
+        raise ConfigError("AI is enabled but no [[ai.providers]] are configured")
+    if cfg.ai.daily_request_cap < 0:
+        raise ConfigError("AI daily request cap cannot be negative")
+    if cfg.ai.timeout_seconds <= 0:
+        raise ConfigError("AI timeout must be positive")
+    if cfg.ai.max_output_chars < 20 or cfg.ai.max_output_chars > 500:
+        raise ConfigError("AI max output chars must be between 20 and 500")
+    if not 0 < cfg.ai.temperature <= 2:
+        raise ConfigError("AI temperature must be greater than 0 and at most 2")
+    if cfg.ai.min_lines_per_bucket < 1:
+        raise ConfigError("AI min lines per bucket must be at least 1")
+    if cfg.ai.max_lines_per_bucket < cfg.ai.min_lines_per_bucket:
+        raise ConfigError("AI max lines per bucket must be >= min lines per bucket")
+    names = [p.name for p in cfg.ai.providers]
+    if len(names) != len(set(names)):
+        raise ConfigError("[[ai.providers]] names must be unique")
