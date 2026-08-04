@@ -77,7 +77,7 @@
   <article class="dash-hero-card weather-hero">
     <div class="hero-header">
       <h2>{{ icon_weather(18) }} Weather</h2>
-      <span class="hero-status">{{ snapshot.weather.condition if snapshot.weather.condition else 'Unavailable' }}</span>
+      <span class="hero-status {{ '' if snapshot.weather.condition else 'status-dim' }}">{{ snapshot.weather.condition if snapshot.weather.condition else 'Unavailable' }}</span>
     </div>
     <p class="hero-location">{{ snapshot.weather.location if snapshot.weather.location else 'No location selected' }}</p>
     <div class="hero-metrics">

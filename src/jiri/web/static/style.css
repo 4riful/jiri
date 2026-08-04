@@ -205,18 +205,18 @@ body.theme-nothing {
   font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-/* Dot-matrix display numerals, built from a CSS mask so it survives with
-   zero font downloads. Scales with font-size because the pitch is in `em`. */
+/* Dot-matrix display glyphs, built from a CSS mask so the Nothing character
+   survives with zero font downloads. The pitch is in `em`, so the grid scales
+   with the type. Only applied to the very large numerals — below roughly 2.5rem
+   the dots start eating strokes, so smaller figures keep the mono face only. */
 @supports (mask-size: 1em) or (-webkit-mask-size: 1em) {
-  .theme-nothing .stat-big,
   .theme-nothing #clock-time,
-  .theme-nothing .metric-content strong,
   .theme-nothing .weather-temp-large,
   .theme-nothing .weather-main-temp,
   .theme-nothing .metric-large,
   .theme-nothing .dot-display {
-    -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 45%, transparent 47%);
-    mask-image: radial-gradient(circle at 50% 50%, #000 45%, transparent 47%);
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 46%, transparent 49%);
+    mask-image: radial-gradient(circle at 50% 50%, #000 46%, transparent 49%);
     -webkit-mask-size: var(--dot-pitch) var(--dot-pitch);
     mask-size: var(--dot-pitch) var(--dot-pitch);
     -webkit-mask-repeat: repeat;
@@ -232,11 +232,51 @@ body.theme-nothing {
 .theme-nothing .weather-temp-large,
 .theme-nothing .weather-main-temp,
 .theme-nothing .metric-large,
+.theme-nothing .stat-grid strong,
 .theme-nothing .dot-display {
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: .01em;
+  letter-spacing: .02em;
 }
+
+/* softer tinting — the Nothing theme earns its contrast from black, not glow */
+.theme-nothing .stat-card {
+  background:
+    radial-gradient(140% 120% at 100% 0%,
+      color-mix(in srgb, var(--tint) 7%, transparent), transparent 55%),
+    var(--surface);
+}
+.theme-nothing .card,
+.theme-nothing .dash-hero-card,
+.theme-nothing .dash-panel-card,
+.theme-nothing .page-head,
+.theme-nothing .topbar,
+.theme-nothing .login-shell,
+.theme-nothing .screen-frame { background: var(--surface); }
+.theme-nothing .card::after,
+.theme-nothing .dash-hero-card::after,
+.theme-nothing .dash-panel-card::after {
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.theme-nothing .button,
+.theme-nothing .btn,
+.theme-nothing button[type="submit"],
+.theme-nothing .collapse-toggle,
+.theme-nothing .panel-switcher a { background: var(--bg); }
+.theme-nothing .button:hover,
+.theme-nothing .btn:hover,
+.theme-nothing button[type="submit"]:hover,
+.theme-nothing .collapse-toggle:hover {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
+.theme-nothing .brand,
+.theme-nothing .section-title,
+.theme-nothing .stat-head-label,
+.theme-nothing .metric-label,
+.theme-nothing .system-tile-label { text-transform: uppercase; }
+.theme-nothing .system-tile-icon { background: var(--bg); color: var(--accent); }
 
 /* Nothing's signature: dot-grid backdrop instead of aurora. */
 .theme-nothing .app-shell::before {
@@ -983,11 +1023,45 @@ input[type="radio"], input[type="checkbox"] {
               color var(--dur-1) var(--ease-soft),
               background var(--dur-1) var(--ease-soft);
 }
+/* the native radio is hidden visually but stays focusable and announced */
+.priority-label input[type="radio"] {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  margin: 0;
+  pointer-events: none;
+}
+.priority-label::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  transition: background var(--dur-1) var(--ease-soft),
+              box-shadow var(--dur-1) var(--ease-soft);
+}
 .priority-label:hover { border-color: var(--accent-line); color: var(--text); }
 .priority-label:has(input:checked) {
   border-color: var(--accent-line);
   background: var(--accent-wash);
   color: var(--accent-2);
+}
+.priority-label:has(input:checked)::before {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+.priority-label:has(input:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+/* browsers without :has() still get a usable, labelled radio */
+@supports not selector(:has(*)) {
+  .priority-label input[type="radio"] {
+    position: static;
+    width: auto; height: auto;
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .priority-label::before { display: none; }
 }
 .stat-label {
   font-size: .72rem;
@@ -1093,7 +1167,11 @@ input[type="radio"], input[type="checkbox"] {
   border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
   background: color-mix(in srgb, var(--ok) 10%, var(--bg));
 }
-.badge-dim, .status-dim { color: var(--text-mute); }
+.badge-dim, .status-dim {
+  color: var(--text-mute);
+  border-color: var(--line-strong);
+  background: var(--bg);
+}
 .status-red {
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
@@ -1598,12 +1676,22 @@ input[type="radio"], input[type="checkbox"] {
 .todo-meta.priority.p5 { color: var(--text-mute); }
 .todo-meta.due { color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
-.todo-actions { flex: none; display: flex; flex-direction: column; gap: 5px; }
+.todo-actions {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 5px;
+}
 .todo-actions .button {
   min-height: 30px;
   padding: 0 var(--s3);
   font-size: .74rem;
 }
+/* the row's actions stay quiet until you reach for them */
+.todo-item .todo-actions .button { opacity: .72; }
+.todo-item:hover .todo-actions .button,
+.todo-item:focus-within .todo-actions .button { opacity: 1; }
 
 /* water */
 .water-meter {
@@ -1636,12 +1724,45 @@ input[type="radio"], input[type="checkbox"] {
 .water-week-day,
 .water-month-day,
 .water-year-item {
+  position: relative;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--tile-radius);
   background: var(--bg);
   transition: border-color var(--dur-2) var(--ease-soft),
               background var(--dur-2) var(--ease-soft),
               transform var(--dur-2) var(--ease);
+}
+
+/* each tile carries its own reading: a fill proportional to --pct */
+.water-week-day::before,
+.water-month-day::before,
+.water-year-item::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: clamp(0%, var(--pct, 0%), 100%);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--info) 26%, transparent),
+    color-mix(in srgb, var(--info) 8%, transparent));
+  pointer-events: none;
+  transition: height var(--dur-4) var(--ease);
+}
+.water-year-item::before {
+  inset: 0 auto 0 0;
+  width: clamp(0%, var(--pct, 0%), 100%);
+  height: auto;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--info) 20%, transparent),
+    color-mix(in srgb, var(--info) 4%, transparent));
+}
+.water-week-day > *,
+.water-month-day > *,
+.water-year-item > * { position: relative; z-index: 1; }
+.theme-nothing .water-week-day::before,
+.theme-nothing .water-month-day::before,
+.theme-nothing .water-year-item::before {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 .water-week-day:hover,
 .water-month-day:hover,
