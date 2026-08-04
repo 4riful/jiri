@@ -48,27 +48,16 @@ WSL-safe areas:
 - CLI behavior.
 - Weather parsing and fallback.
 - Flask routes once Stage B starts.
-- Local Gemma ctx512 preflight when explicitly enabled.
 
 WSL is for logic and integration checks only. Real display behavior, thermals, and benchmark results still need Raspberry Pi hardware.
 
-## Local Gemma Preflight
+## AI Wording Layer
 
-Local Gemma development may be used to complete Pi-oriented implementation work before hardware is ready.
+The AI layer can be developed entirely in WSL. It needs no special hardware
+because nothing runs locally — it calls hosted APIs from a background worker.
 
-Rules:
+- Set `GEMINI_API_KEY` and/or `GROQ_API_KEY` to exercise real calls.
+- Leave `[ai].enabled = false` to develop against the deterministic path.
+- `tests/test_ai.py` covers the whole layer with no network access.
+- WSL results satisfy AI_SPEC Gate 1 only. Gate 3 requires real Pi 3B+.
 
-- Set `JIRI_LOCAL_DEV=1` explicitly for off-Pi Gemma run/benchmark scripts.
-- Keep context at 512 tokens and output short enough for Pi 3B planning.
-- Keep AI disabled by default in app config until real Pi acceptance passes.
-- Do not treat WSL/local latency, RAM, or thermal behavior as acceptance.
-- Compare the same scripts later on Raspberry Pi 3B for RAM, swap, temperature, latency, SSH responsiveness, and fallback behavior.
-
-Example local preflight commands:
-
-```bash
-export JIRI_LOCAL_DEV=1
-export JIRI_GEMMA_MODEL="$HOME/models/gemma-3-270m-q4_k_m.gguf"
-scripts/ai_run_gemma_512.sh
-scripts/ai_benchmark_gemma.sh
-```

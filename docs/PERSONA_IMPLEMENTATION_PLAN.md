@@ -5,7 +5,7 @@
 ## Design Rules
 
 - Python owns emotion, timing, cooldowns, priorities, and actions.
-- AI may later rewrite wording only after the AI benchmark gates pass.
+- AI may reword only via the background template cache; see docs/AI_SPEC.md.
 - Screen rendering must not write to SQLite.
 - Telegram nudges must be rate-limited and allowlisted.
 - Focus mode suppresses random idle chatter.

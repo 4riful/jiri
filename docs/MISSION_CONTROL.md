@@ -7,7 +7,7 @@ This document is the short operational control board for JIRI. The source-of-tru
 ```text
 JIRI is AI-assisted, not AI-controlled.
 Python owns truth, timing, state, and actions.
-Gemma owns wording, summaries, and personality.
+Hosted AI owns wording only, in the background, and is off by default.
 ```
 
 ## Current Product Direction
@@ -16,11 +16,10 @@ JIRI is now planned as a single-Pi desk companion:
 
 - `jiri.local`: Raspberry Pi 3B/3B+ body/controller/source of truth.
 
-The Pi owns SQLite, todos, notes, focus sessions, weather cache, emotion rules, display state, touch confirmations, config, health, web dashboard, Telegram control, and any accepted local AI process.
+The Pi owns SQLite, todos, notes, focus sessions, weather cache, emotion rules, display state, touch confirmations, config, health, web dashboard, Telegram control, and the AI wording cache.
 
-Optional local AI may only rewrite, summarize, and add personality from facts supplied by Python. It must never own state, write SQLite, run shell commands, control systemd, mark todos done, change due dates, or be required for boot.
+The optional AI layer may only supply wording templates, generated in the background. It must never own state, write SQLite, run shell commands, control systemd, mark todos done, change due dates, or be required for boot.
 
-WSL/local Gemma ctx512 development is allowed only as an explicit compatibility preflight. It must keep the same Pi-oriented limits and must not be treated as Stage E or Stage F acceptance.
 
 ## Current Implementation Status
 
@@ -33,14 +32,14 @@ Implemented in code:
 - Stage B: WSL browser-driven Flask admin, todo/note CRUD, weather/location controls, JSON APIs, `/screen` preview.
 - Stage C: Focus Assist core, CLI, web/API controls, no per-second SQLite writes.
 - Stage D: WSL-safe display foundation, shared display view model, touch zones, critical face guardrails, mock-safe Pygame entrypoint.
-- Stage E: local AI benchmark scaffolding scripts and WSL safety tests.
+- Stage E: AI wording layer, implemented with Gate 1 tests passing in WSL.
 - Stage G: Telegram admin polling path, allowlist, deterministic commands, summary command, and destructive confirmations.
 - Hydration tracking with SQLite-backed daily state and 7-day water intake history.
 
 Implemented but still hardware-gated:
 
 - Stage D ASCII/touch display final acceptance requires real 3.5-inch display confirmation.
-- Stage E local AI benchmark final acceptance requires real Raspberry Pi 3B/3B+ measurements.
+- Stage E acceptance requires real Raspberry Pi 3B+ measurements (AI_SPEC Gate 3).
 - Stage G production usage requires a real Telegram bot token and explicit allowed chat IDs.
 
 Not yet implemented:
@@ -57,7 +56,7 @@ Use the handbook build order from now on:
 | B | Web Admin | Passed in WSL | Confirm response/RAM budgets on Pi later. |
 | C | Focus Assist | Passed in WSL | No SQLite writes every second. |
 | D | ASCII/Touch Display | Scaffolded in WSL | Needs Pi display/touch confirmation before acceptance. |
-| E | Local AI Benchmark | Scripts ready | Local ctx512 preflight allowed; no claims before real Pi measurement. |
+| E | AI Wording Layer | Implemented, gated | Background API templates, cache-only render path; no claims before Gate 3. |
 | F | AI Integration | Blocked for acceptance | Disabled-by-default local work only; production only after benchmark passes. |
 | G | Telegram Admin | Passed in WSL | Needs real token/chat allowlist for production. |
 
@@ -68,8 +67,7 @@ Hardware confirmation and gate alignment before Stage F acceptance.
 Scope:
 
 - Run Stage D display/touch checks on the real Pi 3B+.
-- Run Stage E AI baseline and Gemma benchmark scripts on the real Pi target.
-- Use `JIRI_LOCAL_DEV=1` only for local Gemma ctx512 preflight; do not count it as acceptance.
+- Run AI_SPEC Gate 3 measurements on the real Pi target.
 - Keep WSL tests green while preparing hardware validation.
 - Do not implement AI integration until benchmark acceptance exists.
 
@@ -90,8 +88,7 @@ Hard limits:
 - Keep AI requests out of the UI render path.
 - Do not geocode every weather refresh.
 - Do not write SQLite every frame or every focus countdown tick.
-- Do not implement Gemma as accepted. It is selected for benchmark only.
-- Do not treat WSL/local Gemma results as acceptance; compare against real Pi measurements later.
+- Do not mark the AI layer accepted before Gate 3 passes on real hardware.
 - Do not add AI-controlled behavior before the deterministic app and relevant gates are stable.
 - If hardware behavior is unknown, create a Pi confirmation checklist instead of guessing.
 
@@ -127,7 +124,7 @@ python -m jiri.cli weather refresh
 - Idle CPU temperatures.
 - Free RAM after boot.
 - Exact 3.5-inch display model, driver, framebuffer behavior, rotation, touch behavior.
-- Local Gemma benchmark measurements before acceptance.
+- AI_SPEC Gate 3 measurements before acceptance.
 
 Useful read-only Pi commands later:
 

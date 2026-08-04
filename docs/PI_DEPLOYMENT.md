@@ -28,6 +28,6 @@ export JIRI_DB_PATH=data/jiri.db
 Deployment rules:
 
 - Confirm the real 3.5-inch display before enabling fullscreen services.
-- Keep the main Pi bootable without the AI worker.
+- Keep the main Pi fully functional with the AI layer disabled or offline.
 - Back up SQLite before schema changes once real data exists.
 - Install systemd units only after the relevant stage gate passes.

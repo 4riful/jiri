@@ -20,22 +20,17 @@ Most important rule:
 ```text
 JIRI is AI-assisted, not AI-controlled.
 Python owns truth, timing, state, and actions.
-Gemma owns wording, summaries, and personality.
 ```
 
 ## WSL-First Pi Compatibility Rule
 
-DESIGN DECISION: development may happen WSL-first, including local Gemma 3 270M Q4_K_M experiments, but production decisions remain Raspberry Pi 3B/3B+ decisions.
 
-Local Gemma development is permitted only as a compatibility preflight:
 
 - Use the same Pi-oriented shape: 512 context, short prompts, short outputs, strict timeouts, and deterministic fallback.
-- Keep local AI disabled by default until the real Pi benchmark passes.
-- Use explicit opt-in such as `JIRI_LOCAL_DEV=1` for off-Pi Gemma run/benchmark scripts.
+- Keep the AI wording layer disabled by default until AI_SPEC Gate 3 passes.
 - Do not add desktop-only dependencies, desktop-sized context windows, or features that assume WSL CPU/RAM.
 - Treat WSL/local benchmark results as development evidence only.
 - Compare the same behavior later on Raspberry Pi 3B/3B+ for RAM, swap, temperature, latency, responsiveness, and offline fallback.
-- Never mark Stage E, Stage F, or Gemma acceptance as passed from WSL/local results.
 
 ## Product Description
 
@@ -83,7 +78,7 @@ Responsibilities:
 - Proactive behavior engine.
 - Web dashboard by IP.
 - Telegram bot later.
-- Optional local AI client with deterministic fallback.
+- Optional AI wording layer with deterministic fallback.
 
 The Pi owns:
 
@@ -96,8 +91,6 @@ The Pi owns:
 - Touch confirmations.
 - Config.
 - System health.
-- Optional llama.cpp / llama-server process after benchmark acceptance.
-- Optional Gemma 3 270M Q4_K_M rewrite/summarization from Python-supplied facts.
 
 Safe update rule:
 
@@ -106,7 +99,7 @@ Safe update rule:
 - Database restore must be tested before automatic updates are enabled.
 - See `docs/SAFE_UPDATE_METHODOLOGY.md` for the required update, backup, and restore process.
 
-Local AI must never be required for boot. If the AI process is unavailable, JIRI continues with deterministic template messages.
+AI must never be required for boot. If the cache is empty or a provider is unreachable, JIRI continues with deterministic messages.
 
 ## Evidence And Assumptions
 
@@ -114,11 +107,8 @@ CONFIRMED: Raspberry Pi 3 Model B official specs include a quad-core 1.2GHz Broa
 
 CONFIRMED: Raspberry Pi 3 Model B+ official specs include a Broadcom BCM2837B0 Cortex-A53 64-bit SoC at 1.4GHz and 1GB LPDDR2 SDRAM.
 
-CONFIRMED: Google describes Gemma 3 270M as 270M total parameters, with 170M embedding parameters and 100M transformer-block parameters, intended for efficient on-device and research use.
 
-CONFIRMED: llama.cpp server is documented as a lightweight C/C++ HTTP server with REST/OpenAI-compatible routes for quantized inference.
 
-CALCULATED: Gemma 3 270M Q4_K_M planning weight size is treated as 241-253 MB. Runtime overhead, buffers, tokenizer, mmap behavior, and KV cache are additional memory costs.
 
 BENCHMARK REQUIRED on the real Raspberry Pi target:
 
@@ -129,88 +119,27 @@ BENCHMARK REQUIRED on the real Raspberry Pi target:
 - Short rewrite latency.
 - Todo/behavior summary latency.
 - SSH responsiveness.
-- Main behavior when local AI is offline.
+- Main behavior when the AI cache is empty.
 
-## Gemma Decision
+## AI Model Decision
 
-DESIGN DECISION:
+On-device inference is rejected for Raspberry Pi 3B+. A 270M model costs
+20-60 seconds and 100% of four cores per line, breaks five documented
+performance budgets, and writes worse prose than the hand-authored strings it
+would replace. See `docs/AI_STRATEGY.md` for the measurements.
 
-```text
-Gemma 3 270M Q4_K_M is the selected benchmark candidate for the dedicated Raspberry Pi 3B AI worker.
-It becomes accepted only if the real Pi 3B passes RAM, swap, temperature, latency, and fallback gates.
-WSL/local Gemma ctx512 runs are allowed for development only and never count as acceptance.
-```
+The AI layer is API-driven: hosted free-tier models generate persona line
+templates in a background worker. Primary `gemini-3.5-flash`, fallback
+`qwen/qwen3.6-27b` on Groq. Both are OpenAI-compatible, so provider choice is
+configuration rather than code.
 
-Do not write:
 
-```text
-Gemma works on Pi 3B.
-```
+## AI Memory Envelope
 
-Write:
+The AI layer holds no model in memory. Its runtime footprint is the SQLite
+cache it reads, a few hundred KB. The background worker's footprint is one
+HTTPS request at a time.
 
-```text
-Gemma is selected for benchmark.
-Gemma is accepted only after measurement.
-```
-
-Gemma may do:
-
-- Rewrite JIRI messages with personality.
-- Summarize todos.
-- Summarize short notes.
-- Produce focus encouragement.
-- Explain next-task suggestions.
-- Produce behavior feedback.
-- Produce weather commentary from API facts.
-- Handle limited short casual chat.
-
-Gemma must never do:
-
-- Mark todos done.
-- Delete notes.
-- Change due dates.
-- Start or stop focus without confirmation.
-- Decide weather facts.
-- Decide worker status.
-- Override critical emotions.
-- Write SQLite directly.
-- Run shell commands.
-- Control systemd.
-- Become required for boot.
-
-## Local AI Memory Envelope
-
-Assumptions:
-
-```text
-Total Pi 3B RAM: approximately 1024 MB
-OS Lite + SSH/network:             180-250 MB
-llama.cpp/server:                   80-150 MB
-Gemma Q4_K_M weights:              241-253 MB
-runtime buffers/tokenizer/mmap:     80-160 MB
-KV cache at 512 ctx:                20-50 MB
-KV cache at 1024 ctx:               40-90 MB
-KV cache at 2048 ctx:               80-180 MB
-```
-
-CALCULATED totals:
-
-| Context | Estimated Used RAM | Estimated Free RAM | Verdict |
-| ---: | ---: | ---: | --- |
-| 512 | 601-863 MB | 161-423 MB | First benchmark target. |
-| 1024 | 621-903 MB | 121-403 MB | Test later only if 512 is stable. |
-| 2048 | 661-993 MB | 31-363 MB | Risky on Pi 3B. |
-| 4096+ | Not recommended | Not recommended | Not for this hardware. |
-
-Context decision:
-
-```text
-512 context = default benchmark setting
-1024 context = optional later test
-2048 context = risky
-4096+ context = not for Raspberry Pi 3B
-```
 
 ## Swap Rule
 
@@ -233,29 +162,12 @@ Fallbacks:
 1. SmolLM2-135M-Instruct Q4_K_M.
 2. Template-only mode.
 
-## Local AI Acceptance Gate
+## AI Acceptance Gate
 
-Gemma is accepted only if the real Raspberry Pi 3B passes:
+Defined in full in `docs/AI_SPEC.md` §5 as three gates: software correctness in
+WSL/CI, live-provider verification on a dev machine, and blocking measurement
+on real Raspberry Pi 3B+ hardware. WSL results satisfy Gate 1 only.
 
-- Model loads successfully.
-- Free RAM after model load above 150 MB.
-- Swap used after idle load below 100 MB.
-- CPU temp after 10 minutes below 75 C.
-- Short rewrite below 8 seconds.
-- Todo/behavior summary below 15 seconds.
-- SSH remains responsive.
-- JIRI still works when local AI is offline.
-
-Reject or downgrade if:
-
-- Free RAM after model load below 100 MB.
-- Swap used after idle load above 200 MB.
-- CPU temp above 80 C.
-- Rewrite above 20 seconds.
-- Summary above 30 seconds.
-- SSH is laggy.
-- llama-server crashes.
-- JIRI freezes waiting for AI.
 
 ## AI Capability Modes
 
@@ -263,15 +175,14 @@ Mode A: Templates only.
 
 - Always available.
 - Instant response.
-- Used when local AI is offline, slow, or during boot.
+- Used when the AI cache is empty or during boot.
 
 Mode B: AI rewrite.
 
 ```text
 1. Python creates factual base message.
 2. Display shows base message immediately.
-3. Python sends small facts to the local AI process.
-4. Gemma rewrites the message.
+3. Python fills slots in a cached template locally. No facts are transmitted.
 5. Display updates only if response arrives before timeout.
 ```
 
@@ -294,22 +205,19 @@ Mode D: Short casual chat.
 ## Deterministic / AI Data Flow
 
 ```text
-Event happens on JIRI
--> Python updates truth/state
--> Emotion engine chooses emotion
--> Message engine creates fallback message
--> Display shows fallback immediately
--> AI client optionally sends facts to local llama-server
--> Gemma rewrites/summarizes
--> If response arrives in time, display updates
--> If AI fails, fallback remains
+persona.py    decides WHAT to say and WHEN        (deterministic, always)
+     |
+messages.py   decides HOW it is worded
+     |
+     +-- ai.line()      cached template, SQLite only, sub-millisecond
+     +-- fallback       built-in deterministic strings
 ```
 
-Important rules:
+The network appears nowhere on that path. `ai.refill()` runs in a background
+worker and communicates with the render path only through the `ai_cache`
+table. A dead provider, an expired key, a spent quota, and an unplugged cable
+are all the same event to the display: a cache miss.
 
-- The display loop must never block waiting for AI.
-- AI requests must run outside the render path.
-- The database must never be written by AI.
 
 ## 3.5-Inch Touch Display Design
 
@@ -419,7 +327,7 @@ Layer 1: Deterministic emotion engine.
 - Focus running -> focus.
 - Focus complete -> task_done/happy.
 - Night + idle -> sleepy.
-- Local AI offline -> ai_offline.
+- AI cache empty or provider unreachable -> ai_offline.
 - Hot weather -> weather_hot.
 - Rain -> weather_rain.
 - Nothing happening -> idle.
@@ -430,9 +338,8 @@ Layer 2: Deterministic message engine.
 - `task_done`: Task complete. Humanity gains one point.
 - `focus_started`: Focus mode engaged. I will guard your attention.
 - `overdue_angry`: You are late. My disappointment database has grown.
-- `ai_offline`: Local AI offline. Running deterministic mode.
+- `ai_offline`: AI wording unavailable. Running deterministic mode.
 
-Layer 3: Gemma personality rewrite.
 
 Prompt rules:
 
@@ -446,8 +353,6 @@ Prompt rules:
 Layer 4: AI summarizer and suggestion engine.
 
 - Python supplies facts.
-- Gemma summarizes or explains.
-- Gemma does not control state.
 
 ## Proactive Behavior
 
@@ -496,7 +401,6 @@ Scenario rules:
 - Task due soon: alert face, due task card, one due-window message.
 - Task overdue under 10 minutes: annoyed face, 10-minute per-task repeat limit.
 - Task overdue 30+ minutes: angry face, critical overdue card.
-- Task overdue 120+ minutes: rage face, Gemma may rewrite only and cannot lower emotion.
 - Task completed: happy/task_done face, one celebration message.
 - Focus running: countdown eyes, no random idle jokes.
 - Weather rain now: weather_rain face unless higher priority state exists.
@@ -636,7 +540,6 @@ Future behavior modules:
 - `src/jiri/proactive.py`: proactive event generation and cooldowns.
 - `src/jiri/focus.py`: countdown sessions and milestones.
 - `src/jiri/touch.py`: touch zones and confirmation state machine.
-- `src/jiri/summarizer.py`: factual summaries sent to Gemma.
 - `src/jiri/ai_client.py`: timeout-protected AI worker client.
 
 Required behavior tests later:
@@ -692,7 +595,7 @@ Dashboard responsibilities:
 - Focus history.
 - Focus controls later.
 - Persona settings.
-- Local AI status.
+- AI wording status.
 - Logs and health.
 
 Performance gate:
@@ -833,11 +736,9 @@ rain_tip_minutes = 60
 critical_emotion_persistent = true
 touch_can_override_critical = false
 
-[llm]
+[ai]
 enabled = false
 provider = "none"
-model_path = ""
-server_binary = "llama-server"
 server_port = 8080
 server_context = 512
 server_threads = 2
@@ -849,7 +750,7 @@ allowed_user_ids = []
 poll_seconds = 3
 ```
 
-Note: `[llm].enabled` stays false until the real Pi benchmark passes.
+Note: `[ai].enabled` stays false until the real Pi benchmark passes.
 
 ## Build Order
 
@@ -884,21 +785,19 @@ Stage D: ASCII/Touch Display.
 - Touch zones.
 - Focus eyes countdown.
 
-Stage E: Local AI Benchmark.
+Stage E: AI Wording Layer.
 
 - Safe debloat.
 - 1GB swap safety net.
-- Install/build llama.cpp.
-- Run Gemma 3 270M Q4_K_M at 512 context.
 - Benchmark RAM/swap/temp/latency.
-- Test deterministic fallback when local AI is offline.
-- Optional WSL/local preflight with `JIRI_LOCAL_DEV=1`; not an acceptance gate.
+- Test deterministic fallback when the AI cache is empty.
+- WSL tests satisfy AI_SPEC Gate 1 only; Gate 3 needs real hardware.
 
 Stage F: AI Integration.
 
 - Production acceptance only after the real Pi benchmark passes.
 - Local development must remain disabled by default and Pi-compatible.
-- Local AI client.
+- AI wording layer.
 - Background requests only.
 - No render-loop waiting.
 - Fallback templates.
@@ -910,36 +809,12 @@ Stage G: Telegram Admin.
 - Summary command.
 - Security whitelist.
 
-## Required AI Scripts
+## AI Verification
 
-Document and implement later:
+The AI layer needs no shell scripts. It is verified by `tests/test_ai.py`,
+which covers the whole layer without any network access, plus the Gate 2 and
+Gate 3 procedures in `docs/AI_SPEC.md` §5.
 
-- `scripts/ai_baseline.sh`.
-- `scripts/ai_safe_debloat.sh`.
-- `scripts/ai_monitor.sh`.
-- `scripts/ai_run_gemma_512.sh`.
-- `scripts/ai_benchmark_gemma.sh`.
-
-`ai_baseline.sh` should print OS, RAM, swap, CPU temp, disk free, top memory processes, enabled services, and running services.
-
-`ai_safe_debloat.sh` may set multi-user target and disable Bluetooth, printing, ModemManager, or triggerhappy if unused. It must not disable SSH, networking, or avahi by default.
-
-`ai_monitor.sh` should watch RAM, swap, temperature, top memory processes, and llama-server process.
-
-`ai_run_gemma_512.sh` should run:
-
-```bash
-llama-server \
-  -m ~/models/gemma-3-270m-q4_k_m.gguf \
-  -c 512 \
-  -t 4 \
-  --host 0.0.0.0 \
-  --port 8080
-```
-
-`ai_benchmark_gemma.sh` should test `/health`, short rewrite, todo/behavior summary, and response time.
-
-`ai_run_gemma_512.sh` and `ai_benchmark_gemma.sh` may allow `JIRI_LOCAL_DEV=1` for WSL/local Gemma ctx512 preflight. This bypass must print that local results are not Pi acceptance. `ai_safe_debloat.sh` must stay real-Pi-only when applying changes.
 
 ## System Acceptance Gates
 
@@ -967,7 +842,6 @@ Web gate passes if:
 - Works from phone by IP.
 - Survives weather unavailable.
 
-AI gate passes only if Gemma acceptance gate passes on the real Raspberry Pi 3B. WSL/local Gemma runs are compatibility preflight only.
 
 Telegram gate passes if:
 
@@ -981,15 +855,14 @@ Fallback gate passes if:
 
 - Main Pi boots without AI worker.
 - Template messages work without AI.
-- Display does not freeze if local AI is unavailable.
-- Web dashboard still works if local AI is offline.
+- Display does not freeze if AI is unavailable. It cannot: the render path never calls out.
+- Web dashboard still works if AI is offline.
 
 ## Failure Handling
 
 | Failure | Required behavior |
 | --- | --- |
-| Local AI offline | Use template messages and show AI offline indicator. |
-| Gemma timeout | Keep fallback message and do not retry aggressively. |
+| AI unavailable | Use deterministic messages. Announce once, never repeat. |
 | Weather API fails | Use weather cache. |
 | No weather cache | Show unavailable weather message. |
 | Pi overheats | Disable AI requests and show warning. |
@@ -1003,8 +876,7 @@ Fallback gate passes if:
 ```text
 JIRI is a single-Pi AI-assisted desk companion.
 The Pi is the source of truth.
-Local AI is an optional wording layer.
-Gemma is selected for benchmark, not assumed accepted.
+AI is an optional wording layer.
 The display is a living face, not an admin dashboard.
 Normal idle, no-task, rain, focus, overdue, and touch behaviors are explicitly defined.
 Web and Telegram are separate control surfaces.
@@ -1015,7 +887,5 @@ The system must always fall back to deterministic Python.
 
 - Raspberry Pi 3 Model B official specs: https://www.raspberrypi.com/products/raspberry-pi-3-model-b/
 - Raspberry Pi 3 Model B+ official specs: https://www.raspberrypi.com/products/raspberry-pi-3-model-b-plus/
-- Gemma 3 270M announcement: https://developers.googleblog.com/en/introducing-gemma-3-270m/
-- llama.cpp server documentation: https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md
 - Pygame event documentation: https://www.pygame.org/docs/ref/event.html
 - Telegram Bot API: https://core.telegram.org/bots/api

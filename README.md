@@ -1,478 +1,353 @@
-<p align="center">
-  <img src="jirie.png" alt="JIRI project image" width="220">
-</p>
+<div align="center">
 
-<h1 align="center">JIRI</h1>
+<img src="jirie.png" alt="JIRI" width="180">
 
-<p align="center">
-  <strong>A Raspberry Pi-first desk companion with a deterministic core, a small web cockpit, a living display face, and optional local AI wording.</strong>
-</p>
+# JIRI
 
-<p align="center">
-  <img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-89b4fa">
-  <img alt="SQLite" src="https://img.shields.io/badge/storage-SQLite-a6e3a1">
-  <img alt="Flask" src="https://img.shields.io/badge/web-Flask-cba6f7">
-  <img alt="Pygame" src="https://img.shields.io/badge/display-Pygame-f9e2af">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-145%20passing-a6e3a1">
-  <img alt="Target" src="https://img.shields.io/badge/target-Raspberry%20Pi%203B%2F3B%2B-f38ba8">
-</p>
+**A desk companion that lives on a Raspberry Pi, has a face, and quietly judges your todo list.**
+
+*(It has been asked to stop judging. It has agreed to judge more quietly.)*
+
+[![CI](https://github.com/4riful/jiri/actions/workflows/ci.yml/badge.svg)](https://github.com/4riful/jiri/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Runs on Pi 3B+](https://img.shields.io/badge/runs%20on-Pi%203B%2B-c51a4a.svg)](docs/HARDWARE.md)
+[![Tests](https://img.shields.io/badge/tests-194%20passing-brightgreen.svg)](tests/)
+
+[About](#about) · [Features](#features) · [Quick start](#quick-start) · [Hardware](#hardware) · [How it works](#how-it-works) · [Contributing](#contributing)
+
+</div>
 
 ---
 
-## What It Is
+## About
 
-JIRI is a small personal desk assistant designed for weak, practical hardware: a Raspberry Pi 3B/3B+, 1 GB RAM, SQLite storage, and a compact display. It manages todos, notes, weather, focus sessions, hydration, persona nudges, Telegram control, update checks, safe database backups, and a read-only database browser from a lightweight Flask admin dashboard.
+JIRI is a small always-on companion for your desk. It shows a face on a
+3.5-inch screen, keeps your todos and notes, runs focus timers, nags you about
+water, tells you if it is going to rain, and talks to you on Telegram.
 
-The project is deliberately not a cloud chatbot, not a kiosk website, and not a heavyweight home server stack. It is a deterministic Python application that can optionally use local AI later for wording only.
+It runs on a Raspberry Pi 3B+. Not a Pi 5. Not a mini PC with a GPU. A ten year
+old board with one gigabyte of RAM, because that is what was in the drawer.
 
-```text
-AI-assisted, not AI-controlled.
+**The idea that makes it different:** most assistant projects put a language
+model in charge and hope. JIRI does the opposite. A deterministic Python core
+owns every fact, every decision, and every piece of state. Nothing else is
+allowed to touch them. AI is optional, off by default, and gets exactly one
+job: choosing nicer words.
 
-Python owns truth, timing, state, safety rules, and actions.
-Optional AI owns wording, summaries, and personality only.
-```
+That constraint is the whole design. It means JIRI works with the wifi
+unplugged, boots without an API key, and cannot be talked into deleting your
+todos.
 
-## Why It Exists
+### Why you might want one
 
-Most “AI assistant” projects put the model in charge too early. JIRI does the opposite:
+- You want a physical thing on your desk that is *yours*, not a rented cloud service.
+- You like the idea of a pet that reminds you to drink water.
+- You have a spare Pi and a weekend.
+- You want to read a small codebase where the architecture is actually written down.
 
-| Principle | What JIRI Does |
-| --- | --- |
-| Deterministic first | Todos, focus, weather, events, and persona rules work without AI. |
-| Pi-first | Every feature is judged against Raspberry Pi 3B/3B+ constraints. |
-| Local state | SQLite is the source of truth. No cloud database required. |
-| Separate surfaces | Admin dashboard, screen preview, CLI, Telegram worker, and Pygame UI stay separate. |
-| Safe AI boundary | AI cannot write SQLite, run commands, mark todos done, change due dates, or own state. |
+### Why this is not another chatbot
 
-## Current Status
+| | JIRI | Typical LLM assistant |
+|---|---|---|
+| Who owns your data | SQLite file on your desk | Somebody's cloud |
+| Works offline | Yes, fully | No |
+| Works with no API key | Yes, fully | No |
+| Can AI change your data | No, structurally | Usually yes |
+| Cost to run | Zero | Per token |
 
-| Area | Status | Notes |
-| --- | --- | --- |
-| Core SQLite app | Working | Todos, notes, settings, events, focus sessions, weather cache. |
-| Admin dashboard | Working | Password-protected Flask UI on port `5000`. |
-| Screen preview | Working | Separate web surface on port `5001`. |
-| CLI | Working | SSH-friendly control path. |
-| Weather | Working | Open-Meteo primary, wttr.in fallback, SQLite cache fallback. |
-| Focus Assist | Working | Start, pause, resume, complete, cancel, no per-second DB writes. |
-| Persona engine | Working | Deterministic priority/cooldown rules and Telegram nudges. |
-| Telegram | Working | Polling bot, allowlist, commands, DB-backed settings. |
-| Themes | Working | Catppuccin Mocha default and Nothing UI alternative. |
-| Water history | Working | Today, weekly, 30-day, and 12-month SQLite-backed views. |
-| Safe updates | Documented + tools | GitHub update check, verified SQLite backup, restore script, rollback methodology. |
-| DB browser | Working | Read-only raw SQLite inspection in admin. |
-| Local AI | Scaffolded | `llama-server` integration is disabled by default and benchmark-gated. |
-| Real Pi display | Hardware-gated | Needs final 3.5-inch display/touch confirmation. |
-
-## System Map
-
-```text
-                         Browser / Phone
-                               |
-                               v
-                  +---------------------------+
-                  | Flask Admin :5000         |
-                  | todos / notes / weather   |
-                  | focus / telegram / db     |
-                  +-------------+-------------+
-                                |
-                                v
-+-------------+        +---------------------+        +------------------+
-| Telegram    | <----> | JIRI Runtime        | <----> | Open-Meteo /     |
-| polling     |        | deterministic core  |        | wttr.in weather  |
-+-------------+        +----------+----------+        +------------------+
-                                  |
-                                  v
-                         +----------------+
-                         | SQLite         |
-                         | source of truth|
-                         +-------+--------+
-                                 |
-               +-----------------+-----------------+
-               |                                   |
-               v                                   v
-     +--------------------+             +--------------------+
-     | Screen Web :5001   |             | Pygame Display     |
-     | display preview    |             | real Pi face UI    |
-     +--------------------+             +--------------------+
-
-Optional after benchmark:
-JIRI Runtime -> local llama-server -> wording rewrite only -> deterministic fallback remains
-```
+---
 
 ## Features
 
-### Admin Dashboard
+**A face that means something.** Fifteen expressions driven by real state, not
+randomness. It squints when you are focused, perks up when the weather turns,
+and goes quiet when you are behind. The mouth types out messages character by
+character because that is more fun than blitting a string.
 
-Available at `http://127.0.0.1:5000/admin` during local development.
+**Todos that escalate politely.** Tasks climb five levels of overdue. Here is
+the part most reminder apps get wrong: as a task slips, JIRI's messages get
+*shorter*, not meaner. The face carries the feeling instead. A nagging device
+gets unplugged. See [the research behind that](docs/AI_SPEC.md).
 
-- Todos with due dates, priority, done/cancel/delete actions.
-- Notes with tags.
-- Weather location search, saved coordinates, refresh controls, current/hourly/daily forecast display.
-- Focus sessions with pause/resume/complete/cancel controls.
-- Water tracking with profile-based daily targets, weekly history, 30-day history, and 12-month aggregation.
-- Telegram binding, bot status, chat allowlist, token management.
-- Persona settings for quiet hours, category cooldowns, category toggles, and UI theme selection.
-- AI status page with clean missing-binary handling for `llama-server`.
-- Update checker button that compares local Git state with the configured upstream without applying changes.
-- Read-only DB browser for inspecting raw SQLite tables.
+**Focus sessions.** Start a timer, JIRI shuts up and roots for you silently.
+Pause, resume, and milestone nudges at the halfway point. No per-second
+database writes, which matters when your storage is an SD card.
 
-### Screen Surface
+**Water tracking** with a goal calculated from your age and sex, plus weekly,
+monthly, and yearly history.
 
-Available at `http://127.0.0.1:5001/screen` during local development.
+**Weather** from Open-Meteo, with a wttr.in fallback, and a SQLite cache
+fallback behind that. Three layers deep because the first two will fail
+eventually.
 
-- Glanceable face and headline.
-- Panel rotation for weather, focus, todos, notes, and system state.
-- Intended to mirror the 3.5-inch Pi display without becoming the admin dashboard.
+**A Telegram bot** with a chat allowlist, full CRUD, and confirmation prompts
+before anything destructive.
 
-### CLI
+**A web cockpit** on your phone or laptop. Two themes: Catppuccin Mocha and a
+Nothing-inspired dot matrix.
 
-The CLI is designed for SSH and recovery work.
+**Optional AI wording.** Free-tier hosted models write persona lines in the
+background, on a schedule, into a local cache. The display only ever reads the
+cache, so AI can never slow down, block, or break the screen. And it sends no
+personal data, because it generates *templates* like `{task} is due` that get
+filled in on the device.
 
-```bash
-PYTHONPATH=src .venv/bin/python -m jiri.cli --help
-PYTHONPATH=src .venv/bin/python -m jiri.cli todo add "Water the plants" --due "2026-05-16 18:00"
-PYTHONPATH=src .venv/bin/python -m jiri.cli weather refresh
-PYTHONPATH=src .venv/bin/python -m jiri.cli focus start --title "Deep work" --minutes 25
-PYTHONPATH=src .venv/bin/python -m jiri.cli health
-```
+---
 
-### Telegram
+## Quick start
 
-Telegram is an admin control surface, not the core system.
-
-- Uses `getUpdates` polling.
-- No public IP, webhook, router port-forward, or TLS certificate required.
-- Allowed chat IDs are enforced.
-- Settings are stored in SQLite and managed from `/admin/telegram`.
-- Commands include `/status`, `/todos`, `/todo add`, `/todo done`, `/notes`, `/note add`, `/weather`, `/focus`, and `/water`.
-
-### Persona Engine
-
-JIRI has a deterministic personality layer. The display and Telegram worker can surface moments such as focus mode, overdue escalation, hydration reminders, weather tips, quiet hours, and ambient micro-expressions.
-
-Priority order is intentionally explicit:
-
-```text
-critical overdue > focus > normal overdue > weather > quiet hours > water > ambient
-```
-
-The persona can be tuned in `/admin/persona` without changing code.
-
-### Themes
-
-The web dashboard has two lightweight themes:
-
-| Theme | Notes |
-| --- | --- |
-| Catppuccin Mocha | Default, soft terminal-inspired palette. |
-| Nothing UI | Black/white/red system using Nothing-style typography when available. |
-
-Theme selection is stored in SQLite through persona settings. The navbar theme button toggles between the available themes.
-
-### Safe Updates And Backups
-
-JIRI includes an update checker and a safe update methodology, but it does not blindly auto-update by default.
-
-- `/admin` has an **Updates** button that checks the configured Git upstream with `git ls-remote`.
-- The checker does not run `git pull`, `git reset`, or mutate the codebase.
-- `scripts/backup_db.sh` uses SQLite's online backup API and writes a manifest with SHA-256, schema version, table names, row counts, and integrity status.
-- `scripts/restore_db.sh <backup.db>` verifies the backup before restore and backs up the current DB before replacement.
-- The full process is documented in `docs/SAFE_UPDATE_METHODOLOGY.md`.
-
-Backup manually:
+Works on WSL, Linux, and macOS for development. You do not need a Pi to hack on it.
 
 ```bash
-scripts/backup_db.sh
-```
+git clone https://github.com/4riful/jiri.git
+cd jiri
 
-Restore manually:
-
-```bash
-scripts/restore_db.sh backups/jiri-YYYYMMDD-HHMMSS.db
-```
-
-## Quick Start
-
-### 1. Clone and enter the project
-
-```bash
-cd /root/Project/jiri
-```
-
-### 2. Create a virtual environment
-
-```bash
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-dev.txt
+.venv/bin/python -m pip install -r requirements-dev.txt
+
+PYTHONPATH=src .venv/bin/python -m jiri.cli init-db
 ```
 
-### 3. Run tests
+Add something to do, then look at it:
 
 ```bash
-PYTHONPATH=src python -m pytest tests/ -q
+PYTHONPATH=src .venv/bin/python -m jiri.cli todo add "Water the plants" --due "2026-08-05 18:00"
+PYTHONPATH=src .venv/bin/python -m jiri.cli todo list
 ```
 
-Expected current result:
-
-```text
-145 passed
-```
-
-### 4. Start admin and screen surfaces
+Start the web surfaces:
 
 ```bash
 scripts/run_all.sh
 ```
 
-Open:
+- Dashboard: <http://localhost:5000/admin> (default password is `test` in dev)
+- Live screen preview: <http://localhost:5001/screen>
 
-| Surface | URL | Purpose |
-| --- | --- | --- |
-| Admin | `http://127.0.0.1:5000/admin` | Full dashboard and CRUD controls. |
-| Screen | `http://127.0.0.1:5001/screen` | Display preview surface. |
+Run the tests:
 
-Default development password:
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+### Put it on a Pi
+
+```bash
+scripts/install_pi.sh
+scripts/create_systemd_services.sh
+```
+
+Full walkthrough in [docs/PI_DEPLOYMENT.md](docs/PI_DEPLOYMENT.md).
+
+---
+
+## Hardware
+
+| Part | What I used | Notes |
+|---|---|---|
+| Board | Raspberry Pi 3B+ | 1GB RAM. A Pi 4 or 5 works and is easier. |
+| Display | 3.5" GPIO LCD, 480x320 | Touch optional |
+| Storage | microSD | A good one. Cheap cards die. |
+| Power | 5V 2.5A | |
+| Mic or speaker | None | Not needed. JIRI is silent. |
+
+Details and the still-open hardware questions are in
+[docs/HARDWARE.md](docs/HARDWARE.md).
+
+---
+
+## How it works
 
 ```text
-test
+                        Your phone / laptop
+                                 |
+                    +------------+------------+
+                    |  Flask admin :5000      |
+                    |  Screen preview :5001   |
+                    +------------+------------+
+                                 |
+  +-------------+      +---------+---------+      +-----------------+
+  |  Telegram   |<---->|   JIRI Runtime    |<---->|   Open-Meteo    |
+  |  bot        |      | deterministic core|      |   wttr.in       |
+  +-------------+      +---------+---------+      +-----------------+
+                                 |
+                          +------+------+
+                          |   SQLite    |   <- the only source of truth
+                          +------+------+
+                                 |
+                +----------------+----------------+
+                |                                 |
+        +-------+--------+               +--------+-------+
+        | Screen preview |               | Pygame display |
+        |   (browser)    |               |  (the face)    |
+        +----------------+               +----------------+
+
+  Optional, off by default:
+    background worker -> AI API -> line templates -> SQLite cache
+    render path       -> SQLite cache -> built-in lines. Never the network.
 ```
 
-Override it with:
+Four rules the code actually enforces:
 
-```bash
-export JIRI_ADMIN_PASSWORD='choose-a-real-password'
-```
+1. **SQLite is the only truth.** Everything else is a view.
+2. **The render path never does I/O it can block on.** No HTTP in the frame
+   loop, no slow scans, no surprises at 15 FPS.
+3. **AI returns a string or nothing.** It cannot write state, run commands,
+   complete todos, or change a due date. There is no code path where it can.
+4. **Every layer degrades to a working one.** AI to cache, cache to built-ins,
+   live weather to cached weather.
 
-### 5. Optional: run individual surfaces
+Deeper reading:
 
-```bash
-scripts/run_admin.sh
-scripts/run_screen.sh
-scripts/run_telegram.sh
-scripts/run_ui.sh
-```
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - module map and data flow
+- [docs/AI_SPEC.md](docs/AI_SPEC.md) - the AI layer, its invariants, acceptance gates
+- [docs/AI_STRATEGY.md](docs/AI_STRATEGY.md) - why a local LLM on a Pi 3B+ does not work
+- [docs/PERFORMANCE_BUDGETS.md](docs/PERFORMANCE_BUDGETS.md) - the numbers everything is held to
+- [docs/ENGINEERING_HANDBOOK.md](docs/ENGINEERING_HANDBOOK.md) - the long version
+
+---
 
 ## Configuration
 
-Copy the example config when you need persistent local settings:
+Copy `config.example.toml` to `config.toml` and edit. Every section is
+optional; the defaults boot.
+
+```toml
+[assistant]
+name = "JIRI"
+personality = "playful_joyful"
+
+[display]
+width = 480
+height = 320
+fps = 15
+typing_speed_cps = 24
+
+[ai]
+enabled = false
+```
+
+Environment variables override the file. The ones you are most likely to want:
+
+| Variable | What it does |
+|---|---|
+| `JIRI_DB_PATH` | Where the SQLite file lives |
+| `JIRI_DISPLAY_DRIVER` | `pygame` or `mock` for headless dev |
+| `JIRI_TELEGRAM_BOT_TOKEN` | Seeds the Telegram bot on first boot |
+| `GEMINI_API_KEY` / `GROQ_API_KEY` | Keys for the optional AI layer |
+| `JIRI_AI_ENABLED` | Force the AI layer on or off |
+
+### Turning on AI (optional)
+
+Get a free key from [Google AI Studio](https://aistudio.google.com/) or
+[Groq](https://console.groq.com/). Then:
 
 ```bash
-cp config.example.toml config.toml
+export GEMINI_API_KEY=...
 ```
 
-Important environment overrides:
+```toml
+[ai]
+enabled = true
 
-| Variable | Purpose |
-| --- | --- |
-| `JIRI_DB_PATH` | SQLite database path. |
-| `JIRI_DISPLAY_DRIVER` | `pygame` or `mock`. |
-| `JIRI_WEB_HOST` | Flask bind host. |
-| `JIRI_WEB_PORT` | Flask port for the active surface. |
-| `JIRI_WEATHER_FAKE` | Deterministic fake weather for tests. |
-| `JIRI_TELEGRAM_BOT_TOKEN` | First-boot Telegram token seed. |
-| `JIRI_TELEGRAM_ALLOWED_CHAT_IDS` | First-boot Telegram allowlist seed. |
-| `JIRI_LLM_SERVER_BINARY` | Full path or command name for `llama-server`. |
-| `JIRI_LLM_MODEL_PATH` | Local GGUF model path. |
-| `JIRI_LOCAL_DEV` | Explicit opt-in for local AI preflight scripts. |
+[[ai.providers]]
+name = "gemini"
+model = "gemini-3.5-flash"
 
-## Local AI Notes
-
-Local AI is optional and disabled by default. The admin AI page can show whether `llama-server` is available. If it is missing, JIRI now reports a clear setup message instead of exposing a raw `[Errno 2]` crash-style error.
-
-To point JIRI at a custom llama.cpp server binary:
-
-```bash
-export JIRI_LLM_SERVER_BINARY=/path/to/llama-server
-export JIRI_LLM_MODEL_PATH=/path/to/model.gguf
+[[ai.providers]]
+name = "groq"
+model = "qwen/qwen3.6-27b"
 ```
 
-Production acceptance still requires a real Raspberry Pi benchmark. WSL/local runs are compatibility preflight only.
+Providers are tried in order. If one is rate limited or down, JIRI moves to the
+next, then to its cache, then to its built-in lines. You will not notice.
 
-## Database Browser
+Any OpenAI-compatible endpoint works, including
+[Ollama](https://ollama.com/) on a machine in your house:
 
-The read-only DB browser is available at:
-
-```text
-http://127.0.0.1:5000/admin/db-browser
+```toml
+[[ai.providers]]
+name = "ollama"
+base_url = "http://192.168.1.50:11434/v1"
+model = "llama3.1:8b"
 ```
 
-Use it to inspect what the app or previous agents stored in SQLite:
+---
 
-- `todos`
-- `notes`
-- `settings`
-- `events_log`
-- `focus_sessions`
-- `weather_cache`
+## Roadmap
 
-It does not write, delete, or mutate database rows.
+- [x] Deterministic core: todos, notes, focus, weather, water
+- [x] Web dashboard and live screen preview
+- [x] Telegram bot with allowlist and confirmations
+- [x] Persona engine with cooldowns and quiet hours
+- [x] AI wording layer, API driven, off by default
+- [ ] Wire the AI refill worker into a schedule
+- [ ] Confirm the 3.5-inch display on real hardware
+- [ ] Pi 3B+ acceptance run ([AI_SPEC Gate 3](docs/AI_SPEC.md))
+- [ ] Sound, maybe. It is very quiet in here.
 
-## Project Layout
+Tracked properly in [docs/ROADMAP.md](docs/ROADMAP.md).
 
-```text
-.
-├── config.example.toml          # documented configuration defaults
-├── data/                        # local SQLite databases (ignored by git)
-├── docs/                        # handbook, gates, deployment and troubleshooting docs
-├── jirie.png                    # README/project image
-├── scripts/                     # development, deployment, AI, and smoke scripts
-├── src/jiri/                    # application package
-│   ├── cli.py                   # SSH-friendly command line interface
-│   ├── db.py                    # SQLite schema and helpers
-│   ├── events.py                # idempotent event log
-│   ├── focus.py                 # focus session state machine
-│   ├── llama.py                 # optional llama-server control helpers
-│   ├── persona.py               # deterministic persona engine
-│   ├── runtime.py               # central orchestration object
-│   ├── telegram.py              # Telegram polling bot
-│   ├── todos.py / notes.py      # core personal data models
-│   ├── weather.py / water.py    # weather and hydration systems
-│   ├── ui/                      # Pygame display model and touch zones
-│   └── web/                     # Flask app, templates, static CSS
-├── systemd/                     # Raspberry Pi service files
-└── tests/                       # pytest coverage for core, web, CLI, Telegram, UI
-```
+---
 
-## Scripts
+## Contributing
 
-| Script | Purpose |
-| --- | --- |
-| `scripts/test_wsl.sh` | Main WSL test gate. |
-| `scripts/run_all.sh` | Start admin and screen surfaces together. |
-| `scripts/run_admin.sh` | Start admin surface only. |
-| `scripts/run_screen.sh` | Start screen preview only. |
-| `scripts/run_telegram.sh` | Start Telegram polling worker. |
-| `scripts/run_ui.sh` | Start Pygame UI. |
-| `scripts/backup_db.sh` | Back up SQLite database. |
-| `scripts/restore_db.sh` | Restore a verified SQLite backup after backing up the current DB. |
-| `scripts/install_pi.sh` | Raspberry Pi installation helper. |
-| `scripts/pi_smoke_test.sh` | Pi deployment smoke test. |
-| `scripts/ai_*.sh` | Local AI benchmark and monitoring helpers. |
+Contributions are genuinely welcome, and **you do not need a Raspberry Pi**.
+Everything except the display runs fine on a laptop.
 
-## Testing
+The easiest place to start is JIRI's personality. Open
+`src/jiri/messages.py`, read the pools, and add lines you find funny. There is
+an [issue template](.github/ISSUE_TEMPLATE/persona_line.yml) just for this. One
+rule: JIRI jokes about the situation or about itself, never about the user.
 
-Run the full suite:
+Other good entry points: new face expressions in `src/jiri/ui/face.py`, a new
+weather provider, a new AI provider preset, or the docs.
 
-```bash
-source .venv/bin/activate
-PYTHONPATH=src python -m pytest tests/ -q
-```
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first. It is short.
 
-Run the WSL gate:
+---
 
-```bash
-scripts/test_wsl.sh
-```
+## FAQ
 
-The suite covers:
+**Does it need internet?**
+No. Weather and Telegram want it. Everything else, including the personality,
+works offline.
 
-- Config/env loading.
-- SQLite schema and migration behavior.
-- Todos, notes, focus, water, weather.
-- Monthly/yearly water history.
-- Weather next-12-hour forecast slicing across midnight.
-- Persona priority/cooldown rules.
-- Event emission and deduplication.
-- Telegram polling and command dispatch.
-- Flask admin/screen/API surfaces.
-- DB browser read-only inspection.
-- Update checker logic.
-- Pygame display model and touch zones.
-- AI script guardrails.
+**Does my data go anywhere?**
+No. SQLite on your device. The optional AI layer generates *templates* with
+`{task}` placeholders that are filled in locally, so your todo titles are never
+transmitted. That is a property of the architecture, not a promise.
 
-## Deployment Shape
+**Why not run a small model on the Pi itself?**
+Tried to. On a Pi 3B+ a 270M model costs 20 to 60 seconds and all four cores
+per line, breaks five documented performance budgets, and writes worse prose
+than the hand-written strings it would replace. The measurements are in
+[docs/AI_STRATEGY.md](docs/AI_STRATEGY.md).
 
-Target hardware is a single Raspberry Pi 3B/3B+.
+**Will it work on a Pi Zero / Pi 4 / Pi 5?**
+Pi 4 and 5, yes and better. Pi Zero 2 W probably, untested. The whole project
+is tuned for the worst case, so newer hardware is a bonus.
 
-```text
-Raspberry Pi OS
-  -> Python virtualenv
-  -> SQLite database
-  -> Flask admin/screen services
-  -> optional Pygame display service
-  -> optional Telegram polling worker
-  -> optional local llama-server after benchmark acceptance
-```
+**Can I make it mean?**
+You can, it is your device. The default deliberately is not. There is good
+research showing that assistants which get snarkier as you fall behind are the
+ones people unplug.
 
-Real hardware acceptance still needs:
+---
 
-- Exact 3.5-inch display model confirmation.
-- Touch/rotation/framebuffer behavior confirmation.
-- RAM/CPU/temperature measurements on the target Pi.
-- Local Gemma benchmark before production AI integration claims.
+## Credits
 
-## Troubleshooting
-
-### `No module named jiri`
-
-Set `PYTHONPATH=src`:
-
-```bash
-PYTHONPATH=src python -m jiri.cli health
-```
-
-### Admin password rejected
-
-Default development password is `test`. Override with:
-
-```bash
-export JIRI_ADMIN_PASSWORD='your-password'
-```
-
-### `llama-server` not found
-
-Install llama.cpp or set the binary path:
-
-```bash
-export JIRI_LLM_SERVER_BINARY=/path/to/llama-server
-```
-
-JIRI will continue working without AI.
-
-### Weather unavailable
-
-JIRI falls back in this order:
-
-```text
-Open-Meteo -> wttr.in -> SQLite cache -> unavailable message
-```
-
-### Ports already in use
-
-Use alternate ports:
-
-```bash
-JIRI_ADMIN_PORT=5100 JIRI_SCREEN_PORT=5101 scripts/run_all.sh
-```
-
-## Design Boundaries
-
-JIRI intentionally avoids:
-
-- React / Node.js / Electron.
-- Docker / Kubernetes.
-- PostgreSQL / MongoDB / Redis / Celery.
-- Browser kiosk as the Pi display UI.
-- Cloud AI as a required dependency.
-- AI-owned state or actions.
-
-This keeps the project small enough to debug over SSH and realistic on Raspberry Pi 3B/3B+ hardware.
-
-## Documentation
-
-| Document | Purpose |
-| --- | --- |
-| `docs/ENGINEERING_HANDBOOK.md` | Source-of-truth engineering rules and gates. |
-| `docs/ARCHITECTURE.md` | Layer overview and reliability rules. |
-| `docs/MISSION_CONTROL.md` | Short operational status board. |
-| `docs/STAGE_GATES.md` | Acceptance gates by stage. |
-| `docs/ROADMAP.md` | Short progress tracker. |
-| `docs/PI_DEPLOYMENT.md` | Raspberry Pi deployment notes. |
-| `docs/SAFE_UPDATE_METHODOLOGY.md` | Safe GitHub update, backup, restore, and rollback rules. |
-| `docs/TROUBLESHOOTING.md` | Common issues and fixes. |
-| `docs/PERSONA_IMPLEMENTATION_PLAN.md` | Persona staged implementation plan. |
+Built with [Flask](https://flask.palletsprojects.com/),
+[Pygame](https://www.pygame.org/), and SQLite. Weather from
+[Open-Meteo](https://open-meteo.com/) and [wttr.in](https://wttr.in/). Themes
+inspired by [Catppuccin](https://catppuccin.com/) and Nothing OS.
 
 ## License
 
-No license has been selected yet. Treat the code as private unless a license file is added.
+MIT. See [LICENSE](LICENSE).
+
+<div align="center">
+<br>
+<sub>Built for a 1GB board that refused to die.</sub>
+</div>

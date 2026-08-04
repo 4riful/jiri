@@ -117,21 +117,26 @@ Status: P0-P4 software implemented in WSL. P3 still needs real display acceptanc
 - Typed mouth effect has software coverage; real display acceptance remains Stage D/P3 hardware work.
 - AI rewrite remains blocked until Stage E and Stage F acceptance.
 
-### Stage E: Local AI Benchmark
+### Stage E: AI Wording Layer
 
-Status: scripts ready. Real Raspberry Pi 3B benchmark still required.
+Status: implemented and Gate 1 passing in WSL. Real Raspberry Pi 3B+
+measurement still required.
 
-WSL/local Gemma ctx512 runs are allowed only as opt-in compatibility preflight. They do not satisfy this gate.
+The full criteria live in `docs/AI_SPEC.md` §5. Summary:
 
-- Gemma 3 270M Q4_K_M loads on real Pi 3B.
-- Free RAM after load above 150 MB.
-- Swap after idle load below 100 MB.
-- CPU temp after 10 minutes below 75 C.
-- Short rewrite below 8 seconds.
-- Summary below 15 seconds.
-- SSH remains responsive.
-- JIRI works if local AI is offline.
-- Benchmark on a real Raspberry Pi 3B, not WSL.
+- Gate 1 (WSL/CI): render path never touches the network, output is identical
+  with AI disabled, sanitizer rejects hostile output, caps and circuit breaker
+  hold across restarts. `tests/test_ai.py`.
+- Gate 2 (dev machine, real keys): at least 8 accepted templates per call, at
+  least 60% acceptance rate, zero user data in any request body, 100 generated
+  lines reviewed by hand.
+- Gate 3 (real Pi 3B+, blocking): cache lookup p95 under 5ms, UI holds 10-15
+  FPS during a refill, RSS under 350MB, CPU under 70C, network loss produces no
+  visible error.
+
+On-device inference is rejected and must not be reintroduced on this hardware.
+See `docs/AI_STRATEGY.md`.
+
 
 ### Stage F: AI Integration
 

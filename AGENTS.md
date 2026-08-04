@@ -7,8 +7,6 @@ These rules are mandatory for future Codex sessions working on JIRI.
 - Final architecture uses a single Raspberry Pi 3B/3B+ with optional on-device AI.
 - Development happens in WSL, but production is Raspberry Pi OS.
 - Do not optimize for desktop-class WSL hardware.
-- WSL/local Gemma 3 270M Q4_K_M development is allowed only with explicit opt-in such as `JIRI_LOCAL_DEV=1`, 512 context, short outputs, strict timeouts, and deterministic fallback.
-- WSL/local Gemma results are compatibility preflight only; never mark Stage E, Stage F, or Gemma acceptance as passed until real Pi 3B measurements pass.
 - Do not add heavy dependencies.
 - Do not add React, Electron, Docker, Kubernetes, or Node.js in v1.
 - Do not add PostgreSQL, MongoDB, Redis, Celery, or browser kiosk display UI in v1.
@@ -17,7 +15,8 @@ These rules are mandatory for future Codex sessions working on JIRI.
 - Keep all network requests out of the UI draw loop.
 - Use timeouts for every network request.
 - Keep offline fallback behavior.
-- Gemma 3 270M Q4_K_M is selected for benchmark only, not accepted until measured on real Pi 3B.
+- On-device LLM inference is rejected for Pi 3B+ hardware; see docs/AI_STRATEGY.md. Do not reopen it.
+- The AI wording layer is API-driven, background only, and off by default; see docs/AI_SPEC.md.
 - Do not enable or claim production AI integration until the deterministic main app and real Pi AI benchmark gates pass.
 - If AI is added later, it may only rewrite/summarize from Python-supplied facts and must never manage state, todos, reminders, due dates, focus timers, database writes, weather facts, weather cache, system state, shell commands, or systemd.
 - Do not assume the display works in WSL.
