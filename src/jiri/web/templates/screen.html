@@ -29,8 +29,10 @@
 
       <div class="device-content">
         <button class="device-face" id="device-face" type="button" data-state="{{ snapshot.face_state }}" aria-label="Change JIRI's expression">
-          <pre class="device-ascii-face" id="device-ascii-face" aria-hidden="true">.  .
- . </pre>
+          <pre class="device-ascii-face" id="device-ascii-face" aria-hidden="true">*     *
+  * *  
+ *   * 
+  * *  </pre>
           <span class="device-face-status">
             <span class="device-mood">{{ snapshot.face_state|replace('_', ' ') }}</span>
             {% if snapshot.focus.get('active') %}
@@ -119,10 +121,10 @@
 
     if (face && ascii) {
       var expressions = [
-        ".  .\n . ",
-        ".  .\n o ",
-        "x  x\n . ",
-        ".  x\n . "
+        "*     *\n  * *  \n *   * \n  * *  ",
+        "*     *\n  * *  \n *   * \n   *   ",
+        "*     *\n  * *  \n *   * \n  ***  ",
+        "x     x\n  * *  \n *   * \n  * *  "
       ];
       var expressionIndex = 0;
       face.addEventListener("click", function() {
