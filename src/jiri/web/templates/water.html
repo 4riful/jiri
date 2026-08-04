@@ -21,7 +21,7 @@
       <h2>Weekly Intake</h2>
       <div class="water-week-grid">
         {% for day in water_week %}
-          <div class="water-week-day {% if day.complete %}complete{% endif %}">
+          <div class="water-week-day {% if day.complete %}complete{% endif %}" style="--pct: {{ day.percent }}%">
             <strong>{{ day.label }}</strong>
             <span>{{ day.amount_ml }}ml</span>
             <small>{{ day.percent }}%</small>
@@ -35,7 +35,7 @@
       <h2>Monthly Intake (30 Days)</h2>
       <div class="water-month-grid">
         {% for day in water_month %}
-          <div class="water-month-day {% if day.complete %}complete{% endif %}">
+          <div class="water-month-day {% if day.complete %}complete{% endif %}" style="--pct: {{ day.percent }}%">
             <strong>{{ day.label }}</strong>
             <span>{{ day.amount_ml }}ml</span>
             <small>{{ day.percent }}%</small>
@@ -49,7 +49,7 @@
       <h2>Yearly Intake (12 Months)</h2>
       <div class="water-year-list">
         {% for month in water_year %}
-          <div class="water-year-item {% if month.complete %}complete{% endif %}">
+          <div class="water-year-item {% if month.complete %}complete{% endif %}" style="--pct: {{ month.percent }}%">
             <strong>{{ month.label }}</strong>
             <span>{{ month.amount_ml }}ml total</span>
             <span>{{ month.days_active }}/{{ month.days_in_month }} days</span>

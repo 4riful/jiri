@@ -15,11 +15,11 @@
     <h2>Status</h2>
     <span class="stat-pill {{ 'badge-green' if ai_status.enabled else 'badge-dim' }}">{{ 'enabled' if ai_status.enabled else 'disabled' }}</span>
   </div>
-  <dl class="kv-grid">
-    <dt>Cached lines</dt><dd>{{ ai_status.cache_total }}</dd>
-    <dt>Requests today</dt><dd>{{ ai_status.used_today }} / {{ ai_status.daily_cap }}</dd>
-    <dt>Target per bucket</dt><dd>{{ ai_status.min_lines_per_bucket }}</dd>
-    <dt>Max line length</dt><dd>{{ ai_status.max_output_chars }} chars</dd>
+  <dl class="details kv-grid">
+    <div><dt>Cached lines</dt><dd>{{ ai_status.cache_total }}</dd></div>
+    <div><dt>Requests today</dt><dd>{{ ai_status.used_today }} / {{ ai_status.daily_cap }}</dd></div>
+    <div><dt>Target per bucket</dt><dd>{{ ai_status.min_lines_per_bucket }}</dd></div>
+    <div><dt>Max line length</dt><dd>{{ ai_status.max_output_chars }} chars</dd></div>
   </dl>
   {% if not ai_status.enabled %}
   <p class="meta-line">

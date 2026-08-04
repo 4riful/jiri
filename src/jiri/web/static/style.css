@@ -993,6 +993,11 @@ input[type="radio"], input[type="checkbox"] {
   cursor: pointer;
 }
 
+/* a form's primary action hugs its label on wide screens, goes full width on phones */
+.stack-form > .button,
+.stack-form > .btn,
+.stack-form > button { justify-self: start; }
+
 .stack-form-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1181,6 +1186,17 @@ input[type="radio"], input[type="checkbox"] {
   color: var(--ok);
   border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
   background: color-mix(in srgb, var(--ok) 8%, var(--bg));
+}
+.hero-status.status-dim,
+.stat-head-badge.badge-dim {
+  color: var(--text-mute);
+  border-color: var(--line-strong);
+  background: var(--bg);
+}
+.hero-status.status-red {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg));
 }
 
 .stat-big {
@@ -1500,26 +1516,11 @@ input[type="radio"], input[type="checkbox"] {
   font-size: .88rem;
   overflow-wrap: anywhere;
 }
-.kv-grid {
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-}
-.kv-grid dt {
-  padding: var(--s3) var(--s3) 0;
-  border: 1px solid var(--line);
-  border-bottom: 0;
-  border-radius: var(--tile-radius) var(--tile-radius) 0 0;
-  background: var(--bg);
-}
-.kv-grid dd {
-  margin: 0;
-  padding: 2px var(--s3) var(--s3);
-  border: 1px solid var(--line);
-  border-top: 0;
-  border-radius: 0 0 var(--tile-radius) var(--tile-radius);
-  background: var(--bg);
+.kv-grid div dd {
   font-family: var(--font-display);
   font-size: 1.05rem;
   font-weight: 700;
+  letter-spacing: -.01em;
 }
 
 .item-list,
@@ -2161,6 +2162,9 @@ body.is-screen .app-shell::before { opacity: .6; }
   .footer { flex-direction: column; align-items: flex-start; gap: var(--s1); }
   .card, .dash-hero-card, .dash-panel-card, .page-head { padding: var(--s4); }
   .login-shell { padding: var(--s5); margin-top: var(--s5); }
+  .stack-form > .button,
+  .stack-form > .btn,
+  .stack-form > button { justify-self: stretch; }
 }
 
 @media (max-width: 460px) {
