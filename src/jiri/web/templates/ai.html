@@ -13,7 +13,7 @@
 <section class="card">
   <div class="card-head-flex">
     <h2>Status</h2>
-    <span class="stat-pill {{ 'badge-green' if ai_status.enabled else 'badge-dim' }}">{{ 'enabled' if ai_status.enabled else 'disabled' }}</span>
+    <span class="stat-pill {{ 'badge-green' if ai_status.ready else 'badge-warn' }}">{{ 'ready' if ai_status.ready else 'setup required' }}</span>
   </div>
   <dl class="details kv-grid">
     <div><dt>Cached lines</dt><dd>{{ ai_status.cache_total }}</dd></div>
@@ -21,10 +21,10 @@
     <div><dt>Target per bucket</dt><dd>{{ ai_status.min_lines_per_bucket }}</dd></div>
     <div><dt>Max line length</dt><dd>{{ ai_status.max_output_chars }} chars</dd></div>
   </dl>
-  {% if not ai_status.enabled %}
+  {% if not ai_status.ready %}
   <p class="meta-line">
-    AI is off. JIRI is using its built-in deterministic wording, which is a fully
-    supported mode &mdash; nothing is broken.
+    API wording is required for a production-ready JIRI. Add a provider key to
+    complete setup. Cached and deterministic wording remain available during outages.
   </p>
   {% endif %}
 </section>
@@ -61,7 +61,7 @@
   <div class="empty-state">
     <span class="empty-face" aria-hidden="true">[ -_- ]</span>
     <strong>No providers configured</strong>
-    <span>Add <code>[[ai.providers]]</code> entries to your config if you want me to borrow someone else's vocabulary.</span>
+    <span>Add at least one <code>[[ai.providers]]</code> entry. A provider is required for production readiness.</span>
   </div>
   {% endif %}
 </section>
@@ -87,7 +87,7 @@
   <div class="empty-state">
     <span class="empty-face" aria-hidden="true">[ ^_~ ]</span>
     <strong>Cache is empty</strong>
-    <span>JIRI is speaking its deterministic lines. Honestly, they are the good ones anyway.</span>
+    <span>JIRI is using resilience wording until the required API cache is filled.</span>
   </div>
   {% endif %}
 </section>

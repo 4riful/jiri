@@ -85,7 +85,7 @@ TLS and a real password, or leave it on the LAN.
 
 ### The AI layer
 
-The optional AI wording layer transmits **no user data**. This is structural, not a promise.
+The required AI wording layer transmits **no user data**. This is structural, not a promise.
 
 JIRI asks a provider for line *templates* containing `{task}` and `{minutes}` placeholders, and
 fills those slots locally on the device. The outbound request body contains a category name, a
@@ -95,8 +95,9 @@ location, a water log, or any other personal value into a request.
 That is what makes a free API tier acceptable here even where the provider's terms allow training
 on free-tier prompts: there is nothing personal in the prompt.
 
-The layer is off by default, runs in a background worker only, and is unreachable from the render
-path. See `docs/AI_SPEC.md` §1 and §3 for the invariants and the tests that enforce them.
+The layer requires a configured provider for production readiness, runs in a background worker
+only, and is unreachable from the render path. See `docs/AI_SPEC.md` §1 and §3 for the invariants
+and the tests that enforce them.
 
 **A finding that shows user data reaching a provider is a security bug.** Report it through the
 private channel above, not as a public issue.

@@ -25,11 +25,11 @@ JIRI has not had a tagged release yet. Everything below is on `main`.
   SHA-256 hash, schema version, table names, row counts, and integrity status.
 - `scripts/restore_db.sh`, which verifies a backup before restoring it and backs up the current
   database first. The full procedure is in `docs/SAFE_UPDATE_METHODOLOGY.md`.
-- **AI wording layer** (`src/jiri/ai.py`), off by default. A background worker asks a hosted
+- **AI wording layer** (`src/jiri/ai.py`), a required production capability. A background worker asks a hosted
   provider for persona line *templates* and caches them in SQLite. Provider failover, a
   consecutive-failure circuit breaker, a daily request cap that survives restarts, and a
   sanitizer that rejects rather than truncates. Provider presets ship for Gemini, Groq, xAI,
-  and a LAN Ollama box.
+  and custom OpenAI-compatible endpoints.
 - `/admin/ai` status page showing provider health, cache depth per bucket, and daily quota use.
 - Read-only SQLite browser at `/admin/db-browser` for inspecting raw tables.
 - Typed mouth message reveal on the display, with the speed configurable through
@@ -42,6 +42,13 @@ JIRI has not had a tagged release yet. Everything below is on `main`.
 
 ### Changed
 
+- SQLite and backup paths now resolve to stable absolute paths instead of depending on the
+  launcher's current directory. WSL tests always use an isolated database and cannot inherit
+  and delete the live database path.
+- The browser display preview now uses the canonical 480x320 geometry with a fixed-width ASCII
+  face, dedicated focus readout, compact glance rows, and touch-sized panel controls.
+- Production readiness now requires credentials for at least one hosted AI provider. Provider
+  outages still fall back to cached or built-in wording without giving AI control over state.
 - **The local-LLM plan was abandoned and replaced with an API-driven wording layer.** On-device
   inference was measured at 20 to 60 seconds per line on a Pi 3B+, which breaks five documented
   performance budgets. `docs/AI_STRATEGY.md` records the measurements and the decision.

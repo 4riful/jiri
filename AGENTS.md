@@ -4,7 +4,7 @@ These rules are mandatory for future Codex sessions working on JIRI.
 
 - `docs/ENGINEERING_HANDBOOK.md` is the source-of-truth design and gate document.
 - Target hardware is Raspberry Pi 3B/3B+.
-- Final architecture uses a single Raspberry Pi 3B/3B+ with optional on-device AI.
+- Final architecture uses a single Raspberry Pi 3B/3B+ with required hosted API AI; no model runs on the Pi.
 - Development happens in WSL, but production is Raspberry Pi OS.
 - Do not optimize for desktop-class WSL hardware.
 - Do not add heavy dependencies.
@@ -16,9 +16,9 @@ These rules are mandatory for future Codex sessions working on JIRI.
 - Use timeouts for every network request.
 - Keep offline fallback behavior.
 - On-device LLM inference is rejected for Pi 3B+ hardware; see docs/AI_STRATEGY.md. Do not reopen it.
-- The AI wording layer is API-driven, background only, and off by default; see docs/AI_SPEC.md.
-- Do not enable or claim production AI integration until the deterministic main app and real Pi AI benchmark gates pass.
-- If AI is added later, it may only rewrite/summarize from Python-supplied facts and must never manage state, todos, reminders, due dates, focus timers, database writes, weather facts, weather cache, system state, shell commands, or systemd.
+- The AI wording layer is a required production capability, API-driven, and background only; see docs/AI_SPEC.md.
+- Production readiness requires at least one configured hosted provider. Cached and deterministic wording remain mandatory outage and recovery fallbacks.
+- AI may only rewrite/summarize from Python-supplied facts and must never manage state, todos, reminders, due dates, focus timers, application data, weather facts, weather cache, system state, shell commands, or systemd.
 - Do not assume the display works in WSL.
 - Every stage must have tests or smoke checks.
 - If hardware behavior is unknown, create a Pi confirmation checklist instead of guessing.

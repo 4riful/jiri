@@ -112,7 +112,7 @@ Status: blocked for production acceptance until AI worker benchmark passes on re
 Scope:
 
 - Python creates factual base message first.
-- Optional AI rewrites only wording from supplied facts.
+- Required hosted AI rewrites only wording from supplied facts.
 - Timeout keeps deterministic message.
 
 Acceptance:

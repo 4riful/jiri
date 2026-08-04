@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
   <title>{{ title or app_name or "JIRI" }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   {% block head %}{% endblock %}
@@ -17,7 +17,7 @@
         <pre class="ascii-face" id="ascii-face" aria-label="JIRI mood face">[ ^_^ ]</pre>
         <div>
           <div class="brand">JIRI</div>
-          <div class="tagline">DeskCompanion</div>
+          <div class="tagline">Desk companion</div>
         </div>
       </div>
       <nav class="nav" aria-label="Main">
@@ -60,8 +60,7 @@
     </main>
 
     <footer class="footer">
-      <span><i class="footer-pulse" aria-hidden="true"></i>JIRI {{ app_version }}</span>
-      <span>Desk companion cockpit</span>
+      <span>JIRI {{ app_version }}</span>
     </footer>
   </div>
   <script>
@@ -70,13 +69,13 @@
     if (!face) return;
     var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) return;
-    var faces = ["[ ^_^ ]", "[ -_- ]", "[ o_o ]", "[ ^_~ ]", "[ =_= ]", "[ ^o^ ]", "[ o_O ]"];
+    var faces = ["[ ^_^ ]", "[ ^o^ ]", "[ o_o ]", "[ ^_~ ]", "[ >_< ]", "[ -_- ]", "[ o_O ]"];
     var i = 0;
     setInterval(function() {
       if (document.hidden) return;
       i = (i + 1) % faces.length;
       face.textContent = faces[i];
-    }, 1400);
+    }, 1600);
   })();
   </script>
 </body>

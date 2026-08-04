@@ -843,8 +843,6 @@ def refill(
 ) -> dict[str, object]:
     """Top up the emptiest buckets. Background worker entry point."""
     current = now or datetime.now()
-    if not config.enabled:
-        return {"skipped": "disabled", "calls": 0, "stored": 0}
     if not any(p.enabled for p in config.providers):
         return {"skipped": "no-providers", "calls": 0, "stored": 0}
 
@@ -917,7 +915,8 @@ def status(
             "open_until": state["open_until"],
         })
     return {
-        "enabled": config.enabled,
+        "enabled": True,
+        "ready": any(provider["ready"] and provider["enabled"] for provider in providers),
         "providers": providers,
         "used_today": usage_today(db_path=db_path, now=current),
         "daily_cap": config.daily_request_cap,

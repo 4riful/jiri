@@ -27,7 +27,7 @@ Python owns truth, timing, state, and actions.
 
 
 - Use the same Pi-oriented shape: 512 context, short prompts, short outputs, strict timeouts, and deterministic fallback.
-- Keep the AI wording layer disabled by default until AI_SPEC Gate 3 passes.
+- Treat hosted API wording as required project direction while keeping production acceptance gated by AI_SPEC Gate 3.
 - Do not add desktop-only dependencies, desktop-sized context windows, or features that assume WSL CPU/RAM.
 - Treat WSL/local benchmark results as development evidence only.
 - Compare the same behavior later on Raspberry Pi 3B/3B+ for RAM, swap, temperature, latency, responsiveness, and offline fallback.
@@ -46,7 +46,7 @@ Target features:
 - Proactive personality messages.
 - Web dashboard by IP.
 - Telegram admin control by polling.
-- Optional on-device AI wording layer after benchmark acceptance.
+- Required hosted API wording layer after benchmark acceptance; no model runs on the Pi.
 
 ## Single-Pi Architecture
 
@@ -78,7 +78,7 @@ Responsibilities:
 - Proactive behavior engine.
 - Web dashboard by IP.
 - Telegram bot later.
-- Optional AI wording layer with deterministic fallback.
+- Required hosted API wording layer with deterministic outage fallback.
 
 The Pi owns:
 
@@ -99,7 +99,7 @@ Safe update rule:
 - Database restore must be tested before automatic updates are enabled.
 - See `docs/SAFE_UPDATE_METHODOLOGY.md` for the required update, backup, and restore process.
 
-AI must never be required for boot. If the cache is empty or a provider is unreachable, JIRI continues with deterministic messages.
+Production readiness requires a hosted provider credential, but AI must never block boot or rendering. If the cache is empty or a provider is unreachable, JIRI continues with deterministic resilience messages.
 
 ## Evidence And Assumptions
 
@@ -737,11 +737,12 @@ critical_emotion_persistent = true
 touch_can_override_critical = false
 
 [ai]
-enabled = false
-provider = "none"
-server_port = 8080
-server_context = 512
-server_threads = 2
+
+[[ai.providers]]
+name = "gemini"
+
+[[ai.providers]]
+name = "groq"
 
 [telegram]
 enabled = false
@@ -750,7 +751,8 @@ allowed_user_ids = []
 poll_seconds = 3
 ```
 
-Note: `[ai].enabled` stays false until the real Pi benchmark passes.
+Note: API wording is required project direction. Production acceptance remains
+blocked until the real Pi benchmark passes.
 
 ## Build Order
 
@@ -796,7 +798,7 @@ Stage E: AI Wording Layer.
 Stage F: AI Integration.
 
 - Production acceptance only after the real Pi benchmark passes.
-- Local development must remain disabled by default and Pi-compatible.
+- Local development remains keyless, network-free, and Pi-compatible through injected transports and fallback wording.
 - AI wording layer.
 - Background requests only.
 - No render-loop waiting.
@@ -853,7 +855,7 @@ Telegram gate passes if:
 
 Fallback gate passes if:
 
-- Main Pi boots without AI worker.
+- Main Pi can enter diagnostics and recovery without provider access.
 - Template messages work without AI.
 - Display does not freeze if AI is unavailable. It cannot: the render path never calls out.
 - Web dashboard still works if AI is offline.
@@ -876,7 +878,9 @@ Fallback gate passes if:
 ```text
 JIRI is a single-Pi AI-assisted desk companion.
 The Pi is the source of truth.
-AI is an optional wording layer.
+Hosted API AI is a required wording subsystem. Python still owns every fact,
+decision, action, and state transition; deterministic wording remains mandatory
+for cold starts and provider outages.
 The display is a living face, not an admin dashboard.
 Normal idle, no-task, rain, focus, overdue, and touch behaviors are explicitly defined.
 Web and Telegram are separate control surfaces.

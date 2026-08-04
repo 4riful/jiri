@@ -22,12 +22,12 @@ export JIRI_DISPLAY_DRIVER=pygame
 export JIRI_FULLSCREEN=true
 export JIRI_WIDTH=480
 export JIRI_HEIGHT=320
-export JIRI_DB_PATH=data/jiri.db
+export JIRI_DB_PATH=/var/lib/jiri/jiri.db
 ```
 
 Deployment rules:
 
 - Confirm the real 3.5-inch display before enabling fullscreen services.
-- Keep the main Pi fully functional with the AI layer disabled or offline.
+- Configure at least one hosted AI provider; keep cache and built-in wording functional during outages.
 - Back up SQLite before schema changes once real data exists.
 - Install systemd units only after the relevant stage gate passes.

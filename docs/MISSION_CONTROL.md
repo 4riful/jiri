@@ -7,7 +7,7 @@ This document is the short operational control board for JIRI. The source-of-tru
 ```text
 JIRI is AI-assisted, not AI-controlled.
 Python owns truth, timing, state, and actions.
-Hosted AI owns wording only, in the background, and is off by default.
+Hosted AI is required and owns wording only, in the background.
 ```
 
 ## Current Product Direction
@@ -18,7 +18,7 @@ JIRI is now planned as a single-Pi desk companion:
 
 The Pi owns SQLite, todos, notes, focus sessions, weather cache, emotion rules, display state, touch confirmations, config, health, web dashboard, Telegram control, and the AI wording cache.
 
-The optional AI layer may only supply wording templates, generated in the background. It must never own state, write SQLite, run shell commands, control systemd, mark todos done, change due dates, or be required for boot.
+The required AI layer may only supply wording templates, generated in the background. It must never own application state, run shell commands, control systemd, mark todos done, change due dates, or block boot and rendering.
 
 
 ## Current Implementation Status
@@ -57,7 +57,7 @@ Use the handbook build order from now on:
 | C | Focus Assist | Passed in WSL | No SQLite writes every second. |
 | D | ASCII/Touch Display | Scaffolded in WSL | Needs Pi display/touch confirmation before acceptance. |
 | E | AI Wording Layer | Implemented, gated | Background API templates, cache-only render path; no claims before Gate 3. |
-| F | AI Integration | Blocked for acceptance | Disabled-by-default local work only; production only after benchmark passes. |
+| F | AI Integration | Blocked for acceptance | Required direction; production only after benchmark passes. |
 | G | Telegram Admin | Passed in WSL | Needs real token/chat allowlist for production. |
 
 ## Immediate Next Engineering Task

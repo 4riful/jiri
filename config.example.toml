@@ -45,14 +45,13 @@ target_fps = 15
 min_acceptable_fps = 10
 
 [ai]
-# Hosted-LLM wording layer. Optional and off by default.
-# JIRI is fully functional with this disabled - it uses built-in wording.
+# Hosted API wording is a required JIRI subsystem. A production-ready setup
+# needs a key for at least one configured provider.
 #
 # AI generates persona line TEMPLATES in the background; the display only ever
 # reads the local SQLite cache. No user data (todo titles, notes, location) is
 # ever sent to a provider - templates use {task}/{minutes} placeholders that are
 # filled in locally on the device.
-enabled = false
 timeout_seconds = 8.0
 daily_request_cap = 200
 max_output_chars = 160
@@ -63,13 +62,13 @@ max_lines_per_bucket = 60
 # Keys come from the environment: GEMINI_API_KEY / GROQ_API_KEY
 # (or JIRI_GEMINI_API_KEY / JIRI_GROQ_API_KEY).
 #
-# [[ai.providers]]
-# name = "gemini"                 # best free-tier creative writing
-# model = "gemini-3.5-flash"
-#
-# [[ai.providers]]
-# name = "groq"                   # free tier, does not train on your data
-# model = "qwen/qwen3.6-27b"
+[[ai.providers]]
+name = "gemini"                 # Google AI Studio; OpenAI-compatible endpoint
+model = "gemini-3.5-flash"
+
+[[ai.providers]]
+name = "groq"                   # Groq API; OpenAI-compatible endpoint
+model = "qwen/qwen3.6-27b"
 #
 # [[ai.providers]]
 # name = "ollama"                 # a LAN box, no key needed

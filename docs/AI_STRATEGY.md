@@ -67,7 +67,8 @@ is a bad trade.
 
 ## 2. Architecture
 
-Three layers. Only layer 1 is required for JIRI to function.
+Three layers. The hosted API subsystem is required for production readiness;
+the deterministic layer remains the non-negotiable outage fallback.
 
 ```text
 Layer 1  Deterministic core                  always, already built
@@ -78,7 +79,7 @@ Layer 2  Response cache (SQLite)             always, offline-safe
          recent AI lines, reused when the network is unavailable
                   |
 Layer 3  Hosted LLM API                      network, free tier, capped
-         Groq / Gemini / any OpenAI-compatible endpoint
+         Gemini / Groq / any OpenAI-compatible endpoint
          2s timeout, background only, silent fallback
 ```
 
@@ -123,38 +124,24 @@ on exhaustion, fall through to the cache.
 
 ```toml
 [[ai.providers]]
-name = "groq"
-base_url = "https://api.groq.com/openai/v1"
-model = "llama-3.3-70b-versatile"
-api_key_env = "JIRI_GROQ_API_KEY"
+name = "gemini"
+model = "gemini-3.5-flash"
 
 [[ai.providers]]
-name = "gemini"
-base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
-model = "gemini-2.0-flash"
-api_key_env = "JIRI_GEMINI_API_KEY"
+name = "groq"
+model = "qwen/qwen3.6-27b"
 ```
 
 Two free providers in the chain means a rate-limited or degraded provider costs
 nothing but a retry.
 
-### Privacy — decide this deliberately
+### Privacy — structural, not aspirational
 
-Persona rewrites include real todo titles. Those leave the device.
-
-Google's terms permit training on **free-tier** prompts (the paid tier and
-Vertex AI do not). If your todos are personal, that is a real consideration, not
-a footnote. Three ways to handle it, pick one:
-
-1. **Accept it.** Fine for "buy milk", less fine for anything sensitive.
-2. **Abstract the prompt.** Send structure, not content: *"a high-priority task
-   is 45 minutes overdue"* instead of the title. The rewrite cannot name the
-   task, which costs some personality.
-3. **Per-todo opt-out.** A `private` flag on todos; private ones never reach an
-   API and always use deterministic wording.
-
-Option 3 is the right long-term answer and is cheap to add later. Start with 1
-or 2 and a clear-eyed decision, not a default.
+JIRI sends no todo titles, note bodies, locations, water logs, or other user
+data. Providers generate reusable templates from category, mood, fixed style
+instructions, and allowed placeholders such as `{task}`. Python fills those
+placeholders locally after reading the cache. This keeps personal data off every
+provider, including free tiers whose terms may permit training on prompts.
 
 ---
 
@@ -168,7 +155,7 @@ Non-negotiable, because this is a always-on device on someone's desk.
 | Execution context | background worker only, never the UI process |
 | Daily request cap | enforced in SQLite, default 200, counted before the call |
 | Rate-limit handling | 429 advances the failover chain, then backs off for the rest of the hour |
-| Default state | `[ai].enabled = false` — opt-in, with an admin toggle |
+| Default state | Gemini then Groq; at least one provider credential is required for production readiness |
 | Failure behavior | silent; log it, serve cache or deterministic text, never surface an error to the display |
 | API keys | environment variables or DB settings, never in Git |
 | Output validation | length-capped, stripped of newlines/markdown before it reaches the 160-char display |

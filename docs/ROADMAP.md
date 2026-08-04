@@ -25,7 +25,7 @@
 | D | ASCII/Touch Display | Scaffolded | Persistent face, right info panel, touch zones, focus eyes, typed mouth scaffold; needs real display confirmation. |
 | P | Persona And Proactive Behavior | P0-P4 software implemented in WSL | Deterministic persona, Telegram nudges, event model, typed mouth scaffold, and web controls. |
 | E | AI Wording Layer | Implemented, gated | Hosted free-tier APIs generate line templates in the background; render path is cache-only. Gate 3 needs real Pi. |
-| F | AI Integration | Gated | AI wording is disabled by default; acceptance requires AI_SPEC Gate 3 on real Pi 3B+. |
+| F | AI Integration | Gated | Hosted API wording is required; acceptance still requires AI_SPEC Gate 3 on real Pi 3B+. |
 | G | Telegram Admin | Passed in WSL | Polling bot, CRUD/control commands, summary command, user whitelist, and deterministic destructive confirmations. |
 | U | Safe Updates | Methodology documented | GitHub update checks, mandatory SQLite backup manifests, restore flow, and future opt-in systemd timers. |
 

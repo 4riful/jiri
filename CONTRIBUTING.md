@@ -146,8 +146,8 @@ nice the feature is. The long form lives in `docs/ENGINEERING_HANDBOOK.md` and `
 ### The deterministic core owns state
 
 Todos, notes, focus timers, due dates, weather facts, water logs, and system state belong to
-Python and SQLite. JIRI works with AI disabled, uninstalled, or offline, and that is the normal
-configuration.
+Python and SQLite. Hosted AI is required for production readiness, while tests, recovery, and
+offline fallback remain keyless and deterministic.
 
 ### AI supplies wording, and only wording
 
@@ -158,8 +158,8 @@ That design buys a real privacy property: no todo title, note, location, or wate
 transmitted. The outbound request contains a category name, a mood name, and a fixed style
 brief. Keep it that way. If you find yourself putting user data into a request body, stop.
 
-AI may never write any table except `ai_cache`, decide *what* to say or *when* (that is
-`persona.py`), or become a required dependency.
+AI may never write application-state tables, decide *what* to say or *when* (that is
+`persona.py`), or become a live dependency of boot or rendering.
 
 ### Nothing on the render path touches the network
 

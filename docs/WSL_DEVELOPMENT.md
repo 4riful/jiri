@@ -57,7 +57,6 @@ The AI layer can be developed entirely in WSL. It needs no special hardware
 because nothing runs locally — it calls hosted APIs from a background worker.
 
 - Set `GEMINI_API_KEY` and/or `GROQ_API_KEY` to exercise real calls.
-- Leave `[ai].enabled = false` to develop against the deterministic path.
+- Keep automated tests keyless; they inject provider responses and exercise deterministic outage fallback.
 - `tests/test_ai.py` covers the whole layer with no network access.
 - WSL results satisfy AI_SPEC Gate 1 only. Gate 3 requires real Pi 3B+.
-

@@ -109,10 +109,10 @@ def init_db(db_path: str | None = None) -> None:
         current_ver = str(current_ver["value"]) if current_ver else "0"
         if current_ver != SCHEMA_VERSION:
             _migrate(conn, current_ver)
-        conn.execute(
-            "INSERT OR REPLACE INTO settings(key, value) VALUES('schema_version', ?)",
-            (SCHEMA_VERSION,),
-        )
+            conn.execute(
+                "INSERT OR REPLACE INTO settings(key, value) VALUES('schema_version', ?)",
+                (SCHEMA_VERSION,),
+            )
 
 
 def _migrate(conn, current_ver: str) -> None:

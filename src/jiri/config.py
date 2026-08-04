@@ -11,6 +11,9 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python < 3.11
     import tomli as tomllib
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
 @dataclass(frozen=True)
 class DisplayConfig:
     driver: str = "pygame"
@@ -87,7 +90,6 @@ class AiProviderConfig:
 class AiConfig:
     """Hosted-LLM wording layer. Never on the render path — see `jiri.ai`."""
 
-    enabled: bool = False
     timeout_seconds: float = 8.0
     daily_request_cap: int = 200
     max_output_chars: int = 160
@@ -97,7 +99,10 @@ class AiConfig:
     temperature: float = 1.1
     min_lines_per_bucket: int = 12
     max_lines_per_bucket: int = 60
-    providers: tuple[AiProviderConfig, ...] = ()
+    providers: tuple[AiProviderConfig, ...] = (
+        AiProviderConfig(name="gemini"),
+        AiProviderConfig(name="groq"),
+    )
 
 
 @dataclass(frozen=True)
@@ -128,7 +133,8 @@ class ConfigError(ValueError):
 
 def load_config(path: str | os.PathLike[str] | None = None) -> AppConfig:
     data: dict[str, Any] = {}
-    config_path = Path(path or os.environ.get("JIRI_CONFIG", "config.toml"))
+    configured_path = Path(path or os.environ.get("JIRI_CONFIG", PROJECT_ROOT / "config.toml")).expanduser()
+    config_path = configured_path if configured_path.is_absolute() else PROJECT_ROOT / configured_path
     if config_path.exists():
         try:
             data = tomllib.loads(config_path.read_text(encoding="utf-8"))
@@ -147,8 +153,24 @@ def load_config(path: str | os.PathLike[str] | None = None) -> AppConfig:
         telegram=_section(TelegramConfig, data.get("telegram", {})),
     )
     cfg = _apply_env(cfg)
+    cfg = _resolve_storage_paths(cfg, config_path.parent)
     _validate(cfg)
     return cfg
+
+
+def _resolve_storage_paths(cfg: AppConfig, config_dir: Path) -> AppConfig:
+    def resolve(value: str) -> str:
+        candidate = Path(value).expanduser()
+        if not candidate.is_absolute():
+            candidate = config_dir / candidate
+        return str(candidate.resolve())
+
+    database = replace(
+        cfg.database,
+        path=resolve(cfg.database.path),
+        backup_dir=resolve(cfg.database.backup_dir),
+    )
+    return replace(cfg, database=database)
 
 
 def _section(cls: type[Any], values: dict[str, Any]) -> Any:
@@ -162,7 +184,10 @@ def _section(cls: type[Any], values: dict[str, Any]) -> Any:
 def _ai_section(values: dict[str, Any]) -> AiConfig:
     """Parse `[ai]` plus its `[[ai.providers]]` array of tables."""
     scalars = {k: v for k, v in values.items() if k != "providers"}
-    raw_providers = values.get("providers", [])
+    raw_providers = values.get("providers")
+    base = _section(AiConfig, scalars)
+    if raw_providers is None:
+        return base
     if not isinstance(raw_providers, list):
         raise ConfigError("[ai].providers must be an array of tables")
     providers = []
@@ -173,7 +198,6 @@ def _ai_section(values: dict[str, Any]) -> AiConfig:
         if not provider.name.strip():
             raise ConfigError(f"[[ai.providers]] entry {index + 1} needs a name")
         providers.append(provider)
-    base = _section(AiConfig, scalars)
     return replace(base, providers=tuple(providers))
 
 
@@ -203,8 +227,6 @@ def _apply_env(cfg: AppConfig) -> AppConfig:
         web = replace(web, host=os.environ["JIRI_WEB_HOST"])
     if "JIRI_WEB_PORT" in os.environ:
         web = replace(web, port=_parse_int(os.environ["JIRI_WEB_PORT"], "JIRI_WEB_PORT"))
-    if "JIRI_AI_ENABLED" in os.environ:
-        ai = replace(ai, enabled=_parse_bool(os.environ["JIRI_AI_ENABLED"], "JIRI_AI_ENABLED"))
     if "JIRI_AI_DAILY_CAP" in os.environ:
         ai = replace(ai, daily_request_cap=_parse_int(os.environ["JIRI_AI_DAILY_CAP"], "JIRI_AI_DAILY_CAP"))
     if "JIRI_TELEGRAM_BOT_TOKEN" in os.environ:
@@ -282,8 +304,8 @@ def _validate(cfg: AppConfig) -> None:
         raise ConfigError("Telegram polling timeout must be between 1 and 50 seconds")
     if not 18 <= cfg.display.typing_speed_cps <= 30:
         raise ConfigError("Display typing speed must be between 18 and 30 characters per second")
-    if cfg.ai.enabled and not cfg.ai.providers:
-        raise ConfigError("AI is enabled but no [[ai.providers]] are configured")
+    if not cfg.ai.providers:
+        raise ConfigError("AI requires at least one [[ai.providers]] entry")
     if cfg.ai.daily_request_cap < 0:
         raise ConfigError("AI daily request cap cannot be negative")
     if cfg.ai.timeout_seconds <= 0:

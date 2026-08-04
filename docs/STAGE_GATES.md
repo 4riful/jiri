@@ -124,8 +124,8 @@ measurement still required.
 
 The full criteria live in `docs/AI_SPEC.md` §5. Summary:
 
-- Gate 1 (WSL/CI): render path never touches the network, output is identical
-  with AI disabled, sanitizer rejects hostile output, caps and circuit breaker
+- Gate 1 (WSL/CI): render path never touches the network, empty-cache outage
+  output is deterministic, sanitizer rejects hostile output, caps and circuit breaker
   hold across restarts. `tests/test_ai.py`.
 - Gate 2 (dev machine, real keys): at least 8 accepted templates per call, at
   least 60% acceptance rate, zero user data in any request body, 100 generated
@@ -140,11 +140,11 @@ See `docs/AI_STRATEGY.md`.
 
 ### Stage F: AI Integration
 
-Status: blocked for production acceptance until Stage E passes on real Raspberry Pi 3B. Local development must stay disabled by default, timeout-protected, fallback-safe, and Pi-compatible.
+Status: blocked for production acceptance until Stage E passes on real Raspberry Pi 3B. Local development stays keyless, timeout-protected, fallback-safe, and Pi-compatible.
 
 - AI requests run outside render path.
 - Fallback templates remain immediate.
-- AI cannot write SQLite or control actions.
+- AI cannot write application state or control actions.
 - AI timeout keeps deterministic fallback message.
 
 ### Stage G: Telegram Admin

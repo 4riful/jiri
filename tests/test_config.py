@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from jiri.config import ConfigError, load_config
@@ -29,7 +31,8 @@ def test_env_overrides_for_wsl(tmp_path, monkeypatch):
     cfg = load_config()
     assert cfg.display.driver == "mock"
     assert cfg.display.fullscreen is False
-    assert cfg.database.path == "data/jiri_dev.db"
+    assert Path(cfg.database.path).is_absolute()
+    assert Path(cfg.database.path).name == "jiri_dev.db"
     assert cfg.weather.location == "Narayanganj"
     assert cfg.weather.fake is True
     assert cfg.web.host == "127.0.0.1"
@@ -45,12 +48,35 @@ def test_telegram_env_overrides(tmp_path, monkeypatch):
     assert cfg.telegram.allowed_chat_ids == (123456789, -1001234567890)
 
 
+def test_storage_paths_are_stable_across_working_directories(tmp_path, monkeypatch):
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    config_path = config_dir / "jiri.toml"
+    config_path.write_text(
+        '[database]\npath = "state/jiri.db"\nbackup_dir = "state/backups"\n',
+        encoding="utf-8",
+    )
+
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    monkeypatch.chdir(first)
+    first_cfg = load_config(config_path)
+    monkeypatch.chdir(second)
+    second_cfg = load_config(config_path)
+
+    expected = config_dir / "state" / "jiri.db"
+    assert first_cfg.database.path == str(expected)
+    assert second_cfg.database.path == str(expected)
+    assert first_cfg.database.backup_dir == str(config_dir / "state" / "backups")
+
+
 def test_ai_providers_parse_and_env_overrides(tmp_path, monkeypatch):
     cfg_path = tmp_path / "config.toml"
     cfg_path.write_text(
         """
 [ai]
-enabled = true
 daily_request_cap = 50
 
 [[ai.providers]]
@@ -64,14 +90,22 @@ model = "qwen/qwen3.6-27b"
         encoding="utf-8",
     )
     cfg = load_config(cfg_path)
-    assert cfg.ai.enabled is True
     assert [p.name for p in cfg.ai.providers] == ["gemini", "groq"]
 
-    monkeypatch.setenv("JIRI_AI_ENABLED", "false")
     monkeypatch.setenv("JIRI_AI_DAILY_CAP", "7")
     cfg = load_config(cfg_path)
-    assert cfg.ai.enabled is False
     assert cfg.ai.daily_request_cap == 7
+
+
+def test_ai_provider_chain_is_required_by_default(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    cfg = load_config()
+    assert [provider.name for provider in cfg.ai.providers] == ["gemini", "groq"]
+
+    config_path = tmp_path / "config.toml"
+    config_path.write_text("[ai]\nproviders = []\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="requires at least one"):
+        load_config(config_path)
 
 
 

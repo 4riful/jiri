@@ -38,6 +38,14 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     screen = client.get("/screen")
     assert screen.status_code == 200
     assert b"LIVE SCREEN" in screen.data
+    assert b'data-width="480" data-height="320"' in screen.data
+    assert b'class="device-face"' in screen.data
+    assert b'id="device-ascii-face"' in screen.data
+    assert b'id="device-eye-left"' not in screen.data
+    assert b'id="device-mouth"' not in screen.data
+    assert b'class="device-glance"' in screen.data
+    assert b'aria-label="Previous panel"' in screen.data
+    assert b'aria-label="Next panel"' in screen.data
 
     status = client.get("/api/status")
     assert status.status_code == 200
@@ -555,7 +563,7 @@ def test_db_browser_nav_link_in_base(tmp_path, monkeypatch):
     assert b"/admin/db-browser" in page.data
 
 
-def test_ai_page_renders_with_ai_disabled(tmp_path, monkeypatch):
+def test_ai_page_reports_required_provider_setup(tmp_path, monkeypatch):
     monkeypatch.setenv("JIRI_DB_PATH", str(tmp_path / "jiri.db"))
     monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
     monkeypatch.setenv("JIRI_WEATHER_FAKE", "true")
@@ -565,8 +573,8 @@ def test_ai_page_renders_with_ai_disabled(tmp_path, monkeypatch):
     page = client.get("/admin/ai", follow_redirects=True)
     assert page.status_code == 200
     assert b"AI Wording" in page.data
-    # Disabled AI is a supported mode, not an error state.
-    assert b"deterministic wording" in page.data
+    assert b"setup required" in page.data
+    assert b"required for a production-ready JIRI" in page.data
 
 
 

@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -eu
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
 export PYTHONPATH=src
 export JIRI_DISPLAY_DRIVER=mock
 export JIRI_FULLSCREEN=false
 export JIRI_WIDTH=480
 export JIRI_HEIGHT=320
 export JIRI_WEATHER_FAKE=true
-export JIRI_DB_PATH=${JIRI_DB_PATH:-data/jiri_dev.db}
+export JIRI_DB_PATH=${JIRI_DB_PATH:-$ROOT_DIR/data/jiri_dev.db}
 PYTHON_BIN=${PYTHON_BIN:-.venv/bin/python}
 if [ ! -x "$PYTHON_BIN" ]; then
   PYTHON_BIN=python3

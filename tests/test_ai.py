@@ -137,7 +137,7 @@ def test_prune_bounds_bucket_size(tmp_path):
 
 def test_daily_cap_blocks_refill(tmp_path):
     path = _db(tmp_path)
-    cfg = AiConfig(enabled=True, daily_request_cap=1,
+    cfg = AiConfig(daily_request_cap=1,
                    providers=(AiProviderConfig(name="groq", model="m"),))
     for _ in range(1):
         ai.bump_usage(db_path=path)
@@ -155,10 +155,10 @@ def test_breaker_opens_after_consecutive_failures(tmp_path):
     assert ai.breaker_state("groq", db_path=path)["open"] is False
 
 
-def test_refill_skips_when_disabled_or_no_providers(tmp_path):
+def test_refill_skips_when_all_providers_are_disabled(tmp_path):
     path = _db(tmp_path)
-    assert ai.refill(config=AiConfig(enabled=False), db_path=path)["skipped"] == "disabled"
-    assert ai.refill(config=AiConfig(enabled=True), db_path=path)["skipped"] == "no-providers"
+    config = AiConfig(providers=(AiProviderConfig(name="groq", enabled=False),))
+    assert ai.refill(config=config, db_path=path)["skipped"] == "no-providers"
 
 
 # --- I1 / I4: render path never needs the network ---------------------------
@@ -295,7 +295,7 @@ def test_no_reminder_text_targets_the_user(tmp_path):
 def test_builtin_line_pools_are_large_enough():
     """Research: repeats become invisible only with real corpus depth.
 
-    These pools are what JIRI speaks with AI disabled or offline, so they carry
+    These pools are what JIRI speaks with providers unavailable or offline, so they carry
     the personality on their own.
     """
     assert len(messages.IDLE_MESSAGES) >= 10

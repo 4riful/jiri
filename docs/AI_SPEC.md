@@ -4,7 +4,7 @@ Authoritative spec for JIRI's AI feature. `docs/AI_STRATEGY.md` records *why*
 the local-LLM plan was abandoned; this document defines *what is being built*
 and *how it is accepted*.
 
-Status: **specified, implementation in progress.**
+Status: **required product subsystem; implementation and hardware acceptance in progress.**
 Acceptance: **Stage-gated. Not accepted until Gate 3 passes on real Pi 3B+.**
 
 ---
@@ -30,7 +30,12 @@ Stated explicitly, because each of these was considered and rejected:
 | A local model running on the Pi | 20-60s per line, breaks 5 performance budgets. See `AI_STRATEGY.md` §1. |
 | A live rewrite on the nudge path | Would put a network call between the user and a message, and would transmit real todo titles. Rejected in favour of templates. |
 | Anything that decides *what* to say or *when* | `persona.py` owns that. AI owns wording only. |
-| A required dependency | The device is fully functional with AI disabled, uninstalled, or offline. |
+| A live dependency on the render path | Production setup requires a provider, but rendering never waits for one. |
+
+Hosted API wording is a required JIRI capability and a production deployment
+must configure at least one provider credential. This does not make the network
+a boot or render dependency: diagnostics, recovery, tests, cached wording, and
+built-in resilience lines continue when credentials or providers are unavailable.
 
 ### The privacy property this design buys
 
@@ -80,7 +85,7 @@ Numbered so tests can cite them. Each is written to be falsifiable.
 | I1 | No network call is reachable from `ai.line()`, `messages.*`, `views.*`, `persona.*`, or `jiri.ui.*` | test: monkeypatch `requests` to raise, render a full frame |
 | I2 | `ai.line()` returns in under 5ms on the Pi with a full cache | Gate 3 measurement |
 | I3 | AI never writes any table except `ai_cache` and its own settings keys | test: assert table set before/after `refill()` |
-| I4 | With AI disabled, output is byte-identical to pre-AI behaviour | test: golden strings from `messages.py` |
+| I4 | With no usable provider and an empty cache, output is byte-identical to built-in behaviour | test: golden strings from `messages.py` |
 | I5 | Every category `persona.py` can emit has a defined bucket | test: enumerate `PersonaMoment` construction sites |
 | I6 | No rendered line exceeds `max_output_chars` after slot filling | test: property test over stored templates x worst-case slots |
 | I7 | Daily and hourly caps are never exceeded, including across restarts | test: caps persisted in SQLite, counted before the call |
@@ -132,11 +137,11 @@ risk. A gate is either passed or not; "mostly working" is not passed.
 
 Passes when all hold:
 
-- [ ] `scripts/test_wsl.sh` passes with AI disabled and with AI enabled.
+- [ ] `scripts/test_wsl.sh` passes without live credentials and provider success paths pass with injected HTTP.
 - [ ] I1 test: rendering a full frame with `requests` monkeypatched to raise
       produces valid output and raises nothing.
-- [ ] I4 test: with `[ai].enabled = false`, every message equals the pre-AI
-      deterministic string, byte for byte.
+- [ ] I4 test: with no usable provider and an empty cache, every message equals
+      the built-in deterministic string, byte for byte.
 - [ ] I5 test: every category constructed in `persona.py` resolves to a bucket.
 - [ ] I6 test: no stored template can exceed `max_output_chars` when every slot
       is filled with a 32-character worst case.
@@ -187,7 +192,7 @@ display and the abandoned Gemma benchmark were held to.
 | Unit | breaker open/close, cap arithmetic, day rollover | `tests/test_ai.py` |
 | Contract | I5 taxonomy coverage against `persona.py` | `tests/test_ai_taxonomy.py` |
 | Integration | refill with a stubbed HTTP layer, full failover matrix | `tests/test_ai.py` |
-| Regression | I1 no-network render, I4 identical-with-AI-off | `tests/test_persona.py` |
+| Regression | I1 no-network render, I4 deterministic outage fallback | `tests/test_persona.py` |
 | Manual | Gate 2 live provider checks | documented run |
 | Hardware | Gate 3 | `scripts/measure_pi.sh` extension |
 
@@ -205,11 +210,10 @@ Schema version goes `4 → 5`. Downgrade is safe: older code ignores the table.
 `Unknown config keys` error rather than silently ignoring it — deliberate, so
 the operator notices the rename.
 
-**Rollback.** Three levels, each independently sufficient:
+**Incident recovery.** Three levels, each independently useful:
 
-1. `[ai].enabled = false` — instant, no restart of anything else, reverts to
-   deterministic wording.
-2. `DELETE FROM ai_cache` — drops all generated wording, keeps the feature.
+1. Disable individual provider entries while preserving the required subsystem.
+2. `DELETE FROM ai_cache` drops generated wording and temporarily uses fallback lines.
 3. `git revert` — the feature is additive; reverting restores prior behaviour
    with no data migration, since nothing else reads `ai_cache`.
 
@@ -227,7 +231,7 @@ Recorded so these are not silently reopened.
 | No on-device inference | 20-60s/line on Pi 3B+; breaks 5 documented budgets | 2026-08-04 |
 | API-driven, free tier | Zero Pi cost, zero money at JIRI's volume | 2026-08-04 |
 | **Templates, not live rewrite** | Removes network from the render path entirely and makes "no user data leaves the device" structural | 2026-08-04 |
-| Groq primary, Gemini fallback | Groq has a standing free tier and contractually does not train on inputs; Gemini free tier does train, which is acceptable only because we send no user data | 2026-08-04 |
+| Gemini primary, Groq fallback | Gemini leads on wording quality; Groq provides a privacy-friendlier free fallback. No user data is sent to either. | 2026-08-04 |
 | xAI Grok not used | No standing free tier as of 2026; credits only | 2026-08-04 |
 | Bucket key derived from `PersonaMoment` | A duplicated category list already drifted once (I5) | 2026-08-04 |
 | Reject, never truncate | A line cut mid-word is worse than the deterministic string | 2026-08-04 |
