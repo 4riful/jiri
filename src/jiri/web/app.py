@@ -23,6 +23,9 @@ def create_app(config: AppConfig | None = None, db_path: str | None = None, surf
     runtime = JiriRuntime.load(config=config, db_path=db_path)
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.secret_key = os.environ.get("JIRI_WEB_SECRET_KEY", "jiri-dev-web-secret-change-me")
+    # Templates are edited far more often than the server is restarted; a stale
+    # template served against a fresh stylesheet renders as garbage.
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
     web_surface = _surface(surface or os.environ.get("JIRI_WEB_SURFACE", "all"))
     app.jiri_runtime = runtime  # type: ignore[attr-defined]
     app.jiri_surface = web_surface  # type: ignore[attr-defined]

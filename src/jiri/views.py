@@ -3,18 +3,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from . import focus, health, messages, mood, notes, persona, todos, weather, water
+from . import focus, health, messages, mood, notes, persona, telegram, todos, weather, water
 from .config import AppConfig, load_config
 from .models import Note, Todo
 
 
-SCREEN_PANELS = ("weather", "focus", "todos", "notes", "system")
+SCREEN_PANELS = ("weather", "focus", "todos", "notes", "water", "system")
 
 PANEL_TITLES = {
     "weather": "Weather",
     "focus": "Focus",
     "todos": "Todos",
     "notes": "Notes",
+    "water": "Water",
     "system": "System",
 }
 
@@ -35,6 +36,8 @@ class ScreenSnapshot:
     pending_todos: tuple[Todo, ...]
     recent_notes: tuple[Note, ...]
     system: dict[str, object]
+    water: dict[str, object]
+    telegram: dict[str, object]
     panel_order: tuple[str, ...] = SCREEN_PANELS
     refresh_seconds: int = 20
     width: int = 480
@@ -80,9 +83,10 @@ def build_screen_snapshot(
     recent_notes = all_notes[:3]
     overdue_todos = todos.get_overdue_todos(current, db_path=db_path)
     face_state = mood.calculate_mood(current, db_path=db_path)
+    water_state = water.water_snapshot(db_path=db_path, now=current)
     selected_panel = _resolve_panel(panel, current, cfg.display.rotate_seconds)
-    headline = _headline_for(face_state, selected_panel, pending_todos, weather_state, focus_state, recent_notes)
-    subheadline = _subheadline_for(selected_panel, pending_todos, weather_state, focus_state, recent_notes, overdue_todos)
+    headline = _headline_for(face_state, selected_panel, pending_todos, weather_state, focus_state, recent_notes, water_state)
+    subheadline = _subheadline_for(selected_panel, pending_todos, weather_state, focus_state, recent_notes, overdue_todos, water_state)
     persona_moment = persona.screen_moment(
         now=current,
         db_path=db_path,
@@ -93,6 +97,10 @@ def build_screen_snapshot(
         weather_snapshot=weather_state,
     )
     system_snapshot = health.health_snapshot(db_path=db_path, config=cfg)
+    try:
+        telegram_state = telegram.binding_status(config=cfg, db_path=db_path)
+    except Exception:  # a misconfigured bot must never blank the display
+        telegram_state = {"enabled": False, "status": "unavailable"}
 
     return ScreenSnapshot(
         generated_at=current.replace(microsecond=0).isoformat(),
@@ -109,6 +117,8 @@ def build_screen_snapshot(
         pending_todos=pending_todos,
         recent_notes=recent_notes,
         system=system_snapshot,
+        water=water_state,
+        telegram=telegram_state,
         refresh_seconds=max(5, cfg.display.rotate_seconds),
         width=cfg.display.width,
         height=cfg.display.height,
@@ -139,7 +149,7 @@ def build_dashboard_snapshot(
     recent_locations = tuple(weather.get_recent_locations(db_path=db_path))
     weather_state = screen.weather
     focus_state = screen.focus
-    water_state = water.water_snapshot(db_path=db_path, now=current)
+    water_state = screen.water
     stored_results = tuple(search_results or [])
     provider_rows = tuple(provider_results or [])
 
@@ -185,7 +195,10 @@ def _headline_for(
     weather_state: dict[str, object],
     focus_state: dict[str, object],
     recent_notes: tuple[Note, ...],
+    water_state: dict[str, object],
 ) -> str:
+    if panel == "water":
+        return str(water_state.get("message") or "Keep sipping water.")
     if panel == "focus":
         if focus_state.get("active"):
             return f"{focus_state.get('title')} · {focus_state.get('remaining_text')}"
@@ -207,7 +220,10 @@ def _subheadline_for(
     focus_state: dict[str, object],
     recent_notes: tuple[Note, ...],
     overdue_todos: list[Todo],
+    water_state: dict[str, object],
 ) -> str:
+    if panel == "water":
+        return f"{water_state.get('progress_ml')}ml of {water_state.get('goal_ml')}ml today"
     if panel == "weather":
         location = str(weather_state.get("location") or "No location selected")
         condition = str(weather_state.get("condition") or "Unknown")

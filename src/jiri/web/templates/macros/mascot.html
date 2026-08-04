@@ -1,0 +1,95 @@
+{#
+  JIRI's face: a terminal window that emotes. Traffic-light dots in the title
+  bar, a block cursor that blinks beside the mouth, and a CRT scanline drifting
+  down the glass. Every expression maps to a state in jiri.ui.face.FACE_STATES,
+  so the mood the backend calculates is the mood you see.
+
+  Face grid, so every expression lands in the same place:
+    glass   x 8..112, y 18..102     title bar at y 40
+    eyes    centres (43, 62) and (77, 62)
+    mouth   centred on (60, 85)
+#}
+{% macro mascot(state="idle", size=120) -%}
+<svg class="mascot mascot-{{ state }}" width="{{ size }}" height="{{ size }}" viewBox="0 0 120 120"
+     fill="none" stroke="none" aria-hidden="true">
+  <g class="mascot-creature">
+    <g class="mascot-glass">
+      <rect class="mascot-frame" x="8" y="18" width="104" height="84" rx="9"
+            fill="none" stroke="currentColor" stroke-width="5"/>
+      <path class="mascot-titlebar" d="M8 40 h104" stroke="currentColor" stroke-width="4"/>
+      <circle class="mascot-dot mascot-dot-1" cx="21" cy="29" r="3.6" fill="currentColor"/>
+      <circle class="mascot-dot mascot-dot-2" cx="33" cy="29" r="3.6" fill="currentColor"/>
+      <circle class="mascot-dot mascot-dot-3" cx="45" cy="29" r="3.6" fill="currentColor"/>
+    </g>
+
+    <g class="mascot-eyes" fill="currentColor" stroke="currentColor" stroke-width="5.5" stroke-linecap="round">
+      {% if state == 'happy' %}
+        <path d="M35 65 q8 -13 16 0" fill="none"/>
+        <path d="M69 65 q8 -13 16 0" fill="none"/>
+      {% elif state == 'smirk' %}
+        <path d="M35 65 q8 -13 16 0" fill="none"/>
+        <rect x="70" y="54" width="14" height="17" stroke="none"/>
+      {% elif state in ('annoyed', 'blink') %}
+        <path d="M35 63 h16" fill="none"/>
+        <path d="M69 63 h16" fill="none"/>
+      {% elif state in ('angry', 'rage') %}
+        <path d="M33 52 l17 9" fill="none" stroke-width="5"/>
+        <path d="M87 52 l-17 9" fill="none" stroke-width="5"/>
+        <rect x="36" y="63" width="14" height="12" stroke="none"/>
+        <rect x="70" y="63" width="14" height="12" stroke="none"/>
+      {% elif state == 'sleeping' %}
+        <path d="M35 61 q8 10 16 0" fill="none"/>
+        <path d="M69 61 q8 10 16 0" fill="none"/>
+        <text class="mascot-z mascot-z-1" x="90" y="16" font-size="16" font-weight="800" font-family="monospace"
+              fill="currentColor" stroke="none">z</text>
+        <text class="mascot-z mascot-z-2" x="101" y="8" font-size="11" font-weight="800" font-family="monospace"
+              fill="currentColor" stroke="none">z</text>
+      {% elif state == 'curious' %}
+        <rect x="38" y="58" width="10" height="12" stroke="none"/>
+        <rect x="68" y="51" width="18" height="22" stroke="none"/>
+      {% elif state == 'focused' %}
+        <rect x="34" y="59" width="18" height="7" stroke="none"/>
+        <rect x="68" y="59" width="18" height="7" stroke="none"/>
+      {% elif state in ('alert', 'system_warning') %}
+        <rect x="35" y="51" width="16" height="22" stroke="none"/>
+        <rect x="69" y="51" width="16" height="22" stroke="none"/>
+      {% elif state == 'ai_offline' %}
+        <path d="M36 55 l14 14 m0 -14 l-14 14" fill="none" stroke-width="5"/>
+        <path d="M70 55 l14 14 m0 -14 l-14 14" fill="none" stroke-width="5"/>
+      {% elif state == 'weather_hot' %}
+        <path d="M34 64 q8 -8 16 0" fill="none"/>
+        <path d="M68 64 q8 -8 16 0" fill="none"/>
+      {% else %}
+        <rect x="36" y="54" width="14" height="17" stroke="none"/>
+        <rect x="70" y="54" width="14" height="17" stroke="none"/>
+      {% endif %}
+    </g>
+
+    <g class="mascot-mouth" fill="currentColor" stroke="currentColor" stroke-width="5.5" stroke-linecap="round">
+      {% if state == 'happy' %}
+        <path d="M42 82 q18 15 36 0" fill="none"/>
+      {% elif state == 'smirk' %}
+        <path d="M44 88 q16 6 30 -7" fill="none"/>
+      {% elif state == 'rage' %}
+        <rect x="42" y="79" width="36" height="14" stroke="none"/>
+        <path d="M51 79 v14 M60 79 v14 M69 79 v14" stroke="var(--bg-deep)" stroke-width="2.8"/>
+      {% elif state == 'angry' %}
+        <path d="M42 91 q18 -14 36 0" fill="none"/>
+      {% elif state in ('alert', 'system_warning') %}
+        <rect class="mascot-gasp" x="49" y="78" width="22" height="16" rx="2" stroke="none"/>
+      {% elif state == 'sleeping' %}
+        <ellipse class="mascot-snore" cx="60" cy="86" rx="9" ry="7" stroke="none"/>
+      {% elif state == 'weather_rain' %}
+        <path d="M38 85 q8 -8 14 0 q8 8 14 0 q8 -8 14 0" fill="none"/>
+      {% elif state == 'ai_offline' %}
+        <path d="M42 86 h10 M58 86 h10 M74 86 h4" fill="none" stroke-width="5"/>
+      {% else %}
+        <path d="M40 85 h24" fill="none"/>
+        <rect class="mascot-cursor" x="70" y="77" width="11" height="16" stroke="none"/>
+      {% endif %}
+    </g>
+
+    <rect class="mascot-scan" x="10" y="42" width="100" height="4" fill="currentColor" stroke="none"/>
+  </g>
+</svg>
+{%- endmacro %}

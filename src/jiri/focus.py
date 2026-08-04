@@ -168,6 +168,17 @@ def active_snapshot(db_path: str | None = None, now: datetime | None = None) -> 
     if session is None:
         return {"active": False, "message": "No active focus session."}
     remaining = remaining_seconds(session, now=now)
+    if remaining <= 0 and session.status == "running":
+        # A session that burned down to 00:00 is finished: retire it here so it
+        # stops owning the display until someone happens to press stop.
+        complete_session(session.id, db_path=db_path, now=now)
+        return {
+            "active": False,
+            "message": f"{session.title} finished.",
+            "just_finished": True,
+            "finished_kind": session.kind,
+            "finished_title": session.title,
+        }
     elapsed = current_elapsed_seconds(session, now=now)
     progress = 1.0 if session.duration_seconds <= 0 else min(1.0, elapsed / session.duration_seconds)
     return {

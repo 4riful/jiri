@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from "macros/icons.html" import icon_weather, icon_focus, icon_todos, icon_notes, icon_system, icon_database, icon_memory, icon_check, icon_alert, icon_map_pin, icon_cloud, icon_thermometer, icon_cloud_rain %}
+{% from "macros/icons.html" import icon_weather, icon_focus, icon_todos, icon_notes, icon_system, icon_droplet, icon_github %}
+{% from "macros/mascot.html" import mascot %}
 
 {% block body_extra_class %}is-screen{% endblock %}
 
@@ -8,14 +9,7 @@
 {% endblock %}
 
 {% block content %}
-  {% set panel_neighbors = {
-    'weather': ('system', 'focus'),
-    'focus': ('weather', 'todos'),
-    'todos': ('focus', 'notes'),
-    'notes': ('todos', 'system'),
-    'system': ('notes', 'weather')
-  } %}
-  {% set neighbors = panel_neighbors.get(snapshot.panel, ('system', 'weather')) %}
+  {% set hero = display.hero %}
   <section class="screen-shell" aria-label="3.5-inch display preview">
     <div class="screen-frame screen-{{ snapshot.face_state }}" data-width="480" data-height="320">
       <header class="device-topbar">
@@ -27,62 +21,38 @@
         <time id="device-clock" datetime="{{ snapshot.generated_at }}">{{ snapshot.clock }}</time>
       </header>
 
-      <div class="device-content">
-        <button class="device-face" id="device-face" type="button" data-state="{{ snapshot.face_state }}" aria-label="Change JIRI's expression">
-          <pre class="device-ascii-face" id="device-ascii-face" aria-hidden="true">▐▛███▜▌
- ▝▜█████▛▘
-  ▘▘ ▝▝</pre>
-          <span class="device-face-status">
+      <button class="device-face hero-{{ hero.kind }} tone-{{ hero.tone }}" id="device-face" type="button"
+              data-state="{{ snapshot.face_state }}" aria-label="Change JIRI's expression">
+        <span class="device-mark" id="device-face-mark">{{ mascot(snapshot.face_state, 152) }}</span>
+        <span class="device-hero">
+          <span class="device-hero-label">
+            {% if snapshot.panel == 'weather' %}{{ icon_weather(12) }}
+            {% elif snapshot.panel == 'focus' %}{{ icon_focus(12) }}
+            {% elif snapshot.panel == 'todos' %}{{ icon_todos(12) }}
+            {% elif snapshot.panel == 'notes' %}{{ icon_notes(12) }}
+            {% elif snapshot.panel == 'water' %}{{ icon_droplet(12) }}
+            {% else %}{{ icon_system(12) }}{% endif %}
+            {{ hero.label }}
             <span class="device-mood">{{ snapshot.face_state|replace('_', ' ') }}</span>
-            {% if snapshot.focus.get('active') %}
-              <span class="device-focus-time">{{ snapshot.focus.get('remaining_text', '--:--') }}</span>
-            {% endif %}
           </span>
-          <span class="device-subheadline">{{ display.subheadline[:64] }}</span>
-        </button>
-
-        <section class="device-glance" aria-labelledby="panel-title">
-          <div class="device-panel-head">
-            <span id="panel-title">
-              {% if snapshot.panel == 'weather' %}{{ icon_weather(15) }}
-              {% elif snapshot.panel == 'focus' %}{{ icon_focus(15) }}
-              {% elif snapshot.panel == 'todos' %}{{ icon_todos(15) }}
-              {% elif snapshot.panel == 'notes' %}{{ icon_notes(15) }}
-              {% else %}{{ icon_system(15) }}{% endif %}
-              {{ snapshot.panel_title }}
+          <span class="device-hero-value{% if hero.compact %} is-compact{% endif %}">{{ hero.value }}</span>
+          <span class="device-hero-detail">{{ hero.detail }}</span>
+          {% if hero.progress %}
+            <span class="device-progress" role="img" aria-label="{{ (hero.progress * 100)|int }} percent complete">
+              <span style="width: {{ (hero.progress * 100)|round|int }}%"></span>
             </span>
-            <a href="{{ url_for('screen', panel='auto') }}"{% if requested_panel == 'auto' %} class="active"{% endif %}>AUTO</a>
-          </div>
-          <dl class="device-rows">
-            {% for label, value in display.right_rows[:4] %}
-              <div>
-                <dt>
-                  {% if label == 'DB' %}{{ icon_database(13) }}
-                  {% elif label == 'RAM' %}{{ icon_memory(13) }}
-                  {% elif label == 'Overdue' %}{{ icon_alert(13) }}
-                  {% elif label == 'Location' %}{{ icon_map_pin(13) }}
-                  {% elif label == 'Condition' %}{{ icon_cloud(13) }}
-                  {% elif label == 'Temp' %}{{ icon_thermometer(13) }}
-                  {% elif label == 'Rain' %}{{ icon_cloud_rain(13) }}
-                  {% elif snapshot.panel == 'todos' or label == 'Todos' %}{{ icon_todos(13) }}
-                  {% elif snapshot.panel == 'notes' %}{{ icon_notes(13) }}
-                  {% elif label == 'Status' %}{{ icon_check(13) }}
-                  {% else %}{{ icon_focus(13) }}{% endif %}
-                  {{ label }}
-                </dt>
-                <dd title="{{ value }}">{{ value }}</dd>
-              </div>
-            {% endfor %}
-          </dl>
-        </section>
-      </div>
+          {% elif hero.extras %}
+            <span class="device-hero-extras">
+              {% for extra in hero.extras[:2] %}<span>{{ extra }}</span>{% endfor %}
+            </span>
+          {% endif %}
+          <span class="device-message" id="typed-headline" data-text="{{ display.headline[:44] }}">{{ display.headline[:44] }}</span>
+        </span>
+      </button>
 
-      <footer class="device-bottom">
-        <div class="device-message" id="typed-headline" data-text="{{ display.headline[:42] }}">{{ display.headline[:42] }}</div>
-        <nav class="device-panel-nav" aria-label="Display panels">
-          <a href="{{ url_for('screen', panel=neighbors[0]) }}" aria-label="Previous panel" title="Previous: {{ neighbors[0]|title }}">&lt;</a>
-          <a href="{{ url_for('screen', panel=neighbors[1]) }}" aria-label="Next panel" title="Next: {{ neighbors[1]|title }}">&gt;</a>
-        </nav>
+      <footer class="device-credit">
+        <span class="device-credit-rule" aria-hidden="true"></span>
+        <span class="device-credit-text">{{ icon_github(12) }} Built with effort by 4riful</span>
       </footer>
     </div>
   </section>
@@ -92,7 +62,6 @@
     var clock = document.getElementById("device-clock");
     var headline = document.getElementById("typed-headline");
     var face = document.getElementById("device-face");
-    var ascii = document.getElementById("device-ascii-face");
     var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     function updateClock() {
@@ -118,17 +87,67 @@
       window.setTimeout(type, 250);
     }
 
-    if (face && ascii) {
-      var expressions = [
-        "▐▛███▜▌\n ▝▜█████▛▘\n  ▘▘ ▝▝",
-        "▐▛███▜▌\n ▝▜█████▛▘\n  ▘  ▝",
-        "▐▛███▜▌\n ▝▜█████▛▘\n  ▀▀ ▀▀",
-        "▐▛███▜▌\n ▝▜█████▛▘\n  ▘▘▘▝▝▝"
-      ];
-      var expressionIndex = 0;
+    if (face) {
+      // Every expression the backend can produce, pre-rendered so the face can
+      // change on its own without a round trip.
+      var faces = {
+        {% for mood in ['idle', 'happy', 'focused', 'curious', 'alert', 'annoyed', 'angry', 'rage', 'sleeping', 'blink', 'smirk', 'weather_rain', 'weather_hot', 'ai_offline', 'system_warning'] %}
+        {{ mood|tojson }}: {{ mascot(mood, 152)|string|tojson }}{{ "," if not loop.last }}
+        {% endfor %}
+      };
+      var frame = face.closest(".screen-frame");
+      var mark = document.getElementById("device-face-mark");
+      var moodLabel = face.querySelector(".device-mood");
+      var baseMood = face.dataset.state;
+      var cycle = ["idle", "happy", "focused", "curious", "alert", "annoyed", "angry", "sleeping", "smirk"];
+
+      // Idle chatter: brief looks the face throws by itself between the moods
+      // the backend actually reports. Keyed by base mood so a raging JIRI never
+      // suddenly beams at you.
+      var asides = {
+        idle: ["blink", "curious", "smirk", "happy"],
+        happy: ["blink", "smirk", "curious"],
+        focused: ["blink", "annoyed"],
+        curious: ["blink", "smirk", "idle"],
+        smirk: ["blink", "happy", "idle"],
+        annoyed: ["blink", "angry", "idle"],
+        alert: ["blink", "curious"],
+        system_warning: ["alert", "annoyed"],
+        angry: ["rage", "annoyed"],
+        rage: ["angry"],
+        sleeping: ["blink"],
+        weather_rain: ["blink", "annoyed"],
+        weather_hot: ["blink", "annoyed"],
+        ai_offline: ["blink"]
+      };
+
+      function wear(mood) {
+        if (frame) frame.className = frame.className.replace(/screen-[\w-]+/, "screen-" + mood);
+        if (mark && faces[mood]) mark.innerHTML = faces[mood];
+        if (moodLabel) moodLabel.textContent = mood.replace(/_/g, " ");
+        face.dataset.state = mood;
+      }
+
+      function settle() { wear(baseMood); }
+
+      function aside() {
+        var options = asides[baseMood] || ["blink"];
+        var pick = options[Math.floor(Math.random() * options.length)];
+        wear(pick);
+        window.setTimeout(settle, 700 + Math.random() * 1300);
+        schedule();
+      }
+
+      function schedule() {
+        window.setTimeout(aside, 3500 + Math.random() * 6500);
+      }
+
+      if (!reduce) schedule();
+
       face.addEventListener("click", function() {
-        expressionIndex = (expressionIndex + 1) % expressions.length;
-        ascii.textContent = expressions[expressionIndex];
+        var index = cycle.indexOf(baseMood);
+        baseMood = cycle[(index + 1) % cycle.length];
+        wear(baseMood);
         face.classList.remove("is-booping");
         void face.offsetWidth;
         face.classList.add("is-booping");

@@ -39,13 +39,17 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
     assert screen.status_code == 200
     assert b"LIVE SCREEN" in screen.data
     assert b'data-width="480" data-height="320"' in screen.data
-    assert b'class="device-face"' in screen.data
-    assert b'id="device-ascii-face"' in screen.data
+    assert b'id="device-face"' in screen.data
+    assert b'id="device-face-mark"' in screen.data
+    assert b'class="mascot mascot-' in screen.data
+    assert b'id="device-ascii-face"' not in screen.data
     assert b'id="device-eye-left"' not in screen.data
     assert b'id="device-mouth"' not in screen.data
-    assert b'class="device-glance"' in screen.data
-    assert b'aria-label="Previous panel"' in screen.data
-    assert b'aria-label="Next panel"' in screen.data
+    assert b'class="device-hero-value' in screen.data
+    # the vitals bar and the panel-nav footer were removed; AUTO rotation is the default
+    assert b'class="device-glance"' not in screen.data
+    assert b'aria-label="Previous panel"' not in screen.data
+    assert b'aria-label="Next panel"' not in screen.data
 
     status = client.get("/api/status")
     assert status.status_code == 200
