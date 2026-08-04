@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block body_extra_class %}is-screen{% endblock %}
+
 {% block head %}
   <meta http-equiv="refresh" content="{{ snapshot.refresh_seconds }};url={{ refresh_url }}">
 {% endblock %}
@@ -62,7 +64,7 @@
                 <div><dt>Todo</dt><dd>{{ snapshot.focus.todo_id or 'none' }}</dd></div>
               </dl>
             {% else %}
-              <p>No active focus session.</p>
+              <p class="meta-line">No active focus session.</p>
             {% endif %}
           {% elif snapshot.panel == 'todos' %}
             <h3>Next Todos</h3>
@@ -76,7 +78,7 @@
                 {% endfor %}
               </ul>
             {% else %}
-              <p>No pending todos. Enjoy the silence.</p>
+              <p class="meta-line">No pending todos. Enjoy the silence.</p>
             {% endif %}
           {% elif snapshot.panel == 'notes' %}
             <h3>Recent Notes</h3>
@@ -90,7 +92,7 @@
                 {% endfor %}
               </ul>
             {% else %}
-              <p>No notes yet.</p>
+              <p class="meta-line">No notes yet. My head is empty and it is lovely.</p>
             {% endif %}
           {% else %}
             <h3>System</h3>

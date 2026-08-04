@@ -60,21 +60,12 @@
     </table>
   </div>
   {% else %}
-  <p class="meta-line">No rows in {{ table }}.</p>
+  <div class="empty-state">
+    <span class="empty-face" aria-hidden="true">[ -_- ]</span>
+    <strong>No rows in {{ table }}.</strong>
+    <span>An empty table. Beautifully organised, completely useless.</span>
+  </div>
   {% endif %}
 </section>
 {% endif %}
-
-<style>
-.table-list { display:flex; flex-direction:column; gap:0.25rem; margin-top:0.75rem }
-.table-link { display:flex; align-items:center; gap:0.4rem; padding:0.35rem 0.6rem; color:var(--text); text-decoration:none; border:1px solid transparent }
-.table-link:hover { background:var(--surface0); border-color:var(--surface1) }
-.table-link.active { background:var(--surface0); border-color:var(--lavender) }
-.data-table { width:100%; border-collapse:collapse; margin-top:0.75rem; font-size:0.85rem }
-.data-table th,.data-table td { text-align:left; padding:0.3rem 0.5rem; border-bottom:1px solid var(--surface0); white-space:nowrap; max-width:20rem; overflow:hidden; text-overflow:ellipsis }
-.data-table th { color:var(--overlay2); font-weight:400; font-size:0.75rem; text-transform:uppercase }
-.data-table td em { color:var(--overlay0) }
-.limit-select { margin-left:auto }
-.limit-select select { background:var(--surface0); color:var(--text); border:1px solid var(--surface1); padding:0.2rem 0.4rem }
-</style>
 {% endblock %}

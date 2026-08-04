@@ -3,18 +3,20 @@
 
 {% block content %}
   <section class="page-head">
-    <div>
-      <h1>Focus Sessions</h1>
-    </div>
+    <h1>{{ icon_play(18) }} Focus Sessions</h1>
+    <p class="meta-line">One thing at a time. I will hold the timer and judge you quietly.</p>
   </section>
 
   <section class="dashboard-grid">
-    <article class="card">
+    <article class="card focus-current">
       <h2>Current Focus</h2>
       {% if snapshot.focus.active %}
         <div class="metric-large" id="focus-remaining">{{ snapshot.focus.remaining_text }}</div>
-        <p><strong>{{ snapshot.focus.title }}</strong></p>
-        <p>{{ snapshot.focus.kind }} · {{ snapshot.focus.status }} · {{ (snapshot.focus.progress * 100)|round|int }}%</p>
+        <p class="focus-title"><strong>{{ snapshot.focus.title }}</strong></p>
+        <div class="water-meter" role="img" aria-label="Focus progress {{ (snapshot.focus.progress * 100)|round|int }} percent">
+          <div class="water-fill" style="width: {{ (snapshot.focus.progress * 100)|round|int }}%"></div>
+        </div>
+        <p class="meta-line">{{ snapshot.focus.kind }} · {{ snapshot.focus.status }} · {{ (snapshot.focus.progress * 100)|round|int }}%</p>
         <div class="inline-actions">
           {% if snapshot.focus.status == 'running' %}
             <form method="post" action="{{ url_for('focus_pause') }}"><button class="button button-soft" type="submit">{{ icon_play(14) }} Pause</button></form>
@@ -25,8 +27,8 @@
           <form method="post" action="{{ url_for('focus_cancel') }}"><button class="button button-danger" type="submit">{{ icon_stop(14) }} Cancel</button></form>
         </div>
       {% else %}
-        <div class="metric-large">Idle</div>
-        <p>No active focus session.</p>
+        <div class="metric-large metric-idle">Idle</div>
+        <p class="meta-line">No active focus session. Start one and I will stop talking for a while.</p>
       {% endif %}
     </article>
 

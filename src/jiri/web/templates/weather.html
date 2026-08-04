@@ -3,13 +3,6 @@
 
 {% block content %}
   <section class="stacked-dashboard">
-    {% if notice %}
-      <div class="banner banner-notice">{{ notice }}</div>
-    {% endif %}
-    {% if error %}
-      <div class="banner banner-error">{{ error }}</div>
-    {% endif %}
-
     {% set today = snapshot.weather.daily_forecast[0] if snapshot.weather.daily_forecast else none %}
     <article class="card weather-current-card">
       <div class="weather-minimal-grid">

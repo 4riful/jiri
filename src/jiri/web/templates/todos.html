@@ -5,6 +5,7 @@
   <section class="split-layout">
     <article class="card wide-card">
       <h2>{{ icon_todos(16) }} Tasks</h2>
+      <p class="card-sub" style="margin-top:0">Give me something to hold over your head.</p>
       <form class="stack-form" method="post" action="{{ url_for('todos_add') }}">
         <label>
           Title
@@ -70,7 +71,11 @@
           </ul>
         </div>
       {% else %}
-        <div class="empty-state">No tasks yet. Add one above.</div>
+        <div class="empty-state">
+          <span class="empty-face" aria-hidden="true">[ ^o^ ]</span>
+          <strong>Zero tasks. Suspicious.</strong>
+          <span>Either you finished everything, or you are hiding the list from me. Add one on the left and I will start nagging.</span>
+        </div>
       {% endif %}
     </article>
   </section>

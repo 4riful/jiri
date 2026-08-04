@@ -40,23 +40,13 @@
     <strong class="stat-big">{{ snapshot.screen.pending_count }}</strong>
     <p>{{ snapshot.screen.overdue_count }} overdue &middot; {{ snapshot.todos|length }} total</p>
   </article>
-
-  <article class="stat-card stat-llama">
+  <article class="stat-card stat-ai">
     <div class="stat-head">
-      <span class="stat-head-label">{{ icon_ai(14) }} AI Server</span>
-      {% if snapshot.llama.running %}
-      <span class="stat-head-badge badge-green">Live</span>
-      {% else %}
-      <span class="stat-head-badge badge-dim">Off</span>
-      {% endif %}
+      <span class="stat-head-label">{{ icon_ai(14) }} AI Wording</span>
+      <span class="stat-head-badge {{ 'badge-green' if snapshot.ai.enabled else 'badge-dim' }}">{{ 'on' if snapshot.ai.enabled else 'off' }}</span>
     </div>
-    {% if snapshot.llama.running %}
-    <strong class="stat-big">{{ snapshot.llama.model_name[:20] if snapshot.llama.model_name else 'Llama' }}</strong>
-    <p>{{ snapshot.llama.port }} :{{ snapshot.llama.pid }}</p>
-    {% else %}
-    <strong class="stat-big stat-big-dim">Stopped</strong>
-    <p>Start from AI page</p>
-    {% endif %}
+    <strong class="stat-big">{{ snapshot.ai.cache_total | default(0) }}</strong>
+    <p>cached lines &middot; {{ snapshot.ai.used_today | default(0) }}/{{ snapshot.ai.daily_cap | default(0) }} today</p>
   </article>
 
   <article class="stat-card stat-telegram">
@@ -68,6 +58,20 @@
     <p id="telegram-card-copy">Checking binding...</p>
   </article>
 </section>
+
+{% if not snapshot.todos and not snapshot.notes %}
+<section class="dash-welcome">
+  <div class="empty-state">
+    <span class="empty-face" aria-hidden="true">[ ^_^ ]</span>
+    <strong>Nothing on the desk yet</strong>
+    <span>No todos, no notes, no nagging. Give me something to remember and I will remind you about it far too often.</span>
+    <div class="inline-actions">
+      <a class="button" href="{{ url_for('todos_view') }}">{{ icon_todos(14) }} Add a todo</a>
+      <a class="button button-soft" href="{{ url_for('notes_view') }}">{{ icon_notes(14) }} Write a note</a>
+    </div>
+  </div>
+</section>
+{% endif %}
 
 <section class="dash-hero">
   <article class="dash-hero-card weather-hero">
@@ -123,7 +127,7 @@
       </div>
     </div>
     {% else %}
-    <p class="hero-empty">No forecast cached yet.</p>
+    <p class="hero-empty">No forecast cached yet. I am staring out of the window, but I do not have a window.</p>
     {% endif %}
   </article>
 </section>
@@ -132,12 +136,12 @@
   <article class="dash-panel-card">
     <div class="panel-header">
       <h3>{{ icon_system(16) }} System</h3>
-      <div style="display:flex;align-items:center;gap:12px">
-        <span class="hero-status">{{ 'Healthy' if snapshot.health.database_writable else 'Issues' }}</span>
+      <div class="panel-actions">
+        <span class="hero-status {{ '' if snapshot.health.database_writable else 'status-red' }}">{{ 'Healthy' if snapshot.health.database_writable else 'Issues' }}</span>
         <form method="post" action="{{ url_for('update_check') }}">
           <button class="collapse-toggle" type="submit">{{ icon_refresh(14) }} Updates</button>
         </form>
-        <button class="collapse-toggle" onclick="toggleSystem()" aria-expanded="false" aria-controls="system-extra">
+        <button class="collapse-toggle" id="system-toggle" type="button" onclick="toggleSystem()" aria-expanded="false" aria-controls="system-extra">
           <span class="toggle-label">Details</span>
           {{ icon_chevron_down(14) }}
         </button>
@@ -205,7 +209,8 @@
 <script>
 function toggleSystem() {
   var el = document.getElementById("system-extra");
-  var btn = el.previousElementSibling.querySelector(".collapse-toggle");
+  var btn = document.getElementById("system-toggle");
+  if (!el || !btn) return;
   var expanded = el.classList.toggle("panel-expanded");
   btn.setAttribute("aria-expanded", expanded);
   btn.querySelector(".toggle-label").textContent = expanded ? "Less" : "Details";

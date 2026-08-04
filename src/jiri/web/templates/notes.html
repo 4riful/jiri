@@ -4,6 +4,7 @@
   <section class="split-layout">
     <article class="card wide-card">
       <h2>Notes</h2>
+      <p class="card-sub" style="margin-top:0">Things worth keeping. I never forget, I just get slow.</p>
       <form class="stack-form" method="post" action="{{ url_for('notes_add') }}">
         <label>
           Title
@@ -45,7 +46,11 @@
           {% endfor %}
         </ul>
       {% else %}
-        <p>No notes yet.</p>
+        <div class="empty-state">
+          <span class="empty-face" aria-hidden="true">[ o_o ]</span>
+          <strong>No notes yet</strong>
+          <span>My memory is a SQLite file and it is currently empty. Write something down before you forget it.</span>
+        </div>
       {% endif %}
     </article>
   </section>

@@ -4,11 +4,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
   <title>{{ title or app_name or "JIRI" }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   {% block head %}{% endblock %}
 </head>
-<body class="{{ body_class|default('') }} theme-{{ ui_theme|default('catppuccin') }}">
+<body class="{{ body_class|default('') }} {% block body_extra_class %}{% endblock %} theme-{{ ui_theme|default('catppuccin') }}">
+  <a class="skip-link" href="#main">Skip to content</a>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand-lockup">
@@ -18,7 +20,7 @@
           <div class="tagline">DeskCompanion</div>
         </div>
       </div>
-      <nav class="nav">
+      <nav class="nav" aria-label="Main">
         {% if web_surface in ('screen', 'all') %}
           <a href="{{ url_for('screen') }}" aria-label="Screen" title="Screen">{{ icon_screen(14) }} <span class="nav-label">Screen</span></a>
         {% endif %}
@@ -30,33 +32,35 @@
           <a href="{{ url_for('water_view') }}" aria-label="Water" title="Water">{{ icon_droplet(14) }} <span class="nav-label">Water</span></a>
           <a href="{{ url_for('focus_view') }}" aria-label="Focus" title="Focus">{{ icon_focus(14) }} <span class="nav-label">Focus</span></a>
           <a href="{{ url_for('telegram_view') }}" aria-label="Telegram" title="Telegram">{{ icon_link(14) }} <span class="nav-label">Telegram</span></a>
-          <a href="{{ url_for('llama_view') }}" aria-label="AI" title="AI">{{ icon_ai(14) }} <span class="nav-label">AI</span></a>
+          <a href="{{ url_for('ai_view') }}" aria-label="AI" title="AI">{{ icon_ai(14) }} <span class="nav-label">AI</span></a>
           <a class="nav-icon-button" href="{{ url_for('persona_view') }}" aria-label="Persona" title="Persona">{{ icon_gear(14) }}</a>
           <a href="{{ url_for('db_browser') }}" aria-label="Database" title="Database">{{ icon_database(14) }} <span class="nav-label">DB</span></a>
           <form method="post" action="{{ url_for('persona_save') }}" class="theme-toggle-form">
             <input type="hidden" name="toggle_theme" value="1">
-            <button class="nav-button theme-toggle" type="submit" aria-label="Toggle theme">{{ icon_theme(14) }}</button>
+            <button class="nav-button theme-toggle" type="submit" aria-label="Toggle theme" title="Toggle theme">{{ icon_theme(14) }}</button>
           </form>
           {% if admin_authenticated %}
             <form method="post" action="{{ url_for('admin_logout') }}"><button class="nav-button nav-icon-button" type="submit" aria-label="Logout" title="Logout">{{ icon_logout(14) }}</button></form>
           {% else %}
-            <a href="{{ url_for('admin_login') }}"><span class="nav-label">Login</span></a>
+            <a href="{{ url_for('admin_login') }}" title="Login">{{ icon_logout(14) }} <span class="nav-label">Login</span></a>
           {% endif %}
         {% endif %}
       </nav>
     </header>
 
     {% if notice %}
-      <div class="banner banner-notice">{{ notice }}</div>
+      <div class="banner banner-notice" role="status">{{ notice }}</div>
     {% endif %}
     {% if error %}
-      <div class="banner banner-error">{{ error }}</div>
+      <div class="banner banner-error" role="alert">{{ error }}</div>
     {% endif %}
 
-    {% block content %}{% endblock %}
+    <main id="main" class="app-main">
+      {% block content %}{% endblock %}
+    </main>
 
     <footer class="footer">
-      <span>JIRI {{ app_version }}</span>
+      <span><i class="footer-pulse" aria-hidden="true"></i>JIRI {{ app_version }}</span>
       <span>Desk companion cockpit</span>
     </footer>
   </div>
@@ -64,12 +68,15 @@
   (function() {
     var face = document.getElementById("ascii-face");
     if (!face) return;
-    var faces = ["[ ^_^ ]", "[ -_- ]", "[ >_< ]", "[ o_o ]", "[ =_= ]", "[ ^o^ ]"];
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+    var faces = ["[ ^_^ ]", "[ -_- ]", "[ o_o ]", "[ ^_~ ]", "[ =_= ]", "[ ^o^ ]", "[ o_O ]"];
     var i = 0;
     setInterval(function() {
+      if (document.hidden) return;
       i = (i + 1) % faces.length;
       face.textContent = faces[i];
-    }, 850);
+    }, 1400);
   })();
   </script>
 </body>
