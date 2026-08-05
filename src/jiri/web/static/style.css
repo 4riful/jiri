@@ -2631,11 +2631,20 @@ body.is-screen .screen-shell {
   padding: 0;
   margin: 0;
 }
+/* The device is exactly 480x320, so the frame stays 480x320 and the preview
+   scales instead of cropping. Cropping silently ate the right-hand edge of the
+   header — the clock — on any window narrower than the panel. */
+@media (max-width: 479px) { body.is-screen { zoom: .90; overflow-x: hidden; } }
+@media (max-width: 439px) { body.is-screen { zoom: .82; } }
+@media (max-width: 399px) { body.is-screen { zoom: .74; } }
+@media (max-width: 359px) { body.is-screen { zoom: .66; } }
+@media (max-width: 329px) { body.is-screen { zoom: .58; } }
+
 body.is-screen .screen-frame,
 body.is-screen.theme-nothing .screen-frame {
   display: grid;
   /* identity · the pet and what it is flagging · what it says · what it guards */
-  grid-template-rows: 28px 176px 68px 48px;
+  grid-template-rows: 30px 174px 68px 48px;
   width: 480px;
   min-height: 320px;
   height: 320px;
@@ -2648,11 +2657,14 @@ body.is-screen.theme-nothing .screen-frame {
   box-shadow: none;
 }
 
+/* One clear anchor: the time. Everything else in this bar is identity, and
+   identity is the same on every panel — so it is set small and quiet, and it is
+   what gives way first if the row ever runs short of room. */
 .device-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
   padding: 0 13px 1px;
   border-bottom: 1px solid var(--line);
@@ -2663,27 +2675,34 @@ body.is-screen.theme-nothing .screen-frame {
 }
 .device-identity {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   min-width: 0;
+  overflow: hidden;
 }
 .device-identity strong {
   flex: 0 0 auto;
   color: var(--accent);
   font-size: 12px;
-  letter-spacing: .22em;
+  letter-spacing: .24em;
 }
 .device-byline {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   min-width: 0;
   overflow: hidden;
   color: var(--text-mute);
   font-size: 9px;
-  letter-spacing: .1em;
+  font-weight: 600;
+  letter-spacing: .06em;
+  opacity: .75;
   text-overflow: ellipsis;
   text-transform: none;
   white-space: nowrap;
 }
+.device-byline .icon { flex: 0 0 auto; }
 /* Steady when JIRI is healthy. A dot that blinks around the clock trains you to
    ignore it, and then it cannot warn you about anything. */
 .device-live-dot {
@@ -2698,23 +2717,47 @@ body.is-screen.theme-nothing .screen-frame {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 26%, transparent);
   animation: device-pulse 1.2s steps(2, end) infinite;
 }
+/* Never shrinks and never wraps: the time is the one thing in this bar you look
+   up at from across the desk, so it is the last thing allowed to give way. */
 #device-clock {
   display: flex;
   flex: 0 0 auto;
   align-items: baseline;
-  gap: 8px;
+  gap: 9px;
   color: var(--text);
-  font-size: 11px;
   letter-spacing: .08em;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.clock-date { color: var(--text-mute); font-weight: 700; }
-.clock-now { display: inline-flex; align-items: baseline; }
-.clock-time { color: var(--text); font-size: 12px; }
+.device-clock-date {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-mute);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-overflow: ellipsis;
+}
+.clock-now {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+}
+.device-clock-time {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
 /* Present, because seconds were asked for — demoted, because they tick once a
    second and would otherwise be the loudest thing on an otherwise still screen. */
-.clock-seconds { color: var(--text-mute); font-size: 10px; }
+.device-clock-seconds {
+  color: var(--text-mute);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
 
 /* ── The pet, and the one thing it is holding up right now ─────────────── */
 .device-face {
@@ -2855,6 +2898,9 @@ body.is-screen.theme-nothing .screen-frame {
 }
 .watch-cell.is-current.is-idle { color: var(--text); }
 
+/* Calm JIRI is white. Red is reserved for "this needs you" — when the pet is
+   permanently accent-coloured, an actual alert has nothing left to say with
+   colour, and the whole panel reads as one flat wash of red. */
 .device-mark {
   display: grid;
   place-items: center;
@@ -2862,8 +2908,18 @@ body.is-screen.theme-nothing .screen-frame {
   height: 100%;
   min-width: 0;
   overflow: hidden;
-  color: var(--accent);
+  color: var(--text);
 }
+.screen-alert .device-mark,
+.screen-annoyed .device-mark,
+.screen-angry .device-mark,
+.screen-rage .device-mark,
+.screen-system_warning .device-mark,
+.screen-ai_offline .device-mark { color: var(--danger); }
+/* Weather moods are information, not alarm: tinted, not shouting. */
+.screen-weather_rain .device-mark,
+.screen-weather_hot .device-mark { color: var(--accent); }
+.screen-sleeping .device-mark { color: var(--text-mute); }
 
 /* ── The mascot is a terminal window that emotes ──────────────────────── */
 .mascot { display: block; overflow: visible; }
@@ -2923,6 +2979,29 @@ body.is-screen.theme-nothing .screen-frame {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+.device-hero-value.is-xl { font-size: 68px; letter-spacing: -.03em; }
+.device-hero-value.is-placeholder {
+  color: var(--text-mute);
+  font-size: 42px;
+  opacity: .55;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+/* The house dot-matrix treatment, which the display was not using. Only on the
+   big numeral — the stylesheet's own note says the dots start eating strokes
+   below roughly 2.5rem, and the hero sits at 3.1rem. */
+@supports (mask-size: 1em) or (-webkit-mask-size: 1em) {
+  .theme-nothing .device-hero-value:not(.is-compact):not(.is-placeholder) {
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 46%, transparent 49%);
+    mask-image: radial-gradient(circle at 50% 50%, #000 46%, transparent 49%);
+    -webkit-mask-size: var(--dot-pitch) var(--dot-pitch);
+    mask-size: var(--dot-pitch) var(--dot-pitch);
+    -webkit-mask-repeat: repeat;
+    mask-repeat: repeat;
+    -webkit-mask-position: 50% 50%;
+    mask-position: 50% 50%;
+  }
 }
 .device-hero-value.is-compact {
   display: -webkit-box;
