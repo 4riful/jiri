@@ -8,6 +8,7 @@ from jiri.ui.layout import build_layout
 from jiri.ui.pygame_app import run
 from jiri.ui.touch import PendingConfirmation, action_for_touch, build_touch_zones, hit_test
 from jiri.ui.view_model import build_display_view_model
+from jiri import notes, todos
 from jiri.views import build_screen_snapshot
 
 
@@ -89,3 +90,44 @@ def test_pygame_mock_mode_smoke(tmp_path, monkeypatch):
     monkeypatch.setenv("JIRI_DISPLAY_DRIVER", "mock")
     monkeypatch.setenv("JIRI_FULLSCREEN", "false")
     assert run() == 0
+
+
+def test_display_is_stable_while_the_state_behind_it_is(tmp_path):
+    """Two consecutive repaints of an unchanged world must be identical.
+
+    Everything that moves on this display is supposed to mean something. A mood,
+    a sentence or a reason that differs between two renders of the same state is
+    the display talking to itself.
+    """
+    db_path = str(tmp_path / "jiri.db")
+    todos.add_todo("Water the plants", db_path=db_path)
+    first = build_display_view_model(build_screen_snapshot(db_path=db_path))
+    second = build_display_view_model(build_screen_snapshot(db_path=db_path))
+
+    assert first.face.state == second.face.state
+    assert first.speech == second.speech
+    assert first.face_reason == second.face_reason
+    assert first.watch == second.watch
+
+
+def test_voice_never_reads_back_the_block_above_it(tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    notes.add_note("Persistent storage", "This note was written to durable disk.", db_path=db_path)
+    model = build_display_view_model(build_screen_snapshot(db_path=db_path, panel="notes"))
+    assert model.hero.value == "Persistent storage"
+    assert model.speech != model.hero.value
+    assert model.speech != model.hero.detail
+
+
+def test_watch_strip_covers_every_duty_and_flags_the_late_one(tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    todos.add_todo("Ship invoice", due_at=datetime.now() - timedelta(days=2), db_path=db_path)
+    model = build_display_view_model(build_screen_snapshot(db_path=db_path, panel="todos"))
+
+    cells = {cell.kind: cell for cell in model.watch}
+    assert set(cells) == {"todos", "water", "focus", "weather", "notes"}
+    assert cells["todos"].tone == "alert"
+    assert cells["todos"].value == "1 late"
+    assert cells["focus"].value == "off" and cells["focus"].tone == "idle"
+    # no reading at all must not masquerade as a live one
+    assert cells["weather"].tone == "stale"

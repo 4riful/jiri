@@ -47,6 +47,20 @@ IDLE_MESSAGES = [
     "All done. I will be here, being small and slightly warm.",
 ]
 
+# There IS a list, and none of it is late. Distinct from IDLE_MESSAGES, which
+# claim the list is empty -- saying "zero tasks" while the watch strip reads 2 is
+# how a companion loses your trust in one glance.
+WATCHING_MESSAGES = [
+    "Everything on the list is still in the future. My favourite tense.",
+    "Nothing is late. I am keeping it that way through sheer vigilance.",
+    "All quiet on the deadline front.",
+    "The list exists and it is behaving itself.",
+    "Nothing due yet. I will speak up the moment that changes.",
+    "Tasks lined up, none of them late. Pleasant.",
+    "No deadlines breathing down anyone's neck. Carry on.",
+    "Your list is in hand. I am just here being small and slightly warm.",
+]
+
 # Small celebrations. Generous, never sarcastic.
 CELEBRATE_MESSAGES = [
     "Done. A tiny parade has been scheduled internally.",
@@ -127,6 +141,11 @@ def _pick(pool: list[str], seed: object = None) -> str:
 
 def idle_message(seed: object = None) -> str:
     return _pick(IDLE_MESSAGES, seed)
+
+
+def watching_message(seed: object = None) -> str:
+    """For a list that has things on it, none of which are late."""
+    return _pick(WATCHING_MESSAGES, seed)
 
 
 def celebrate_message(seed: object = None) -> str:

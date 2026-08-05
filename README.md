@@ -65,6 +65,34 @@ randomness. It squints when you are focused, perks up when the weather turns,
 and goes quiet when you are behind. The mouth types out messages character by
 character because that is more fun than blitting a string.
 
+The rule underneath that: **nothing on this screen moves unless something
+happened.** No idle mood drift, no timed expression shuffling, no re-rolling the
+sentence on every repaint. The face changes when the state behind it changes and
+not before, and a line under it always names the fact that caused the change, so
+you are never looking at an expression you cannot explain. Idle motion is
+limited to breathing, blinking and the ticking seconds. A display that fidgets
+on its own is one you stop reading.
+
+**A screen laid out as a guardian, not a dashboard.** 480x320, four rows:
+
+```
+● JIRI  by 4riful                        WED 05 AUG 2026 15:06:11
+┌──────────┐   ☑ PENDING TASKS
+│   face   │   2
+└──────────┘   Next: Verify JIRI persistence
+▌ No deadlines breathing down anyone's neck. Carry on.
+  ▪ 100% RAIN TODAY
+ ☑ 2   ◌ 0%   ◷ off   ☀ 28°   ▤ 2
+```
+
+The strip along the bottom is every duty JIRI holds — todos, water, focus,
+weather, notes — always visible and colour-coded, so you can trace the
+expression to the thing that caused it without reading a word. The voice line
+never reads back the block above it: when you are already looking at what JIRI
+is reacting to, it comments instead of restating. Cached weather is marked as
+cached rather than dressed up as live, and the messages can never claim an empty
+list while the strip reads two.
+
 **Todos that escalate politely.** Tasks climb five levels of overdue. Here is
 the part most reminder apps get wrong: as a task slips, JIRI's messages get
 *shorter*, not meaner. The face carries the feeling instead. A nagging device
@@ -339,7 +367,12 @@ Everything except the display runs fine on a laptop.
 The easiest place to start is JIRI's personality. Open
 `src/jiri/messages.py`, read the pools, and add lines you find funny. There is
 an [issue template](.github/ISSUE_TEMPLATE/persona_line.yml) just for this. One
-rule: JIRI jokes about the situation or about itself, never about the user.
+rule: JIRI jokes about the situation or about itself, never about the user. A
+second rule, learned the hard way: a line must be true in every state that can
+reach it. `IDLE_MESSAGES` claim the list is empty, so they only run when it is —
+a pending-but-not-late list gets `WATCHING_MESSAGES` instead. Nothing erodes a
+companion faster than cheerfully announcing "zero tasks" beside a counter
+reading two.
 
 Other good entry points: new face expressions in `src/jiri/ui/face.py`, a new
 weather provider, a new AI provider preset, or the docs.

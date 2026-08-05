@@ -37,8 +37,17 @@ def test_browser_driven_web_surface(tmp_path, monkeypatch):
 
     screen = client.get("/screen")
     assert screen.status_code == 200
-    assert b"LIVE SCREEN" in screen.data
     assert b'data-width="480" data-height="320"' in screen.data
+    # JIRI guards five things and shows all five, always
+    assert screen.data.count(b'class="watch-cell') == 5
+    assert b'class="device-speech"' in screen.data
+    # the reason line is shown unless it would restate the panel, and then the
+    # voice takes the freed row instead of leaving a gap
+    assert b'class="device-reason"' in screen.data or b"device-voice is-solo" in screen.data
+    # the face is a readout, not a toy: no tap-to-change-mood, no random asides
+    assert b"cycle" not in screen.data
+    assert b"asides" not in screen.data
+    assert b"Math.random" not in screen.data
     assert b'id="device-face"' in screen.data
     assert b'id="device-face-mark"' in screen.data
     assert b'class="mascot mascot-' in screen.data
@@ -607,3 +616,20 @@ def test_web_response_budget_smoke(tmp_path, monkeypatch):
         elapsed_ms = (time.perf_counter() - start) * 1000
         assert response.status_code == 200
         assert elapsed_ms < max_ms, f"{path} took {elapsed_ms:.2f}ms"
+
+
+def test_voice_never_claims_an_empty_list_while_tasks_are_pending(tmp_path):
+    """JIRI must not say "zero tasks" next to a watch strip reading 2."""
+    from jiri import todos
+    from jiri.views import build_screen_snapshot
+
+    db_path = str(tmp_path / "jiri.db")
+    todos.add_todo("Verify persistence", db_path=db_path)
+    todos.add_todo("Call the bank", db_path=db_path)
+
+    for panel in ("todos", "notes", "system"):
+        snapshot = build_screen_snapshot(db_path=db_path, panel=panel)
+        spoken = snapshot.headline.lower()
+        assert snapshot.face_state == "idle"
+        for lie in ("no tasks", "zero tasks", "nothing pending", "list is empty", "all done"):
+            assert lie not in spoken, f"{panel} panel said {snapshot.headline!r}"

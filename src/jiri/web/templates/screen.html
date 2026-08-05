@@ -14,16 +14,23 @@
     <div class="screen-frame screen-{{ snapshot.face_state }}" data-width="480" data-height="320">
       <header class="device-topbar">
         <div class="device-identity">
-          <span class="device-live-dot" aria-hidden="true"></span>
+          <span class="device-live-dot{% if not snapshot.system.database_writable %} is-degraded{% endif %}"
+                aria-hidden="true"></span>
           <strong>{{ snapshot.app_name }}</strong>
-          <span>LIVE SCREEN</span>
+          <span class="device-byline">{{ icon_github(11) }} by 4riful</span>
         </div>
-        <time id="device-clock" datetime="{{ snapshot.generated_at }}">{{ snapshot.clock }}</time>
+        <time id="device-clock" datetime="{{ snapshot.generated_at }}">
+          <span class="clock-date" id="clock-date">{{ snapshot.clock.split(' · ')[0] }}</span>
+          <span class="clock-now">
+            <span class="clock-time" id="clock-time">{{ snapshot.clock.split(' · ')[1][:5] }}</span>
+            <span class="clock-seconds" id="clock-seconds">{{ snapshot.clock[-3:] }}</span>
+          </span>
+        </time>
       </header>
 
-      <button class="device-face hero-{{ hero.kind }} tone-{{ hero.tone }}" id="device-face" type="button"
-              data-state="{{ snapshot.face_state }}" aria-label="Change JIRI's expression">
-        <span class="device-mark" id="device-face-mark">{{ mascot(snapshot.face_state, 152) }}</span>
+      <div class="device-face hero-{{ hero.kind }} tone-{{ hero.tone }}" id="device-face"
+           data-state="{{ snapshot.face_state }}">
+        <span class="device-mark" id="device-face-mark">{{ mascot(snapshot.face_state, 132) }}</span>
         <span class="device-hero">
           <span class="device-hero-label">
             {% if snapshot.panel == 'weather' %}{{ icon_weather(12) }}
@@ -33,7 +40,6 @@
             {% elif snapshot.panel == 'water' %}{{ icon_droplet(12) }}
             {% else %}{{ icon_system(12) }}{% endif %}
             {{ hero.label }}
-            <span class="device-mood">{{ snapshot.face_state|replace('_', ' ') }}</span>
           </span>
           <span class="device-hero-value{% if hero.compact %} is-compact{% endif %}">{{ hero.value }}</span>
           <span class="device-hero-detail">{{ hero.detail }}</span>
@@ -46,13 +52,32 @@
               {% for extra in hero.extras[:2] %}<span>{{ extra }}</span>{% endfor %}
             </span>
           {% endif %}
-          <span class="device-message" id="typed-headline" data-text="{{ display.headline[:44] }}">{{ display.headline[:44] }}</span>
         </span>
-      </button>
+      </div>
 
-      <footer class="device-credit">
-        <span class="device-credit-rule" aria-hidden="true"></span>
-        <span class="device-credit-text">{{ icon_github(12) }} Built with effort by 4riful</span>
+      {# JIRI speaking, plus the fact that put it in this mood. Stacked, not side
+         by side: a long sentence needs the full width, and squeezing it next to
+         the reason is what turns every message into an ellipsis. #}
+      <div class="device-voice{% if not display.face_reason %} is-solo{% endif %}">
+        <p class="device-speech" id="typed-headline" data-text="{{ display.speech }}">{{ display.speech }}</p>
+        {% if display.face_reason %}
+          <p class="device-reason">
+            <span class="device-reason-dot" aria-hidden="true"></span>{{ display.face_reason }}
+          </p>
+        {% endif %}
+      </div>
+
+      <footer class="device-watch" aria-label="What JIRI is watching">
+        {% for cell in display.watch %}
+          <span class="watch-cell is-{{ cell.tone }}{% if cell.kind == snapshot.panel %} is-current{% endif %}">
+            {% if cell.kind == 'todos' %}{{ icon_todos(13) }}
+            {% elif cell.kind == 'water' %}{{ icon_droplet(13) }}
+            {% elif cell.kind == 'focus' %}{{ icon_focus(13) }}
+            {% elif cell.kind == 'weather' %}{{ icon_weather(13) }}
+            {% else %}{{ icon_notes(13) }}{% endif %}
+            <span class="watch-value">{{ cell.value }}</span>
+          </span>
+        {% endfor %}
       </footer>
     </div>
   </section>
@@ -60,98 +85,80 @@
   <script>
   (function() {
     var clock = document.getElementById("device-clock");
-    var headline = document.getElementById("typed-headline");
+    var clockDate = document.getElementById("clock-date");
+    var clockTime = document.getElementById("clock-time");
+    var clockSeconds = document.getElementById("clock-seconds");
+    var speech = document.getElementById("typed-headline");
     var face = document.getElementById("device-face");
     var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    var DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    function pad(value) { return value < 10 ? "0" + value : String(value); }
+
+    // Seconds are the one thing on this display that genuinely changes every
+    // second, so they are the only thing allowed to move that fast — and they are
+    // dimmed, so the tick never competes with what JIRI is telling you.
     function updateClock() {
       if (!clock) return;
       var now = new Date();
-      clock.textContent = now.toLocaleDateString([], { weekday: "short" }) + " " +
-        now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+      // Built by hand rather than by locale: the kiosk browser on the Pi must not
+      // reorder the date away from what the server rendered a moment earlier.
+      if (clockDate) {
+        clockDate.textContent = DAYS[now.getDay()] + " " + pad(now.getDate()) + " " +
+          MONTHS[now.getMonth()] + " " + now.getFullYear();
+      }
+      if (clockTime) clockTime.textContent = pad(now.getHours()) + ":" + pad(now.getMinutes());
+      if (clockSeconds) clockSeconds.textContent = ":" + pad(now.getSeconds());
       clock.dateTime = now.toISOString();
     }
     updateClock();
-    window.setInterval(updateClock, 30000);
+    window.setInterval(updateClock, 1000);
+    // A hidden tab has its timers clamped to roughly once a minute, so the time
+    // is stale the instant you look back at it. Resync on the way in.
+    document.addEventListener("visibilitychange", function() {
+      if (!document.hidden) updateClock();
+    });
+    window.addEventListener("focus", updateClock);
+    window.addEventListener("pageshow", updateClock);
 
-    if (headline && !reduce) {
-      var full = headline.getAttribute("data-text") || "";
-      var speed = {{ display.typing_speed_cps }};
+    // The page reloads itself every {{ snapshot.refresh_seconds }}s. Without this,
+    // every reload replayed the same animations, so the display was in constant
+    // motion while nothing had actually happened. sessionStorage survives the
+    // reload, so we can tell a real change from a repaint and only react to real
+    // ones -- that is the whole difference between a pet and a screensaver.
+    var previous = {};
+    try { previous = JSON.parse(window.sessionStorage.getItem("jiri.screen") || "{}"); } catch (err) { previous = {}; }
+
+    var current = {
+      mood: face ? face.dataset.state : "",
+      speech: speech ? (speech.getAttribute("data-text") || "") : ""
+    };
+    try { window.sessionStorage.setItem("jiri.screen", JSON.stringify(current)); } catch (err) { /* private mode */ }
+
+    var firstPaint = !previous.mood;
+    var moodChanged = !firstPaint && previous.mood !== current.mood;
+    var speechChanged = firstPaint || previous.speech !== current.speech;
+
+    // JIRI types a line when it has something new to say, and otherwise leaves
+    // the last thing it said on screen.
+    if (speech && speechChanged && !reduce) {
+      var full = current.speech;
+      var cps = {{ display.typing_speed_cps }};
       var index = 0;
-      headline.textContent = "";
-      function type() {
-        headline.textContent = full.slice(0, index) + (index < full.length ? "_" : "");
+      speech.textContent = "";
+      (function type() {
+        speech.textContent = full.slice(0, index) + (index < full.length ? "_" : "");
         index += 1;
-        if (index <= full.length) window.setTimeout(type, Math.max(25, Math.round(1000 / speed)));
-      }
-      window.setTimeout(type, 250);
+        if (index <= full.length) window.setTimeout(type, Math.max(25, Math.round(1000 / cps)));
+      })();
     }
 
-    if (face) {
-      // Every expression the backend can produce, pre-rendered so the face can
-      // change on its own without a round trip.
-      var faces = {
-        {% for mood in ['idle', 'happy', 'focused', 'curious', 'alert', 'annoyed', 'angry', 'rage', 'sleeping', 'blink', 'smirk', 'weather_rain', 'weather_hot', 'ai_offline', 'system_warning'] %}
-        {{ mood|tojson }}: {{ mascot(mood, 152)|string|tojson }}{{ "," if not loop.last }}
-        {% endfor %}
-      };
-      var frame = face.closest(".screen-frame");
-      var mark = document.getElementById("device-face-mark");
-      var moodLabel = face.querySelector(".device-mood");
-      var baseMood = face.dataset.state;
-      var cycle = ["idle", "happy", "focused", "curious", "alert", "annoyed", "angry", "sleeping", "smirk"];
-
-      // Idle chatter: brief looks the face throws by itself between the moods
-      // the backend actually reports. Keyed by base mood so a raging JIRI never
-      // suddenly beams at you.
-      var asides = {
-        idle: ["blink", "curious", "smirk", "happy"],
-        happy: ["blink", "smirk", "curious"],
-        focused: ["blink", "annoyed"],
-        curious: ["blink", "smirk", "idle"],
-        smirk: ["blink", "happy", "idle"],
-        annoyed: ["blink", "angry", "idle"],
-        alert: ["blink", "curious"],
-        system_warning: ["alert", "annoyed"],
-        angry: ["rage", "annoyed"],
-        rage: ["angry"],
-        sleeping: ["blink"],
-        weather_rain: ["blink", "annoyed"],
-        weather_hot: ["blink", "annoyed"],
-        ai_offline: ["blink"]
-      };
-
-      function wear(mood) {
-        if (frame) frame.className = frame.className.replace(/screen-[\w-]+/, "screen-" + mood);
-        if (mark && faces[mood]) mark.innerHTML = faces[mood];
-        if (moodLabel) moodLabel.textContent = mood.replace(/_/g, " ");
-        face.dataset.state = mood;
-      }
-
-      function settle() { wear(baseMood); }
-
-      function aside() {
-        var options = asides[baseMood] || ["blink"];
-        var pick = options[Math.floor(Math.random() * options.length)];
-        wear(pick);
-        window.setTimeout(settle, 700 + Math.random() * 1300);
-        schedule();
-      }
-
-      function schedule() {
-        window.setTimeout(aside, 3500 + Math.random() * 6500);
-      }
-
-      if (!reduce) schedule();
-
-      face.addEventListener("click", function() {
-        var index = cycle.indexOf(baseMood);
-        baseMood = cycle[(index + 1) % cycle.length];
-        wear(baseMood);
-        face.classList.remove("is-booping");
-        void face.offsetWidth;
-        face.classList.add("is-booping");
-      });
+    // A reaction is an event, not a loop: it fires once, when the mood it is
+    // reacting to actually changed.
+    if (face && moodChanged && !reduce) {
+      face.classList.add("is-reacting");
+      window.setTimeout(function() { face.classList.remove("is-reacting"); }, 900);
     }
   })();
   </script>

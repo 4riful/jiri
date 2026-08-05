@@ -28,6 +28,7 @@ class ScreenSnapshot:
     panel: str
     panel_title: str
     face_state: str
+    face_reason: str
     headline: str
     subheadline: str
     weather: dict[str, object]
@@ -85,7 +86,13 @@ def build_screen_snapshot(
     face_state = mood.calculate_mood(current, db_path=db_path)
     water_state = water.water_snapshot(db_path=db_path, now=current)
     selected_panel = _resolve_panel(panel, current, cfg.display.rotate_seconds)
-    headline = _headline_for(face_state, selected_panel, pending_todos, weather_state, focus_state, recent_notes, water_state)
+    headline = _headline_for(
+        face_state, selected_panel, pending_todos, weather_state, focus_state, recent_notes, water_state,
+        # Seeded by the situation, not left to random.choice: an unseeded pick
+        # hands you a different sentence on every 20s repaint, which reads as JIRI
+        # muttering to itself. Same mood, same day, same line.
+        seed=f"{face_state}:{selected_panel}:{current.date().isoformat()}",
+    )
     subheadline = _subheadline_for(selected_panel, pending_todos, weather_state, focus_state, recent_notes, overdue_todos, water_state)
     persona_moment = persona.screen_moment(
         now=current,
@@ -104,12 +111,15 @@ def build_screen_snapshot(
 
     return ScreenSnapshot(
         generated_at=current.replace(microsecond=0).isoformat(),
-        clock=current.strftime("%a %H:%M"),
+        # Full date and time. The browser retimes this every second; this is the
+        # value that has to be right on the very first paint and without JS.
+        clock=current.strftime("%a %d %b %Y · %H:%M:%S"),
         app_name=cfg.assistant.name,
         panel=selected_panel,
         panel_title=PANEL_TITLES.get(selected_panel, "System"),
         face_state=persona_moment.face_state,
-        headline=persona_moment.headline,
+        face_reason="" if persona_moment.reason_kind == selected_panel else persona_moment.reason,
+        headline=_speech_for(persona_moment, selected_panel, headline),
         subheadline=persona_moment.subheadline,
         weather=weather_state,
         focus=focus_state,
@@ -178,6 +188,20 @@ def build_dashboard_snapshot(
     )
 
 
+def _speech_for(moment: persona.PersonaMoment, panel: str, panel_headline: str) -> str:
+    """Never make the voice line repeat the block right above it.
+
+    When you are already looking at the thing JIRI is reacting to, the numbers are
+    on screen — so it comments instead. When the cause is on another panel, it
+    says the cause outright. Otherwise the panel speaks for itself.
+    """
+    if moment.reason_kind and moment.reason_kind == panel:
+        return moment.subheadline
+    if moment.priority >= 70:
+        return moment.headline
+    return panel_headline
+
+
 def _resolve_panel(panel: str | None, now: datetime, rotate_seconds: int) -> str:
     clean = (panel or "auto").strip().lower()
     if clean and clean != "auto":
@@ -196,21 +220,29 @@ def _headline_for(
     focus_state: dict[str, object],
     recent_notes: tuple[Note, ...],
     water_state: dict[str, object],
+    seed: object = None,
 ) -> str:
+    """What JIRI says out loud.
+
+    Every line here has to add something the panel does not already print. A voice
+    that reads back the number above it is furniture, not a companion — which is
+    why todos and notes deliberately fall through to the mood line instead of
+    echoing the task title or the note heading sitting right above.
+    """
     if panel == "water":
         return str(water_state.get("message") or "Keep sipping water.")
     if panel == "focus":
         if focus_state.get("active"):
             return f"{focus_state.get('title')} · {focus_state.get('remaining_text')}"
-        return "No active focus session."
+        return "No timer running. I can guard a session whenever you start one."
     if panel == "weather":
         message = str(weather_state.get("message") or "Weather ready.")
         return message
-    if panel == "todos" and pending_todos:
-        return messages.reminder_message(pending_todos[0])
-    if panel == "notes" and recent_notes:
-        return recent_notes[0].title
-    return messages.message_for_mood(face_state)
+    # "Idle" here means nothing is *late*, which is not the same as nothing being
+    # on the list. Only the empty list gets the empty-list lines.
+    if face_state == "idle" and pending_todos:
+        return messages.watching_message(seed)
+    return messages.message_for_mood(face_state, seed=seed)
 
 
 def _subheadline_for(

@@ -123,12 +123,33 @@ def test_persona_weather_hot_and_rain_faces(tmp_path):
     assert rain.face_state == "weather_rain"
 
 
-def test_persona_ambient_face_variation(tmp_path):
+def test_persona_ambient_face_never_drifts_on_the_clock(tmp_path):
+    """The face is a readout. It must not change while the state behind it hasn't.
+
+    This used to flip to blink/curious/smirk on minute % 17/23/29, which read on
+    the display as JIRI changing its mind for no reason.
+    """
     db_path = str(tmp_path / "jiri.db")
     water.add_water(3000, db_path=db_path, now=datetime(2026, 5, 15, 10, 0))
-    moment = persona.screen_moment(now=datetime(2026, 5, 15, 10, 23), db_path=db_path, base_face_state="idle")
-    assert moment.face_state == "curious"
-    assert "Scanning" in moment.headline
+    faces = {
+        persona.screen_moment(
+            now=datetime(2026, 5, 15, 10, minute), db_path=db_path, base_face_state="idle"
+        ).face_state
+        for minute in range(60)
+    }
+    assert faces == {"idle"}
+
+
+def test_persona_moment_always_explains_the_face(tmp_path):
+    db_path = str(tmp_path / "jiri.db")
+    water.add_water(3000, db_path=db_path, now=datetime(2026, 5, 15, 10, 0))
+    idle = persona.screen_moment(now=datetime(2026, 5, 15, 10, 5), db_path=db_path)
+    assert idle.reason == "nothing pending"
+
+    todos.add_todo("Ship invoice", due_at=datetime(2026, 5, 14, 9, 0), db_path=db_path)
+    late = persona.screen_moment(now=datetime(2026, 5, 15, 10, 5), db_path=db_path)
+    assert late.face_state in {"annoyed", "angry", "rage"}
+    assert late.reason == "1 overdue task · Ship invoice"
 
 
 def test_persona_settings_defaults(tmp_path):

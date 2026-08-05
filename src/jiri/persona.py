@@ -19,6 +19,20 @@ class PersonaMoment:
     telegram: bool = False
     interval_minutes: int = 240
     cooldown_key: str = ""
+    # Plain fact that produced face_state, for the display to show underneath the
+    # face. An expression nobody can explain reads as a glitch, not a reaction.
+    reason: str = ""
+
+    @property
+    def reason_kind(self) -> str:
+        """Which panel this mood is about, so the display can avoid saying it twice."""
+        if self.category.startswith("todo"):
+            return "todos"
+        if self.category.startswith("weather"):
+            return "weather"
+        if self.category in {"focus", "water"}:
+            return self.category
+        return ""
 
 
 def screen_moment(
@@ -53,6 +67,8 @@ def screen_moment(
                 db_path=db_path,
             )
 
+    overdue = todos.get_overdue_todos(current, db_path=db_path)
+
     if top is not None and top_level >= 5:
         return PersonaMoment(
             "todo_rage",
@@ -63,6 +79,7 @@ def screen_moment(
             telegram=True,
             interval_minutes=persona_settings.get_interval("todo_rage", db_path=db_path),
             cooldown_key=f"todo_rage.{top.id}",
+            reason=_overdue_reason(overdue, top),
         )
 
     if focus_snapshot.get("active"):
@@ -90,6 +107,7 @@ def screen_moment(
             priority=80,
             telegram=False,
             interval_minutes=persona_settings.get_interval("focus", db_path=db_path),
+            reason=f"focus {status} · {focus_snapshot.get('remaining_text') or '--:--'} left",
         )
 
     if top is not None:
@@ -103,6 +121,7 @@ def screen_moment(
                 telegram=True,
                 interval_minutes=persona_settings.get_interval("todo_angry", db_path=db_path),
                 cooldown_key=f"todo_angry.{top.id}",
+                reason=_overdue_reason(overdue, top),
             )
         if top_level == 2:
             return PersonaMoment(
@@ -114,6 +133,7 @@ def screen_moment(
                 telegram=True,
                 interval_minutes=persona_settings.get_interval("todo_annoyed", db_path=db_path),
                 cooldown_key=f"todo_annoyed.{top.id}",
+                reason=_overdue_reason(overdue, top),
             )
         if top_level == 1:
             return PersonaMoment(
@@ -125,6 +145,7 @@ def screen_moment(
                 telegram=True,
                 interval_minutes=persona_settings.get_interval("todo_late", db_path=db_path),
                 cooldown_key=f"todo_late.{top.id}",
+                reason=_overdue_reason(overdue, top),
             )
         if todos.due_soon(current, db_path=db_path):
             return PersonaMoment(
@@ -136,6 +157,7 @@ def screen_moment(
                 telegram=True,
                 interval_minutes=persona_settings.get_interval("todo_due_soon", db_path=db_path),
                 cooldown_key=f"todo_due_soon.{top.id}",
+                reason=f"due soon · {top.title}",
             )
 
     if weather_snapshot.get("available") and weather_snapshot.get("rain_chance") is not None:
@@ -150,6 +172,7 @@ def screen_moment(
                 priority=50,
                 telegram=True,
                 interval_minutes=persona_settings.get_interval("weather_hot", db_path=db_path),
+                reason=f"{round(float(temp))}°C outside",
             )
         if rain >= 70 and 7 <= current.hour <= 20:
             return PersonaMoment(
@@ -160,6 +183,7 @@ def screen_moment(
                 priority=50,
                 telegram=True,
                 interval_minutes=persona_settings.get_interval("weather_rain", db_path=db_path),
+                reason=f"{rain}% rain today",
             )
 
     if _quiet_hours(current, db_path=db_path):
@@ -171,18 +195,20 @@ def screen_moment(
             priority=10,
             telegram=False,
             interval_minutes=persona_settings.get_interval("sleep", db_path=db_path),
+            reason=f"quiet hours until {persona_settings.get_quiet_end(db_path=db_path)}",
         )
 
     hydration = water.water_snapshot(db_path=db_path, now=current, reset_daily=False)
     if not hydration.get("complete") and int(hydration.get("remaining_ml") or 0) >= 500 and 9 <= current.hour <= 21:
         return PersonaMoment(
             "water",
-            _ambient_face(current, base_face_state),
+            base_face_state,
             f"Water check: {hydration.get('progress_ml')}ml / {hydration.get('goal_ml')}ml.",
             f"{hydration.get('remaining_ml')}ml left. The human plant needs fluid.",
             priority=30,
             telegram=True,
             interval_minutes=persona_settings.get_interval("water", db_path=db_path),
+            reason=f"{hydration.get('remaining_ml')}ml of water left today",
         )
 
     if todos.recently_completed(current, db_path=db_path):
@@ -194,16 +220,18 @@ def screen_moment(
             priority=40,
             telegram=False,
             interval_minutes=persona_settings.get_interval("celebrate", db_path=db_path),
+            reason="task completed just now",
         )
 
     return PersonaMoment(
         "ambient",
-        _ambient_face(current, base_face_state),
-        _ambient_headline(current, base_headline),
+        base_face_state,
+        base_headline,
         base_subheadline,
         priority=10,
         telegram=False,
         interval_minutes=persona_settings.get_interval("ambient", db_path=db_path),
+        reason=_ambient_reason(pending),
     )
 
 
@@ -259,19 +287,15 @@ def _quiet_hours(now: datetime, db_path: str | None = None) -> bool:
     return current >= quiet_start or current < quiet_end
 
 
-def _ambient_face(now: datetime, fallback: str) -> str:
-    if now.minute % 17 == 0:
-        return "blink"
-    if now.minute % 23 == 0:
-        return "curious"
-    if now.minute % 29 == 0:
-        return "smirk"
-    return fallback
+def _overdue_reason(overdue: list, top) -> str:
+    """What the angry face is angry about — count first, then the worst offender."""
+    count = len(overdue) or 1
+    plural = "" if count == 1 else "s"
+    return f"{count} overdue task{plural} · {top.title}"
 
 
-def _ambient_headline(now: datetime, fallback: str) -> str:
-    if now.minute % 29 == 0:
-        return "I am not bored. I am conserving sarcasm."
-    if now.minute % 23 == 0:
-        return "Scanning desk orbit for chaos."
-    return fallback
+def _ambient_reason(pending: list) -> str:
+    if not pending:
+        return "nothing pending"
+    plural = "" if len(pending) == 1 else "s"
+    return f"{len(pending)} task{plural} pending · nothing due"

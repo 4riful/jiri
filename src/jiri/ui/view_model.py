@@ -25,13 +25,26 @@ class ScreenHero:
 
 
 @dataclass(frozen=True)
+class WatchCell:
+    """One thing JIRI is guarding, and whether it currently likes what it sees."""
+
+    kind: str
+    value: str
+    tone: str = "idle"
+
+
+@dataclass(frozen=True)
 class DisplayViewModel:
     width: int
     height: int
     panel: str
     panel_title: str
     face: FaceFrame
+    face_reason: str
     headline: str
+    # What the display actually prints: two 13px mono lines hold ~108 characters,
+    # and clipping on a word beats a hard slice mid-syllable.
+    speech: str
     subheadline: str
     typed_headline: str
     typed_complete: bool
@@ -39,6 +52,7 @@ class DisplayViewModel:
     right_rows: tuple[tuple[str, str], ...]
     touch_zones: tuple[TouchZone, ...]
     hero: ScreenHero
+    watch: tuple[WatchCell, ...] = ()
 
 
 def build_display_view_model(
@@ -55,7 +69,9 @@ def build_display_view_model(
         panel=snapshot.panel,
         panel_title=snapshot.panel_title,
         face=face_frame_for_state(snapshot.face_state, focus_snapshot=snapshot.focus),
+        face_reason=_clip(snapshot.face_reason, 46),
         headline=headline,
+        speech=_clip(headline, 108),
         subheadline=subheadline,
         typed_headline=typed.visible,
         typed_complete=typed.complete,
@@ -63,6 +79,77 @@ def build_display_view_model(
         right_rows=_right_rows(snapshot),
         touch_zones=build_touch_zones(snapshot.width, snapshot.height),
         hero=_hero(snapshot),
+        watch=_watch(snapshot),
+    )
+
+
+STALE_WEATHER_MINUTES = 60
+
+
+def weather_is_stale(snapshot: ScreenSnapshot) -> bool:
+    """True when the reading is old enough that showing it as live would be a lie.
+
+    The weather layer serves cached readings on failure but never labels them, so
+    freshness has to be judged here, from the timestamp it does carry.
+    """
+    fetched_at = snapshot.weather.get("fetched_at")
+    if not fetched_at:
+        return not snapshot.weather.get("available", False)
+    try:
+        fetched = datetime.fromisoformat(str(fetched_at))
+        generated = datetime.fromisoformat(snapshot.generated_at)
+    except (TypeError, ValueError):
+        return False
+    return (generated - fetched).total_seconds() > STALE_WEATHER_MINUTES * 60
+
+
+def _watch(snapshot: ScreenSnapshot) -> tuple[WatchCell, ...]:
+    """The guard rail: every duty JIRI holds, always on screen, always current.
+
+    Tone is the whole point — it is what lets you trace the face's expression to
+    the thing that caused it without reading a word.
+    """
+    focus_state = snapshot.focus
+    focus_running = _focus_is_running(focus_state)
+
+    water_percent = int(snapshot.water.get("percent") or 0)
+    if snapshot.water.get("complete"):
+        water_tone = "ok"
+    elif water_percent < 25:
+        water_tone = "warn"
+    else:
+        water_tone = "idle"
+
+    rain = snapshot.weather.get("rain_chance")
+    temperature = snapshot.weather.get("temperature_c")
+    weather_tone = "idle"
+    if rain is not None and int(rain) >= 70:
+        weather_tone = "warn"
+    if temperature is not None and float(temperature) >= 34:
+        weather_tone = "warn"
+    # A cached reading never raises an alarm — JIRI does not get worked up about
+    # rain it last checked two hours ago.
+    if weather_is_stale(snapshot):
+        weather_tone = "stale"
+
+    return (
+        WatchCell(
+            "todos",
+            f"{snapshot.overdue_count} late" if snapshot.overdue_count else str(snapshot.pending_count),
+            "alert" if snapshot.overdue_count else ("ok" if not snapshot.pending_count else "idle"),
+        ),
+        WatchCell("water", f"{water_percent}%", water_tone),
+        WatchCell(
+            "focus",
+            str(focus_state.get("remaining_text") or "--:--") if focus_running else "off",
+            "active" if focus_running else "idle",
+        ),
+        WatchCell(
+            "weather",
+            "--°" if temperature is None else f"{round(float(temperature))}°",
+            weather_tone,
+        ),
+        WatchCell("notes", str(snapshot.note_count), "idle"),
     )
 
 
@@ -130,7 +217,7 @@ def _weather_hero(snapshot: ScreenSnapshot) -> ScreenHero:
         extras.append(f"{rain}% rain")
     if humidity is not None:
         extras.append(f"{humidity}% humidity")
-    if snapshot.weather.get("stale"):
+    if weather_is_stale(snapshot):
         extras.append("cached")
     return ScreenHero(
         kind="weather",
