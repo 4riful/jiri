@@ -633,3 +633,21 @@ def test_voice_never_claims_an_empty_list_while_tasks_are_pending(tmp_path):
         assert snapshot.face_state == "idle"
         for lie in ("no tasks", "zero tasks", "nothing pending", "list is empty", "all done"):
             assert lie not in spoken, f"{panel} panel said {snapshot.headline!r}"
+
+
+def test_face_is_an_acknowledge_control_not_a_mood_dial(tmp_path, monkeypatch):
+    """Tapping JIRI says "seen" for two minutes. It must not fake state.
+
+    The face used to cycle through moods on click, which made the one honest
+    readout on the display into a toy.
+    """
+    monkeypatch.setenv("JIRI_DB_PATH", str(tmp_path / "jiri.db"))
+    monkeypatch.setenv("JIRI_WEATHER_FAKE", "true")
+    screen = create_app().test_client().get("/screen")
+
+    assert b'aria-label="Acknowledge JIRI' in screen.data
+    assert b'"jiri.ack"' in screen.data
+    assert b"120000" in screen.data
+    # acknowledging is presentation only: no mood is written, nothing is cycled
+    assert b"cycle" not in screen.data
+    assert b"faces[" not in screen.data

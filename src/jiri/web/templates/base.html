@@ -63,20 +63,10 @@
       <span>JIRI {{ app_version }}</span>
     </footer>
   </div>
-  <script>
-  (function() {
-    var face = document.getElementById("ascii-face");
-    if (!face) return;
-    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) return;
-    var faces = ["[ ^_^ ]", "[ ^o^ ]", "[ o_o ]", "[ ^_~ ]", "[ >_< ]", "[ -_- ]", "[ o_O ]"];
-    var i = 0;
-    setInterval(function() {
-      if (document.hidden) return;
-      i = (i + 1) % faces.length;
-      face.textContent = faces[i];
-    }, 1600);
-  })();
-  </script>
+  {# The ASCII face cycler that used to live here shipped on every page and
+     shuffled seven expressions on a 1.6s timer. Its element, #ascii-face, no
+     longer exists in any template, so it had been a no-op for a while — and the
+     behaviour it implemented (a face changing on a timer rather than on state)
+     is the one the display was rebuilt to get rid of. #}
 </body>
 </html>

@@ -28,8 +28,9 @@
         </time>
       </header>
 
-      <div class="device-face hero-{{ hero.kind }} tone-{{ hero.tone }}" id="device-face"
-           data-state="{{ snapshot.face_state }}">
+      <button class="device-face hero-{{ hero.kind }} tone-{{ hero.tone }}" id="device-face" type="button"
+              data-state="{{ snapshot.face_state }}"
+              aria-label="Acknowledge JIRI — it stops nudging for two minutes">
         <span class="device-mark" id="device-face-mark">{{ mascot(snapshot.face_state, 132) }}</span>
         <span class="device-hero">
           <span class="device-hero-label">
@@ -58,7 +59,7 @@
             </span>
           {% endif %}
         </span>
-      </div>
+      </button>
 
       {# JIRI speaking, plus the fact that put it in this mood. Stacked, not side
          by side: a long sentence needs the full width, and squeezing it next to
@@ -164,6 +165,42 @@
     if (face && moodChanged && !reduce) {
       face.classList.add("is-reacting");
       window.setTimeout(function() { face.classList.remove("is-reacting"); }, 900);
+    }
+
+    // Tap to acknowledge. JIRI is bidding for your attention because something
+    // genuinely needs it; tapping says "seen", and it stops nudging for two
+    // minutes. It does not mark anything done and it does not change the mood —
+    // the face, the reason line and the watch strip keep telling the truth. The
+    // timestamp outlives the page's own reload, or the nudge would resume within
+    // seconds and the gesture would mean nothing.
+    var ACK_MS = 120000;
+    var frame = face && face.closest(".screen-frame");
+
+    function ackRemaining() {
+      try {
+        var until = parseInt(window.sessionStorage.getItem("jiri.ack") || "0", 10);
+        return Math.max(0, until - Date.now());
+      } catch (err) { return 0; }
+    }
+
+    function applyAck(remaining) {
+      if (!frame) return;
+      frame.classList.add("is-acknowledged");
+      window.setTimeout(function() { frame.classList.remove("is-acknowledged"); }, remaining);
+    }
+
+    var remaining = ackRemaining();
+    if (remaining > 0) applyAck(remaining);
+
+    if (face) {
+      face.addEventListener("click", function() {
+        try { window.sessionStorage.setItem("jiri.ack", String(Date.now() + ACK_MS)); } catch (err) { /* private mode */ }
+        applyAck(ACK_MS);
+        face.classList.remove("is-acking");
+        void face.offsetWidth;
+        face.classList.add("is-acking");
+        window.setTimeout(function() { face.classList.remove("is-acking"); }, 700);
+      });
     }
   })();
   </script>

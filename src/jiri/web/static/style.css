@@ -42,6 +42,10 @@
                "Liberation Mono", monospace;
   --font-display: var(--font-mono);
   --mono: var(--font-mono);          /* legacy alias */
+  /* What JIRI says out loud, as opposed to what it reports. Proportional on
+     purpose, and it must stay proportional when the brand face is missing —
+     falling back to monospace is what made the spoken line read like a log. */
+  --font-speech: var(--font-ui);
 
   /* spacing rhythm — 4px base */
   --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
@@ -180,6 +184,8 @@ body:not([class*="theme-"]) {
                "Roboto Mono", Menlo, Consolas, monospace;
   --font-display: "JIRI Dot", "JIRI Type", ui-monospace, SFMono-Regular,
                   "Roboto Mono", Menlo, Consolas, monospace;
+  --font-speech: "JIRI Type", system-ui, -apple-system, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
 
   --background: #000000;
   --black: var(--surface);
@@ -2764,28 +2770,39 @@ body.is-screen.theme-nothing .screen-frame {
   display: grid;
   grid-template-columns: 168px 1fr;
   align-items: center;
-  height: 176px;
+  height: 174px;
   width: 480px;
   min-width: 0;
   padding: 2px 18px 2px 8px;
   overflow: hidden;
   border: 0;
+  outline-offset: -3px;
   background: transparent;
   color: var(--text);
   font-family: var(--font-mono);
   text-align: left;
+  cursor: pointer;
+  appearance: none;
 }
+.device-face:hover, .device-face:active { background: transparent; border: 0; }
+.device-face:focus-visible { outline: 2px solid var(--accent); }
 
 /* ── What JIRI is saying, and the fact that made it say so ─────────────── */
+/* Fixed geometry, not centred: both slots keep their height whether or not they
+   have anything in them, so the first line of speech lands on the same pixel on
+   every panel. Centring made the block drift up and down as messages changed
+   length, which is what turns a rotating display into a flickering one. */
 .device-voice {
   display: grid;
-  align-content: center;
-  gap: 6px;
+  align-content: start;
+  gap: 5px;
   min-width: 0;
   height: 68px;
+  padding-top: 11px;
   /* The 13px inset is the left rail every row shares; the speech bar hangs in it
      so the text itself still starts on the same edge as the header wordmark. */
-  padding: 0 16px 0 13px;
+  padding-right: 16px;
+  padding-left: 13px;
   overflow: hidden;
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface) 55%, transparent);
@@ -2793,22 +2810,21 @@ body.is-screen.theme-nothing .screen-frame {
 .device-speech {
   position: relative;
   min-width: 0;
-  max-height: 34px;
+  /* Fixed, not max: the slot is two lines tall whether the sentence needs one
+     or two, so nothing below it ever moves. */
+  height: 36px;
   margin: 0;
   padding-left: 12px;
   overflow: hidden;
   color: var(--text);
-  font: 600 13px/17px var(--font-mono);
-  /* Two lines, then ellipsis. One line truncates almost every real sentence;
-     three would crowd the watch strip. */
+  /* Prose, not data. Monospace is right for the numerals, the labels and the
+     watch strip, but a sentence set in it reads stiff and eats width it cannot
+     spare. This is the one place JIRI is talking rather than reporting. */
+  font: 400 14px/18px var(--font-speech);
+  letter-spacing: .005em;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-}
-/* No reason line to print means the sentence gets that row instead of a gap. */
-.device-voice.is-solo .device-speech {
-  max-height: 51px;
-  -webkit-line-clamp: 3;
 }
 /* The bar reads as "this is JIRI talking", without spending a speech bubble. */
 .device-speech::before {
@@ -2825,6 +2841,7 @@ body.is-screen.theme-nothing .screen-frame {
   align-items: center;
   gap: 7px;
   min-width: 0;
+  height: 12px;
   margin: 0;
   padding-left: 12px;
   overflow: hidden;
@@ -2930,7 +2947,7 @@ body.is-screen.theme-nothing .screen-frame {
    registering. */
 .mascot-creature { transform-origin: 60px 100px; animation: mascot-breathe 4s ease-in-out infinite; }
 .mascot-cursor { animation: mascot-cursor 1.1s steps(2, end) infinite; }
-.mascot-eyes { transform-origin: 60px 62px; animation: mascot-blink 5.6s ease-in-out infinite; }
+.mascot-eyes { transform-origin: 60px 62px; animation: mascot-blink 14s linear infinite; }
 .mascot-scan { opacity: 0; }
 
 @keyframes mascot-breathe {
@@ -2938,10 +2955,30 @@ body.is-screen.theme-nothing .screen-frame {
   50% { transform: scale(1.018, .985); }
 }
 @keyframes mascot-cursor { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+/* A real blink is ~120ms, not 450, and it does not arrive on a metronome. The
+   whole 14s cycle carries four blink events at deliberately uneven spacing, one
+   of them a double — which is what stops a loop from reading as a loop. Closing
+   is faster than opening, as it is in an actual eyelid. */
 @keyframes mascot-blink {
-  0%, 90% { transform: scaleY(1); }
-  93%, 95% { transform: scaleY(.06); }
-  98%, 100% { transform: scaleY(1); }
+  0%, 6.4% { transform: scaleY(1); }
+  6.8% { transform: scaleY(.05); }
+  7.4% { transform: scaleY(1); }
+
+  27.2% { transform: scaleY(1); }
+  27.6% { transform: scaleY(.05); }
+  28.2% { transform: scaleY(1); }
+  29.1% { transform: scaleY(1); }
+  29.5% { transform: scaleY(.05); }
+  30.1% { transform: scaleY(1); }
+
+  58.6% { transform: scaleY(1); }
+  59% { transform: scaleY(.05); }
+  59.6% { transform: scaleY(1); }
+
+  83.3% { transform: scaleY(1); }
+  83.7% { transform: scaleY(.05); }
+  84.3% { transform: scaleY(1); }
+  100% { transform: scaleY(1); }
 }
 @keyframes mascot-scan {
   0% { transform: translateY(0); opacity: 0; }
@@ -3060,18 +3097,27 @@ body.is-screen.theme-nothing .screen-frame {
 .screen-focused .mascot-scan { animation: mascot-scan 2.4s linear infinite; }
 .screen-happy .mascot-creature { animation: mascot-hop 1.5s ease-in-out infinite; }
 .screen-curious .mascot-creature { animation: mascot-lean 3.4s ease-in-out infinite; }
-.screen-curious .mascot-eyes { animation: mascot-blink 3.4s ease-in-out infinite; }
+
+/* ── Bidding for attention ────────────────────────────────────────────────
+   Only states that genuinely need you get to move, and they move in short
+   bids with long quiet gaps rather than continuously. A pet that jitters
+   without stopping is one you learn to tune out, which costs it the one moment
+   it actually needed you. The gap shortens as the situation escalates. */
 .screen-alert .mascot-creature,
-.screen-system_warning .mascot-creature { animation: mascot-startle .9s ease-in-out infinite; }
-.screen-alert .mascot-frame,
-.screen-system_warning .mascot-frame { animation: mascot-flicker .8s steps(2, end) infinite; }
+.screen-system_warning .mascot-creature { animation: mascot-bid 7s ease-in-out infinite; }
+.screen-annoyed .mascot-creature { animation: mascot-sigh 9s ease-in-out infinite; }
 .screen-alert .mascot-scan,
-.screen-system_warning .mascot-scan { animation: mascot-scan 1.1s linear infinite; }
+.screen-system_warning .mascot-scan { animation: mascot-scan 3s linear infinite; }
 .screen-ai_offline .mascot { opacity: .5; }
 .screen-ai_offline .mascot-scan { animation: none; opacity: 0; }
 .screen-ai_offline .mascot-dot { opacity: .3; }
-.screen-annoyed .mascot-creature { animation: mascot-sigh 4.6s ease-in-out infinite; }
-.screen-angry .mascot-creature,
+/* Eyes that are already shut, crossed out or drawn as lines do not blink. */
+.screen-sleeping .mascot-eyes,
+.screen-annoyed .mascot-eyes,
+.screen-ai_offline .mascot-eyes { animation: none; }
+.screen-angry .mascot-creature { animation: mascot-bid-hard 4.5s ease-in-out infinite; }
+/* Rage is the top of the escalation and the only state that never stops moving.
+   By then a task is five levels overdue and being ignorable is the failure. */
 .screen-rage .mascot-creature { animation: mascot-shake .26s steps(2, end) infinite; }
 .screen-angry .mascot,
 .screen-rage .mascot { color: var(--danger); }
@@ -3084,6 +3130,47 @@ body.is-screen.theme-nothing .screen-frame {
 .screen-blink .mascot-eyes { animation: none; }
 /* Fires once, only when the mood actually changed. Never on a plain repaint. */
 .device-face.is-reacting .mascot-creature { animation: mascot-boop 620ms ease-out; }
+
+/* Acknowledged: you tapped JIRI, so it stops bidding and goes back to breathing.
+   It does NOT claim the task is handled — the face, the reason line and the
+   watch strip all still say what is wrong. It only stops tugging your sleeve.
+
+   Rage is excluded on purpose: at five levels overdue, being dismissable is the
+   failure. Everything up to angry can be waved off; that one cannot. */
+.screen-frame.is-acknowledged:not(.screen-rage) .device-mark .mascot-creature {
+  animation: mascot-breathe 4s ease-in-out infinite;
+}
+.screen-frame.is-acknowledged:not(.screen-rage) .device-mark .mascot-scan {
+  animation: none;
+  opacity: 0;
+}
+.screen-frame.is-acknowledged:not(.screen-rage) .watch-cell.is-alert { animation: none; }
+.device-face.is-acking .mascot-creature { animation: mascot-boop 620ms ease-out; }
+
+/* The one cell that needs you gets a slow pulse — the same escalation logic as
+   the face, in the row you scan for status. */
+.watch-cell.is-alert { animation: watch-alert 2.6s ease-in-out infinite; }
+@keyframes watch-alert {
+  0%, 62%, 100% { background: color-mix(in srgb, var(--danger) 16%, transparent); }
+  78% { background: color-mix(in srgb, var(--danger) 34%, transparent); }
+}
+
+/* Movement lives in the last ~14% of the cycle; the rest is stillness. */
+@keyframes mascot-bid {
+  0%, 85% { transform: translateY(0) rotate(0deg); }
+  87.5% { transform: translateY(-6px) rotate(-2.5deg); }
+  90% { transform: translateY(0) rotate(2deg); }
+  92.5% { transform: translateY(-2px) rotate(-1deg); }
+  95%, 100% { transform: translateY(0) rotate(0deg); }
+}
+@keyframes mascot-bid-hard {
+  0%, 78% { transform: translate(0, 0) rotate(0deg); }
+  81% { transform: translate(-4px, -2px) rotate(-3deg); }
+  84% { transform: translate(4px, 0) rotate(3deg); }
+  87% { transform: translate(-3px, -1px) rotate(-2deg); }
+  90% { transform: translate(2px, 0) rotate(1deg); }
+  93%, 100% { transform: translate(0, 0) rotate(0deg); }
+}
 
 @keyframes mascot-hop {
   0%, 100% { transform: translateY(0) scale(1, 1); }
