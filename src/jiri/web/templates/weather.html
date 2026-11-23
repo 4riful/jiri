@@ -1,0 +1,244 @@
+{% from "macros/icons.html" import icon_weather, icon_search, icon_map_pin, icon_refresh, icon_test, icon_chevron_down, icon_gear, icon_thermometer, icon_cloud_rain, icon_wind, icon_cloud, icon_cloud_fog, icon_cloud_lightning, icon_cloud_snow %}
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="stacked-dashboard">
+    {% set today = snapshot.weather.daily_forecast[0] if snapshot.weather.daily_forecast else none %}
+    <article class="card weather-current-card">
+      <div class="weather-minimal-grid">
+        <div class="weather-main">
+          <h2>{{ snapshot.weather.location }}</h2>
+          {% if today %}<span class="weather-source">Updated {{ today.day }}</span>{% endif %}
+          <strong class="weather-main-temp">{{ snapshot.weather.temperature_c|round|int if snapshot.weather.temperature_c is not none else '--' }}&deg;</strong>
+          <span class="weather-main-cond">{{ snapshot.weather.condition }}</span>
+          <span class="weather-main-range">H:{{ (today.high_c|round|int) if today.high_c is defined and today.high_c is not none else '--' }}&deg; L:{{ (today.low_c|round|int) if today.low_c is defined and today.low_c is not none else '--' }}&deg;</span>
+        </div>
+        <div class="weather-details">
+          <span>Feels {{ snapshot.weather.feels_like_c|round|int if snapshot.weather.feels_like_c is not none else '--' }}&deg;</span>
+          <span>Rain {{ snapshot.weather.rain_chance ~ '%' if snapshot.weather.rain_chance is not none else '--' }}</span>
+          <span>Wind {{ snapshot.weather.wind_kmh|round|int if snapshot.weather.wind_kmh is not none else '--' }} km/h</span>
+          <span>Humidity {{ snapshot.weather.humidity ~ '%' if snapshot.weather.humidity is not none else '--' }}</span>
+        </div>
+      </div>
+      {% if snapshot.weather.message %}<p class="card-sub">{{ snapshot.weather.message }}</p>{% endif %}
+      <div class="inline-actions">
+        <form method="post" action="{{ url_for('weather_refresh') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button" type="submit">{{ icon_refresh(14) }} Refresh</button></form>
+        <form method="post" action="{{ url_for('weather_providers') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-soft" type="submit">{{ icon_test(14) }} Test providers</button></form>
+      </div>
+    </article>
+
+    {% if snapshot.weather.hourly_forecast %}
+    <article class="card weather-simple-card">
+      <h2 class="section-title"><span class="section-icon">{{ icon_weather(15) }}</span>Next 12 Hours</h2>
+      <div class="simple-hourly-grid">
+        {% for hour in snapshot.weather.hourly_forecast[:12] %}
+        <article class="simple-hour-item">
+          <span class="forecast-icon forecast-icon-{{ hour.icon|default('cloud') }}">
+            {% if hour.icon == 'sun' %}{{ icon_weather(18) }}{% elif hour.icon == 'rain' %}{{ icon_cloud_rain(18) }}{% elif hour.icon == 'storm' %}{{ icon_cloud_lightning(18) }}{% elif hour.icon == 'snow' %}{{ icon_cloud_snow(18) }}{% elif hour.icon == 'fog' %}{{ icon_cloud_fog(18) }}{% else %}{{ icon_cloud(18) }}{% endif %}
+          </span>
+          <span class="simple-hour-time">{{ hour.time }}</span>
+          <strong>{{ hour.temperature_c|round|int if hour.temperature_c is not none else '-' }}&deg;</strong>
+          <span class="simple-hour-rain">{{ hour.rain_chance ~ '%' if hour.rain_chance is not none else '-' }}</span>
+        </article>
+        {% endfor %}
+      </div>
+    </article>
+    {% endif %}
+
+    {% if snapshot.weather.daily_forecast %}
+    <article class="card weather-simple-card">
+      <h2 class="section-title"><span class="section-icon">{{ icon_weather(15) }}</span>7-Day Forecast</h2>
+      <div class="daily-simple-list">
+        {% for day in snapshot.weather.daily_forecast[:7] %}
+        <article class="daily-simple-item">
+          <span class="daily-simple-day">{{ day.day }}</span>
+          <span class="daily-simple-condition">{{ day.condition or 'Forecast' }}</span>
+          <span class="daily-simple-range">{{ day.low_c|round|int if day.low_c is not none else '--' }}&deg; &mdash; {{ day.high_c|round|int if day.high_c is not none else '--' }}&deg;</span>
+        </article>
+        {% endfor %}
+      </div>
+    </article>
+    {% endif %}
+
+    {% if snapshot.active_location %}
+    <article class="card">
+      <h2 class="section-title"><span class="section-icon">{{ icon_map_pin(15) }}</span>Active Location</h2>
+      <dl class="details stacked">
+        <div><dt>Name</dt><dd>{{ snapshot.active_location.name }}</dd></div>
+        <div><dt>Country</dt><dd>{{ snapshot.active_location.country or 'unknown' }}</dd></div>
+        <div><dt>Coordinates</dt><dd>{{ snapshot.active_location.latitude }}, {{ snapshot.active_location.longitude }}</dd></div>
+      </dl>
+    </article>
+    {% endif %}
+
+    {% if snapshot.recent_locations %}
+    <article class="card">
+      <div class="card-head-flex">
+        <h2 class="section-title no-margin"><span class="section-icon">{{ icon_map_pin(15) }}</span>Saved Locations</h2>
+        <button class="collapse-toggle" onclick="toggleSavedLocations()" aria-expanded="false" aria-controls="saved-locations">
+          <span class="toggle-label">Show</span>
+          {{ icon_chevron_down(14) }}
+        </button>
+      </div>
+      <div class="search-results collapse-body forecast-hidden" id="saved-locations">
+        {% for result in snapshot.recent_locations %}
+          <article class="search-card">
+            <div>
+              <strong>{{ result.name }}</strong>
+              <p>{{ result.country or 'unknown' }} · {{ result.latitude }}, {{ result.longitude }}</p>
+            </div>
+            <form method="post" action="{{ url_for('weather_select_recent') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="index" value="{{ loop.index }}">
+              <button class="button button-soft" type="submit">Use</button>
+            </form>
+          </article>
+        {% endfor %}
+      </div>
+    </article>
+    {% endif %}
+
+    <article class="card">
+      <h2 class="section-title"><span class="section-icon">{{ icon_search(15) }}</span>Search Location</h2>
+      <form class="stack-form" method="post" action="{{ url_for('weather_search') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>
+          City name
+          <input name="query" required placeholder="e.g. London">
+        </label>
+        <label>
+          Country filter
+          <select name="country">
+            <option value="">All countries</option>
+            <option value="AF">Afghanistan</option><option value="AX">Aland Islands</option>
+            <option value="AL">Albania</option><option value="DZ">Algeria</option><option value="AS">American Samoa</option>
+            <option value="AD">Andorra</option><option value="AO">Angola</option><option value="AI">Anguilla</option>
+            <option value="AQ">Antarctica</option><option value="AG">Antigua and Barbuda</option><option value="AR">Argentina</option>
+            <option value="AM">Armenia</option><option value="AW">Aruba</option><option value="AU">Australia</option>
+            <option value="AT">Austria</option><option value="AZ">Azerbaijan</option><option value="BS">Bahamas</option>
+            <option value="BH">Bahrain</option><option value="BD">Bangladesh</option><option value="BB">Barbados</option>
+            <option value="BY">Belarus</option><option value="BE">Belgium</option><option value="BZ">Belize</option>
+            <option value="BJ">Benin</option><option value="BM">Bermuda</option><option value="BT">Bhutan</option>
+            <option value="BO">Bolivia</option><option value="BA">Bosnia and Herzegovina</option><option value="BW">Botswana</option>
+            <option value="BR">Brazil</option><option value="VG">British Virgin Islands</option><option value="BN">Brunei</option>
+            <option value="BG">Bulgaria</option><option value="BF">Burkina Faso</option><option value="BI">Burundi</option>
+            <option value="KH">Cambodia</option><option value="CM">Cameroon</option><option value="CA">Canada</option>
+            <option value="CV">Cape Verde</option><option value="KY">Cayman Islands</option><option value="CF">Central African Republic</option>
+            <option value="TD">Chad</option><option value="CL">Chile</option><option value="CN">China</option>
+            <option value="CO">Colombia</option><option value="KM">Comoros</option><option value="CG">Congo (Brazzaville)</option>
+            <option value="CD">Congo (Kinshasa)</option><option value="CR">Costa Rica</option><option value="HR">Croatia</option>
+            <option value="CU">Cuba</option><option value="CY">Cyprus</option><option value="CZ">Czechia</option>
+            <option value="DK">Denmark</option><option value="DJ">Djibouti</option><option value="DM">Dominica</option>
+            <option value="DO">Dominican Republic</option><option value="EC">Ecuador</option><option value="EG">Egypt</option>
+            <option value="SV">El Salvador</option><option value="GQ">Equatorial Guinea</option><option value="ER">Eritrea</option>
+            <option value="EE">Estonia</option><option value="SZ">Eswatini</option><option value="ET">Ethiopia</option>
+            <option value="FK">Falkland Islands</option><option value="FO">Faroe Islands</option><option value="FJ">Fiji</option>
+            <option value="FI">Finland</option><option value="FR">France</option><option value="GF">French Guiana</option>
+            <option value="PF">French Polynesia</option><option value="GA">Gabon</option><option value="GM">Gambia</option>
+            <option value="GE">Georgia</option><option value="DE">Germany</option><option value="GH">Ghana</option>
+            <option value="GI">Gibraltar</option><option value="GR">Greece</option><option value="GL">Greenland</option>
+            <option value="GD">Grenada</option><option value="GP">Guadeloupe</option><option value="GU">Guam</option>
+            <option value="GT">Guatemala</option><option value="GG">Guernsey</option><option value="GN">Guinea</option>
+            <option value="GW">Guinea-Bissau</option><option value="GY">Guyana</option><option value="HT">Haiti</option>
+            <option value="HN">Honduras</option><option value="HK">Hong Kong</option><option value="HU">Hungary</option>
+            <option value="IS">Iceland</option><option value="IN">India</option><option value="ID">Indonesia</option>
+            <option value="IR">Iran</option><option value="IQ">Iraq</option><option value="IE">Ireland</option>
+            <option value="IM">Isle of Man</option><option value="IL">Israel</option><option value="IT">Italy</option>
+            <option value="CI">Ivory Coast</option><option value="JM">Jamaica</option><option value="JP">Japan</option>
+            <option value="JE">Jersey</option><option value="JO">Jordan</option><option value="KZ">Kazakhstan</option>
+            <option value="KE">Kenya</option><option value="KI">Kiribati</option><option value="XK">Kosovo</option>
+            <option value="KW">Kuwait</option><option value="KG">Kyrgyzstan</option><option value="LA">Laos</option>
+            <option value="LV">Latvia</option><option value="LB">Lebanon</option><option value="LS">Lesotho</option>
+            <option value="LR">Liberia</option><option value="LY">Libya</option><option value="LI">Liechtenstein</option>
+            <option value="LT">Lithuania</option><option value="LU">Luxembourg</option><option value="MO">Macau</option>
+            <option value="MG">Madagascar</option><option value="MW">Malawi</option><option value="MY">Malaysia</option>
+            <option value="MV">Maldives</option><option value="ML">Mali</option><option value="MT">Malta</option>
+            <option value="MH">Marshall Islands</option><option value="MQ">Martinique</option><option value="MR">Mauritania</option>
+            <option value="MU">Mauritius</option><option value="YT">Mayotte</option><option value="MX">Mexico</option>
+            <option value="FM">Micronesia</option><option value="MD">Moldova</option><option value="MC">Monaco</option>
+            <option value="MN">Mongolia</option><option value="ME">Montenegro</option><option value="MS">Montserrat</option>
+            <option value="MA">Morocco</option><option value="MZ">Mozambique</option><option value="MM">Myanmar</option>
+            <option value="NA">Namibia</option><option value="NR">Nauru</option><option value="NP">Nepal</option>
+            <option value="NL">Netherlands</option><option value="NC">New Caledonia</option><option value="NZ">New Zealand</option>
+            <option value="NI">Nicaragua</option><option value="NE">Niger</option><option value="NG">Nigeria</option>
+            <option value="NU">Niue</option><option value="NF">Norfolk Island</option><option value="MP">Northern Mariana Islands</option>
+            <option value="KP">North Korea</option><option value="MK">North Macedonia</option><option value="NO">Norway</option>
+            <option value="OM">Oman</option><option value="PK">Pakistan</option><option value="PS">Palestinian Territory</option>
+            <option value="PA">Panama</option><option value="PG">Papua New Guinea</option><option value="PY">Paraguay</option>
+            <option value="PE">Peru</option><option value="PH">Philippines</option><option value="PL">Poland</option>
+            <option value="PT">Portugal</option><option value="PR">Puerto Rico</option><option value="QA">Qatar</option>
+            <option value="RE">Reunion</option><option value="RO">Romania</option><option value="RU">Russia</option>
+            <option value="RW">Rwanda</option><option value="SH">Saint Helena</option><option value="KN">Saint Kitts and Nevis</option>
+            <option value="LC">Saint Lucia</option><option value="PM">Saint Pierre and Miquelon</option><option value="VC">Saint Vincent and the Grenadines</option>
+            <option value="WS">Samoa</option><option value="SM">San Marino</option><option value="ST">Sao Tome and Principe</option>
+            <option value="SA">Saudi Arabia</option><option value="SN">Senegal</option><option value="RS">Serbia</option>
+            <option value="SC">Seychelles</option><option value="SL">Sierra Leone</option><option value="SG">Singapore</option>
+            <option value="SX">Sint Maarten</option><option value="SK">Slovakia</option><option value="SI">Slovenia</option>
+            <option value="SB">Solomon Islands</option><option value="SO">Somalia</option><option value="ZA">South Africa</option>
+            <option value="KR">South Korea</option><option value="SS">South Sudan</option><option value="ES">Spain</option>
+            <option value="LK">Sri Lanka</option><option value="SD">Sudan</option><option value="SR">Suriname</option>
+            <option value="SJ">Svalbard and Jan Mayen</option><option value="SE">Sweden</option><option value="CH">Switzerland</option>
+            <option value="SY">Syria</option><option value="TW">Taiwan</option><option value="TJ">Tajikistan</option>
+            <option value="TZ">Tanzania</option><option value="TH">Thailand</option><option value="TL">Timor-Leste</option>
+            <option value="TG">Togo</option><option value="TK">Tokelau</option><option value="TO">Tonga</option>
+            <option value="TT">Trinidad and Tobago</option><option value="TN">Tunisia</option><option value="TR">Turkey</option>
+            <option value="TM">Turkmenistan</option><option value="TC">Turks and Caicos Islands</option><option value="TV">Tuvalu</option>
+            <option value="VI">U.S. Virgin Islands</option><option value="UG">Uganda</option><option value="UA">Ukraine</option>
+            <option value="AE">United Arab Emirates</option><option value="GB">United Kingdom</option><option value="US">United States</option>
+            <option value="UY">Uruguay</option><option value="UZ">Uzbekistan</option><option value="VU">Vanuatu</option>
+            <option value="VA">Vatican</option><option value="VE">Venezuela</option><option value="VN">Vietnam</option>
+            <option value="WF">Wallis and Futuna</option><option value="EH">Western Sahara</option><option value="YE">Yemen</option>
+            <option value="ZM">Zambia</option><option value="ZW">Zimbabwe</option>
+          </select>
+        </label>
+        <button class="button" type="submit">{{ icon_search(14) }} Search</button>
+      </form>
+      {% if search_results %}
+        <div class="search-results">
+          {% for result in search_results %}
+            <article class="search-card">
+              <div>
+                <strong>{{ result.name }}</strong>
+                <p>{{ result.country or 'unknown' }} ({{ result.country_code or 'unknown' }}) · {{ result.latitude }}, {{ result.longitude }}</p>
+                <p>{{ result.admin1 or 'unknown' }}</p>
+              </div>
+              <form method="post" action="{{ url_for('weather_select') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="index" value="{{ loop.index }}">
+                <button class="button button-soft" type="submit">Select</button>
+              </form>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </article>
+
+    <article class="card">
+      <h2 class="section-title"><span class="section-icon">{{ icon_map_pin(15) }}</span>Set Coordinates</h2>
+      <form class="stack-form" method="post" action="{{ url_for('weather_set_coords') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Label <input name="name" required placeholder="Home"></label>
+        <label>Latitude <input name="lat" required type="number" step="0.0001" placeholder="38.7223"></label>
+        <label>Longitude <input name="lon" required type="number" step="0.0001" placeholder="-9.1393"></label>
+        <button class="button" type="submit">Save</button>
+      </form>
+    </article>
+
+    {% if provider_results %}
+      <article class="card">
+        <h2 class="section-title"><span class="section-icon">{{ icon_gear(15) }}</span>Provider Diagnostics</h2>
+        <ul class="compact-list">
+          {% for result in provider_results %}
+            <li><strong>{{ result.provider }}</strong> <span>{{ 'OK' if result.ok else 'FAILED' }} · {{ result.response_ms }}ms{% if result.ok %} · {{ result.condition }} · {{ result.temperature_c }}C{% else %} · {{ result.error }}{% endif %}</span></li>
+          {% endfor %}
+        </ul>
+      </article>
+    {% endif %}
+  </section>
+
+<script>
+function toggleSavedLocations() {
+  var body = document.getElementById("saved-locations");
+  var hidden = body.classList.toggle("forecast-hidden");
+  var btn = body.closest(".card").querySelector(".collapse-toggle");
+  btn.setAttribute("aria-expanded", !hidden);
+  btn.querySelector(".toggle-label").textContent = hidden ? "Show" : "Hide";
+}
+</script>
+{% endblock %}

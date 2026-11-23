@@ -1,0 +1,269 @@
+{% from "macros/icons.html" import icon_ai, icon_check, icon_power %}
+{% extends "base.html" %}
+
+{% block content %}
+<section class="page-head">
+  <h1 class="section-title">{{ icon_ai(18) }} AI Wording</h1>
+  <p class="meta-line">
+    Hosted models generate persona line <em>templates</em> in the background. The display
+    only ever reads the local cache, so AI can never slow down or break the screen.
+  </p>
+</section>
+
+{% set sm = activity.summary %}
+{% set wk = activity.worker %}
+{% set active = (ai_status.providers | selectattr('enabled') | rejectattr('breaker_open') | selectattr('ready') | list) %}
+<section class="dash-stats ai-stats">
+  <article class="stat-card stat-ai">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_ai(14) }} Calls today</span>
+      <span class="stat-head-badge {{ 'badge-green' if ai_status.used_today < ai_status.daily_cap else 'status-red' }}">cap {{ ai_status.daily_cap }}</span>
+    </div>
+    <strong class="stat-big">{{ ai_status.used_today }}</strong>
+    <p>successful of {{ ai_status.daily_cap }} &middot; {{ sm.attempts_today }} attempt(s) logged</p>
+  </article>
+  <article class="stat-card stat-water">
+    <div class="stat-head"><span class="stat-head-label">Success rate</span></div>
+    <strong class="stat-big">{{ (sm.success_rate ~ '%') if sm.success_rate is not none else '--' }}</strong>
+    <p>{{ sm.ok_today }} ok &middot; {{ sm.failed_today }} failed today</p>
+  </article>
+  <article class="stat-card stat-focus">
+    <div class="stat-head"><span class="stat-head-label">Avg latency</span></div>
+    <strong class="stat-big">{{ ('%.1fs' % (sm.avg_latency_ms / 1000)) if sm.avg_latency_ms is not none else '--' }}</strong>
+    <p>successful calls today</p>
+  </article>
+  <article class="stat-card stat-notes">
+    <div class="stat-head"><span class="stat-head-label">Tokens today</span></div>
+    <strong class="stat-big">{{ sm.tokens_today if sm.tokens_today is not none else '--' }}</strong>
+    <p>{% if sm.tokens_today is not none %}{{ sm.prompt_tokens_today or 0 }} in &middot; {{ sm.completion_tokens_today or 0 }} out{% else %}provider did not report usage{% endif %}</p>
+  </article>
+  <article class="stat-card stat-todos">
+    <div class="stat-head"><span class="stat-head-label">Lines in cache</span></div>
+    <strong class="stat-big">{{ ai_status.cache_total }}</strong>
+    <p>{{ sm.stored_today }} new today &middot; {{ activity.buckets | selectattr('lines', 'equalto', 0) | list | length }} bucket(s) on built-in wording</p>
+  </article>
+  <article class="stat-card stat-telegram">
+    <div class="stat-head">
+      <span class="stat-head-label">Provider in use</span>
+      {% if active %}<span class="stat-head-badge badge-green">breaker closed</span>
+      {% else %}<span class="stat-head-badge status-red">none available</span>{% endif %}
+    </div>
+    <strong class="stat-big">{{ active[0].name if active else '--' }}</strong>
+    <p>{% if active %}<code>{{ active[0].model }}</code>{% endif %}
+      {% for p in ai_status.providers if p.breaker_open %} &middot; {{ p.name }} breaker open{% endfor %}</p>
+  </article>
+  <article class="stat-card stat-ai">
+    <div class="stat-head">
+      <span class="stat-head-label">Background worker</span>
+      <span class="stat-head-badge {{ 'badge-green' if wk and wk.running else 'badge-dim' }}">{{ 'running' if wk and wk.running else 'not in this process' }}</span>
+    </div>
+    <strong class="stat-big">{{ wk.last_finished_at[11:16] if wk and wk.last_finished_at else '--:--' }}</strong>
+    <p>
+      {% if wk and wk.last_finished_at %}
+        last refill:
+        {% if wk.last_error %}failed ({{ wk.last_error }})
+        {% elif wk.last_skipped %}skipped ({{ wk.last_skipped }})
+        {% else %}{{ wk.last_calls or 0 }} bucket(s) tried, {{ wk.last_stored or 0 }} stored{% endif %}
+      {% elif wk %}no refill yet this boot{% else %}every {{ activity.refill_interval_minutes }} min from the web service{% endif %}
+    </p>
+  </article>
+  <article class="stat-card stat-water">
+    <div class="stat-head"><span class="stat-head-label">Next refill</span></div>
+    <strong class="stat-big">{{ wk.next_run_at[11:16] if wk and wk.next_run_at else '--:--' }}</strong>
+    <p>{% if wk and wk.next_run_in_s is not none %}in {{ (wk.next_run_in_s // 60) }}m {{ wk.next_run_in_s % 60 }}s &middot; every {{ wk.interval_minutes }} min{% else %}interval {{ activity.refill_interval_minutes }} min{% endif %}</p>
+  </article>
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>How JIRI uses AI</h2>
+  </div>
+  <p class="meta-line">
+    Every {{ activity.refill_interval_minutes }} minutes the background worker picks the emptiest
+    buckets (a <em>category</em> + <em>mood</em> the screen asked for), sends one chat request per bucket
+    to the first healthy provider, and keeps only the lines that pass the sanitizer (length, slots,
+    no invented numbers). The display then picks a cached line locally; a bucket with no lines
+    uses JIRI's built-in wording. AI never sees or changes todos, timers, weather, or settings.
+  </p>
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Status</h2>
+    <span class="stat-pill {{ 'badge-green' if ai_status.ready else 'badge-warn' }}">{{ 'ready' if ai_status.ready else 'setup required' }}</span>
+  </div>
+  <dl class="details kv-grid">
+    <div><dt>Cached lines</dt><dd>{{ ai_status.cache_total }}</dd></div>
+    <div><dt>Requests today</dt><dd>{{ ai_status.used_today }} / {{ ai_status.daily_cap }}</dd></div>
+    <div><dt>Target per bucket</dt><dd>{{ ai_status.min_lines_per_bucket }}</dd></div>
+    <div><dt>Max line length</dt><dd>{{ ai_status.max_output_chars }} chars</dd></div>
+  </dl>
+  {% if not ai_status.ready %}
+  <p class="meta-line">
+    API wording is required for a production-ready JIRI. Add a provider key to
+    complete setup. Cached and deterministic wording remain available during outages.
+  </p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Providers</h2>
+  </div>
+  {% if ai_status.providers %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Name</th><th>Model</th><th>State</th><th>Detail</th></tr>
+    </thead>
+    <tbody>
+      {% for p in ai_status.providers %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td>{% if p.model %}<code>{{ p.model }}</code>{% else %}<em>-</em>{% endif %}</td>
+        <td>
+          {% if p.breaker_open %}circuit open
+          {% elif p.ready and p.enabled %}ready
+          {% elif not p.enabled %}disabled
+          {% else %}not ready{% endif %}
+        </td>
+        <td class="meta-line">
+          {{ p.detail }}
+          {% if p.failures %} &middot; {{ p.failures }} recent failure(s){% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-face" aria-hidden="true">[ -_- ]</span>
+    <strong>No providers configured</strong>
+    <span>Add at least one <code>[[ai.providers]]</code> entry. A provider is required for production readiness.</span>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Recent AI calls</h2>
+    <span class="stat-pill badge-dim">last {{ activity.calls | length }}</span>
+  </div>
+  {% if activity.calls %}
+  <div class="table-scroll">
+  <table class="data-table">
+    <thead>
+      <tr><th>Time</th><th>Provider / model</th><th>Bucket</th><th>Result</th><th>Latency</th><th>Ret / acc / stored</th><th>Tokens in / out</th></tr>
+    </thead>
+    <tbody>
+      {% for c in activity.calls %}
+      <tr>
+        <td title="{{ c.at }}">{{ c.at[5:10] }} {{ c.at[11:19] }}</td>
+        <td>{{ c.provider }}{% if c.model %} <code>{{ c.model }}</code>{% endif %}</td>
+        <td>{{ c.category }} / {{ c.mood }}</td>
+        <td>{% if c.ok %}<span class="stat-pill badge-green">ok</span>{% else %}<span class="stat-pill status-red" title="{{ c.error }}">error</span> <span class="meta-line" title="{{ c.error }}">{{ c.error }}</span>{% endif %}</td>
+        <td>{{ '%.1fs' % (c.latency_ms / 1000) }}</td>
+        <td>{{ c.returned }} / {{ c.accepted }} / {{ c.stored }}</td>
+        <td>{{ c.prompt_tokens if c.prompt_tokens is not none else '-' }} / {{ c.completion_tokens if c.completion_tokens is not none else '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-face" aria-hidden="true">[ o_o ]</span>
+    <strong>No AI calls logged yet</strong>
+    <span>The background worker logs every provider attempt here. Use "Refill now" to make one.</span>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>What JIRI can say</h2>
+    <span class="stat-pill badge-dim">{{ activity.buckets | length }} bucket(s)</span>
+  </div>
+  {% if activity.buckets %}
+  <div class="table-scroll">
+  <table class="data-table">
+    <thead><tr><th>Category</th><th>Mood</th><th>Lines</th><th>Newest line</th><th>Last used</th><th>Uses</th><th></th></tr></thead>
+    <tbody>
+      {% for b in activity.buckets %}
+      <tr>
+        <td>{{ b.category }}</td>
+        <td>{{ b.mood }}</td>
+        <td>
+          {% if b.lines == 0 %}<span class="stat-pill status-red" title="No AI lines: the screen uses built-in wording">0 &middot; built-in</span>
+          {% else %}{{ b.lines }}{% if b.lines < ai_status.min_lines_per_bucket %} <span class="meta-line">(low)</span>{% endif %}{% endif %}
+        </td>
+        <td title="{{ b.newest or '' }}">{% if b.newest %}&ldquo;{{ b.newest }}&rdquo;{% else %}<em>none yet</em>{% endif %}</td>
+        <td>{{ (b.last_used[5:10] ~ ' ' ~ b.last_used[11:16]) if b.last_used else '-' }}</td>
+        <td>{{ b.uses }}</td>
+        <td>
+          <form method="post" action="{{ url_for('ai_generate') }}" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="category" value="{{ b.category }}"><input type="hidden" name="mood" value="{{ b.mood }}">
+            <button class="button" type="submit" title="One AI call for this bucket">Generate now</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-face" aria-hidden="true">[ ^_~ ]</span>
+    <strong>No buckets yet</strong>
+    <span>Buckets appear the first time the screen asks for a line. Until then JIRI uses built-in wording.</span>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Recently generated lines</h2>
+  </div>
+  {% if activity.recent_lines %}
+  <div class="table-scroll">
+  <table class="data-table">
+    <thead><tr><th>Created</th><th>Bucket</th><th>Line</th><th>Provider / model</th><th>Uses</th></tr></thead>
+    <tbody>
+      {% for l in activity.recent_lines %}
+      <tr>
+        <td>{{ l.created_at[5:10] }} {{ l.created_at[11:16] }}</td>
+        <td>{{ l.category }} / {{ l.mood }}</td>
+        <td title="{{ l.text }}">&ldquo;{{ l.text }}&rdquo;</td>
+        <td>{{ l.provider }} <code>{{ l.model }}</code></td>
+        <td>{{ l.use_count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-face" aria-hidden="true">[ -_- ]</span>
+    <strong>No generated lines</strong>
+    <span>The cache is empty.</span>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Actions</h2>
+  </div>
+  <form method="post" action="{{ url_for('ai_refill') }}" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="button" type="submit">{{ icon_check(14) }} Refill now</button>
+  </form>
+  <form method="post" action="{{ url_for('ai_clear') }}" class="inline-form"
+        onsubmit="return confirm('Delete every cached AI line? JIRI falls back to built-in wording.');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="button button-danger" type="submit">{{ icon_power(14) }} Clear cache</button>
+  </form>
+  <p class="meta-line">
+    <a href="{{ url_for('api_ai_activity') }}">JSON: /api/ai/activity</a> &middot;
+    Refill runs in the foreground here for convenience. In normal operation it runs
+    from the background worker.
+  </p>
+</section>
+{% endblock %}

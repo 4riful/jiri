@@ -1,0 +1,227 @@
+{% from "macros/icons.html" import icon_cpu, icon_refresh, icon_link, icon_power %}
+{% extends "base.html" %}
+
+{% macro hidden_csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro snippet(id, label, text, hint="") %}
+<div class="snippet">
+  <div class="snippet-head">
+    <span class="snippet-label">{{ label }}</span>
+    <button class="button snippet-copy" type="button" data-copy="{{ id }}">Copy</button>
+  </div>
+  <pre id="{{ id }}" class="snippet-body">{{ text }}</pre>
+  {% if hint %}<p class="meta-line">{{ hint }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<section class="page-head">
+  <h1 class="section-title">{{ icon_cpu(18) }} AI Usage</h1>
+  <p class="meta-line">
+    Claude and ChatGPT usage limits shown on the display. They come from two places: your laptop
+    pushes them to this Pi, or the Pi signs in to the account and checks them itself every 5 minutes.
+    When both are set up, the display shows whichever reported last.
+  </p>
+</section>
+
+{# ------------------------------------------------------------ sources #}
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Sources</h2>
+    <span class="meta-line">Fresh means a report in the last {{ fresh_minutes }} min.</span>
+  </div>
+  <div class="table-scroll">
+  <table class="data-table usage-table">
+    <thead>
+      <tr><th>Source</th><th>Last report</th><th>Context</th><th>5-hour</th><th>Weekly</th><th>Model / plan</th></tr>
+    </thead>
+    <tbody>
+      {% for s in sources %}
+      <tr class="{{ 'row-muted' if s.freshness == 'never' }}">
+        <td>
+          <strong>{{ s.title }}</strong>
+          <div class="meta-line">{{ s.via }}</div>
+        </td>
+        <td>
+          {% if s.freshness == 'fresh' %}<span class="stat-pill badge-green">fresh</span>
+          {% elif s.freshness == 'stale' %}<span class="stat-pill badge-stale">stale</span>
+          {% else %}<span class="stat-pill badge-dim">never</span>{% endif %}
+          <div class="meta-line">{{ s.last_push_at | ago }}{% if s.feeds_display %} &middot; on display{% endif %}</div>
+        </td>
+        <td class="num">{{ s.context_pct | pct }}</td>
+        <td class="num">{{ s.five_hour_pct | pct }}<div class="meta-line">{{ s.five_hour_resets_in | countdown }}</div></td>
+        <td class="num">{{ s.weekly_pct | pct }}<div class="meta-line">{{ s.weekly_resets_in | countdown }}</div></td>
+        <td>{% if s.label %}<code>{{ s.label }}</code>{% else %}<span class="meta-line">-</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+{# ------------------------------------------------------------ display + clear #}
+<section class="usage-grid">
+  <article class="card">
+    <div class="card-head-flex"><h2>On the display</h2></div>
+    <form class="stack-form compact-form" method="post" action="{{ url_for('usage_visibility') }}">{{ hidden_csrf() }}
+      <label class="check-row"><input type="checkbox" name="show_claude" value="1" {% if shown.claude %}checked{% endif %}> <span>Show Claude</span></label>
+      <label class="check-row"><input type="checkbox" name="show_chatgpt" value="1" {% if shown.chatgpt %}checked{% endif %}> <span>Show ChatGPT</span></label>
+      <div class="inline-actions"><button class="button" type="submit">Save</button></div>
+    </form>
+  </article>
+  <article class="card">
+    <div class="card-head-flex"><h2>Stored usage</h2></div>
+    <p class="meta-line">Deletes the stored numbers for one provider, from every source. The next report fills them again.</p>
+    <div class="inline-actions">
+      {% for provider, title in (('claude', 'Claude'), ('chatgpt', 'ChatGPT')) %}
+      <form class="inline-form" method="post" action="{{ url_for('usage_clear') }}" onsubmit="return confirm('Clear stored {{ title }} usage?')">{{ hidden_csrf() }}
+        <input type="hidden" name="provider" value="{{ provider }}">
+        <button class="button button-danger" type="submit">Clear {{ title }}</button>
+      </form>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+{# ------------------------------------------------------------ direct sign-in #}
+<section class="card">
+  <div class="card-head-flex">
+    <h2>Sign in from the Pi</h2>
+  </div>
+  <p class="meta-line">
+    The Pi keeps its own sign-in, separate from Claude Code, Codex or OpenCode on your laptop, and checks usage every 5 minutes.
+    Signing in here does not log those tools out.
+  </p>
+  <div class="usage-grid">
+  {% for provider, a in accounts.items() %}
+    <article class="account-card" id="account-{{ provider }}">
+      <div class="card-head-flex">
+        <h3>{{ a.title }}</h3>
+        {% if a.needs_reconnect %}<span class="stat-pill status-red">reconnect needed</span>
+        {% elif a.connected %}<span class="stat-pill badge-green">connected</span>
+        {% else %}<span class="stat-pill badge-dim">not connected</span>{% endif %}
+      </div>
+      {% if a.connected %}
+      <dl class="details kv-grid">
+        <div><dt>Account</dt><dd>{{ a.email or 'unknown' }}{% if a.plan %} &middot; {{ a.plan }}{% endif %}</dd></div>
+        <div><dt>Last check</dt><dd>{{ a.last_check_at | ago }}</dd></div>
+        <div><dt>Last success</dt><dd>{{ a.last_ok_at | ago }}</dd></div>
+        <div><dt>Last error</dt><dd>{{ a.last_error or 'none' }}</dd></div>
+      </dl>
+      {% endif %}
+
+      {% if pending_login and pending_login.provider == provider %}
+      <ol class="steps">
+        <li>Open <a href="{{ pending_login.url }}" target="_blank" rel="noopener noreferrer">the {{ a.title }} sign-in page</a> in this browser and sign in.</li>
+        <li>{{ a.paste_hint }}</li>
+      </ol>
+      <form class="stack-form compact-form" method="post" action="{{ url_for('usage_account_complete', provider=provider) }}">{{ hidden_csrf() }}
+        <label><span>Code or address</span>
+          <input name="pasted" autocomplete="off" spellcheck="false" required placeholder="{{ 'code#state' if provider == 'claude' else 'http://localhost:1455/auth/callback?code=...' }}">
+        </label>
+        <div class="inline-actions">
+          <button class="button" type="submit">Finish sign-in</button>
+        </div>
+      </form>
+      <form class="inline-form" method="post" action="{{ url_for('usage_account_cancel', provider=provider) }}">{{ hidden_csrf() }}
+        <button class="button" type="submit">Cancel</button>
+      </form>
+      {% else %}
+      <div class="inline-actions">
+        <form class="inline-form" method="post" action="{{ url_for('usage_account_connect', provider=provider) }}">{{ hidden_csrf() }}
+          <button class="button" type="submit">{{ icon_link(14) }} {{ 'Reconnect' if a.connected else 'Connect' }}</button>
+        </form>
+        {% if a.connected %}
+        <form class="inline-form" method="post" action="{{ url_for('usage_account_check', provider=provider) }}">{{ hidden_csrf() }}
+          <button class="button button-soft" type="submit">{{ icon_refresh(14) }} Check now</button>
+        </form>
+        <form class="inline-form" method="post" action="{{ url_for('usage_account_disconnect', provider=provider) }}" onsubmit="return confirm('Disconnect {{ a.title }} from this Pi?')">{{ hidden_csrf() }}
+          <button class="button button-danger" type="submit">{{ icon_power(14) }} Disconnect</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+    </article>
+  {% endfor %}
+  </div>
+</section>
+
+{# ------------------------------------------------------------ push token #}
+<section class="card" id="token">
+  <div class="card-head-flex">
+    <h2>Laptop push token</h2>
+    {% if push.enabled %}<span class="stat-pill badge-green">push enabled</span>
+    {% else %}<span class="stat-pill status-red">push disabled</span>{% endif %}
+  </div>
+  {% if revealed_token %}
+  <div class="token-reveal" role="status">
+    <p><strong>Copy this token now.</strong> It is shown only once. After you leave this page it appears as <code>{{ push.db_token_masked }}</code>.</p>
+    {{ snippet('snippet-token', 'Push token', revealed_token) }}
+  </div>
+  {% endif %}
+  <dl class="details kv-grid">
+    <div><dt>Token</dt><dd>{% if push.db_token_set %}<code>{{ push.db_token_masked }}</code>{% else %}not generated{% endif %}</dd></div>
+    <div><dt>Old .env token</dt><dd>{% if push.env_token_set %}<code>{{ push.env_token_masked }}</code> still accepted{% else %}not set{% endif %}</dd></div>
+  </dl>
+  {% if push.env_token_set %}
+  <p class="meta-line">
+    The Pi's <code>.env</code> still has a <code>JIRI_USAGE_TOKEN</code>, and laptops using it keep working.
+    To revoke it, move the laptop to the token above, then delete that line from <code>.env</code> and restart the web service.
+  </p>
+  {% endif %}
+  <form class="inline-actions" method="post" action="{{ url_for('usage_token') }}"
+        {% if push.db_token_set %}onsubmit="return confirm('Rotate the token? Laptops using the current one stop pushing until you update them.')"{% endif %}>{{ hidden_csrf() }}
+    <button class="button" type="submit">{{ icon_refresh(14) }} {{ 'Rotate token' if push.db_token_set else 'Generate token' }}</button>
+  </form>
+</section>
+
+{# ------------------------------------------------------------ connect laptop #}
+<section class="card" id="connect">
+  <div class="card-head-flex">
+    <h2>Connect your laptop</h2>
+  </div>
+  <p class="meta-line">
+    Run these on the laptop where Claude Code and OpenCode run. The commands use this Pi's address
+    (<code>{{ base_url }}</code>) and your copy of the JIRI repo on the laptop.
+  </p>
+  <form class="stack-form compact-form repo-form" method="post" action="{{ url_for('usage_repo') }}">{{ hidden_csrf() }}
+    <label><span>JIRI repo path on the laptop</span>
+      <input name="repo_path" value="{{ repo_path }}" spellcheck="false">
+    </label>
+    <div class="inline-actions"><button class="button" type="submit">Update commands</button></div>
+  </form>
+
+  <h3>1. Save the address and token</h3>
+  {{ snippet('snippet-env', 'Create ~/.config/jiri/usage.env', snippets.usage_env_cmd,
+     'The token stays in this file, out of settings.json and your shell history.' if revealed_token else
+     'Replace the placeholder with the token. Generate or rotate it above to see it once.') }}
+
+  <h3>2. Claude Code</h3>
+  {{ snippet('snippet-statusline', 'Add to ~/.claude/settings.json', snippets.statusline,
+     'Put your current statusLine command after --then, or remove "--then …" if you have none. It pushes at most once a minute and also starts the OpenCode push.') }}
+
+  <h3>3. ChatGPT through OpenCode</h3>
+  {{ snippet('snippet-opencode', 'Install the OpenCode plugin', snippets.opencode,
+     'The plugin writes the 5-hour and weekly limits to ~/.cache/jiri/opencode-limits.json. Restart OpenCode after installing it.') }}
+  {{ snippet('snippet-cron', 'Optional: crontab -e', snippets.cron,
+     'Only needed if Claude Code is not open. Without it, the Claude statusline pushes OpenCode usage too.') }}
+  {{ snippet('snippet-dry', 'Check without pushing', snippets.dry_run) }}
+</section>
+
+<script>
+  document.querySelectorAll('[data-copy]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var target = document.getElementById(button.getAttribute('data-copy'));
+      if (!target) return;
+      var done = function () { button.textContent = 'Copied'; setTimeout(function () { button.textContent = 'Copy'; }, 1500); };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(target.textContent).then(done);
+      } else {
+        var range = document.createRange(); range.selectNodeContents(target);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        try { document.execCommand('copy'); done(); } catch (e) {}
+      }
+    });
+  });
+</script>
+{% endblock %}

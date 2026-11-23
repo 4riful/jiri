@@ -1,0 +1,30 @@
+# Python / tooling
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Runtime data: SQLite, backups, logs (never commit personal data)
+data/*.db
+data/*.db-*
+backups/
+*.log
+
+# Secrets and local config
+.env
+.env.*
+config.toml
+
+# Rendered display previews (scripts/render_preview.py OUT_DIR)
+preview/
+previews/
+*.preview.png
+
+# Editor / OS junk
+*:Zone.Identifier
+.DS_Store

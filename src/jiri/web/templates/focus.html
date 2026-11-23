@@ -1,0 +1,84 @@
+{% from "macros/icons.html" import icon_play, icon_stop, icon_chevron_down %}
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="page-head">
+    <h1>{{ icon_play(18) }} Focus Sessions</h1>
+    <p class="meta-line">One thing at a time. I will hold the timer and judge you quietly.</p>
+  </section>
+
+  <section class="dashboard-grid">
+    <article class="card focus-current">
+      <h2>Current Focus</h2>
+      {% if snapshot.focus.active %}
+        <div class="metric-large" id="focus-remaining">{{ snapshot.focus.remaining_text }}</div>
+        <p class="focus-title"><strong>{{ snapshot.focus.title }}</strong></p>
+        <div class="water-meter" role="img" aria-label="Focus progress {{ (snapshot.focus.progress * 100)|round|int }} percent">
+          <div class="water-fill" style="width: {{ (snapshot.focus.progress * 100)|round|int }}%"></div>
+        </div>
+        <p class="meta-line">{{ snapshot.focus.kind }} · {{ snapshot.focus.status }} · {{ (snapshot.focus.progress * 100)|round|int }}%</p>
+        <div class="inline-actions">
+          {% if snapshot.focus.status == 'running' %}
+            <form method="post" action="{{ url_for('focus_pause') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-soft" type="submit">{{ icon_play(14) }} Pause</button></form>
+          {% elif snapshot.focus.status == 'paused' %}
+            <form method="post" action="{{ url_for('focus_resume') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-soft" type="submit">Resume</button></form>
+          {% endif %}
+          <form method="post" action="{{ url_for('focus_complete') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button" type="submit">{{ icon_chevron_down(14) }} Complete</button></form>
+          <form method="post" action="{{ url_for('focus_cancel') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-danger" type="submit">{{ icon_stop(14) }} Cancel</button></form>
+        </div>
+      {% else %}
+        <div class="metric-large metric-idle">Idle</div>
+        <p class="meta-line">No active focus session. Start one and I will stop talking for a while.</p>
+      {% endif %}
+    </article>
+
+    <article class="card">
+      <h2>Start Focus</h2>
+      <form class="stack-form" method="post" action="{{ url_for('focus_start') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Title<input name="title" value="Focus session"></label>
+        <label>Minutes<input name="minutes" type="number" min="1" value="25"></label>
+        <label>Todo ID<input name="todo_id" type="number" min="1" placeholder="optional"></label>
+        <button class="button" type="submit">{{ icon_play(14) }} Start focus</button>
+      </form>
+    </article>
+
+    <article class="card">
+      <h2>Start Break</h2>
+      <form class="stack-form" method="post" action="{{ url_for('focus_break') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Break minutes<input name="minutes" type="number" min="1" value="5"></label>
+        <button class="button button-soft" type="submit">{{ icon_play(14) }} Start break</button>
+      </form>
+    </article>
+
+    <article class="card">
+      <h2>Focus Stats</h2>
+      <div class="stat-grid compact-stats">
+        <div><strong>{{ snapshot.focus.status if snapshot.focus.active else 'idle' }}</strong><span>Status</span></div>
+        <div><strong>{{ snapshot.focus.kind if snapshot.focus.active else 'none' }}</strong><span>Kind</span></div>
+        <div><strong>{{ snapshot.focus.todo_id or 'none' }}</strong><span>Todo link</span></div>
+      </div>
+    </article>
+  </section>
+
+{% if snapshot.focus.active %}
+<script>
+(function() {
+  var remainingEl = document.querySelector('.metric-large, #focus-remaining');
+  var startRemaining = {{ snapshot.focus.remaining_seconds | int if snapshot.focus.remaining_seconds is not none else 0 }};
+  var startTime = Date.now();
+  var status = "{{ snapshot.focus.status }}";
+
+  function tick() {
+    if (status !== 'running') return;
+    var elapsed = Math.floor((Date.now() - startTime) / 1000);
+    var left = Math.max(0, startRemaining - elapsed);
+    var mins = Math.floor(left / 60);
+    var secs = left % 60;
+    if (remainingEl) remainingEl.textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
+    if (left <= 0) { clearInterval(timer); status = 'done'; }
+  }
+  var timer = setInterval(tick, 1000);
+})();
+</script>
+{% endif %}
+{% endblock %}

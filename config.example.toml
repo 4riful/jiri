@@ -1,0 +1,100 @@
+[display]
+driver = "pygame"
+width = 480
+height = 320
+fullscreen = true
+fps = 15
+rotate_seconds = 20
+typing_speed_cps = 24
+
+[assistant]
+name = "JIRI"
+personality = "playful_joyful"
+rage_mode_enabled = true
+
+[weather]
+provider = "open_meteo"
+location = "auto"
+# Optional fixed coordinates. Saved CLI location settings override these.
+# latitude = 38.7223
+# longitude = -9.1393
+refresh_minutes = 30
+timeout_seconds = 3
+
+# Run `python -m jiri.cli location search "your place" --country BD` then `location set 1`.
+# Or run `python -m jiri.cli location set-coords --name "Home" --lat 38.7223 --lon -9.1393`.
+
+[focus]
+enabled = true
+default_minutes = 25
+break_minutes = 5
+checkpoint_seconds = 60
+
+[database]
+path = "data/jiri.db"
+backup_dir = "backups"
+
+[web]
+host = "0.0.0.0"
+port = 5000
+# Laptop usage pushes (Claude Code / Codex limits on the display) are enabled
+# by JIRI_USAGE_TOKEN in the environment or PROJECT_ROOT/.env; unset = POST
+# /api/usage answers 503. See README "Show Claude / ChatGPT usage on JIRI".
+
+[performance]
+max_ui_ram_mb = 250
+max_web_ram_mb = 150
+target_fps = 15
+min_acceptable_fps = 10
+
+[ai]
+# Hosted API wording is a required JIRI subsystem. A production-ready setup
+# needs a key for at least one configured provider.
+#
+# AI generates persona line TEMPLATES in the background; the display only ever
+# reads the local SQLite cache. No user data (todo titles, notes, location) is
+# ever sent to a provider - templates use {task}/{minutes} placeholders that are
+# filled in locally on the device.
+timeout_seconds = 15.0          # background worker only; never the UI thread
+daily_request_cap = 200
+max_output_chars = 160
+min_lines_per_bucket = 12
+max_lines_per_bucket = 60
+refill_interval_minutes = 10    # web process refill worker; 0 = manual only
+
+# Providers are tried in order. Each is any OpenAI-compatible endpoint.
+# Secrets come from the environment or from PROJECT_ROOT/.env (JIRI_ENV_FILE
+# overrides the path; already-set variables always win). Every name below also
+# accepts a JIRI_ prefix, e.g. JIRI_FREELLM_API_KEY.
+#
+# FreeLLMAPI: the owner's self-hosted gateway. Needs in .env:
+#   FREELLM_BASE_URL=https://your-gateway.example   (/v1 is appended if missing)
+#   FREELLM_API_KEY=...
+#   FREELLM_MODEL=qwen3.8-27b                        (optional; avoid "auto")
+[[ai.providers]]
+name = "freellm"
+
+[[ai.providers]]
+name = "gemini"                 # Google AI Studio; GEMINI_API_KEY
+model = "gemini-3.5-flash"
+
+[[ai.providers]]
+name = "groq"                   # Groq API; GROQ_API_KEY
+model = "qwen/qwen3.6-27b"
+#
+# [[ai.providers]]
+# name = "ollama"                 # a LAN box, no key needed
+# base_url = "http://192.168.1.50:11434/v1"
+# model = "llama3.1:8b"
+
+[telegram]
+# These are first-boot seed values. After SQLite is initialized, manage
+# Telegram from /admin/telegram; the database becomes the source of truth.
+# Environment variables can still seed a fresh database:
+# JIRI_TELEGRAM_BOT_TOKEN='123456:botfather-token'
+# JIRI_TELEGRAM_ALLOWED_CHAT_IDS='123456789,-1001234567890'
+enabled = false
+bot_token = ""
+allowed_chat_ids = []
+command_chat_id = ""
+polling_timeout_seconds = 25

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="login-shell">
+    <article class="card login-card">
+      <div class="login-face" aria-hidden="true">[ o_o ]</div>
+      <div class="eyebrow">ADMIN AUTH</div>
+      <h2>Unlock JIRI Admin</h2>
+      {% if not password_configured %}
+        <p class="banner banner-error" role="alert"><strong>Login is disabled.</strong> No admin password is configured. Set <code>JIRI_ADMIN_PASSWORD</code> in <code>.env</code> and restart.</p>
+      {% else %}
+        <p>Local LAN control surface.</p>
+        <form class="stack-form" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="current-password" autofocus required>
+          </label>
+          <button class="button" type="submit">Login</button>
+        </form>
+      {% endif %}
+    </article>
+  </section>
+{% endblock %}

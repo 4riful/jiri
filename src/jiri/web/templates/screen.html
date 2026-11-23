@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JIRI screen</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b0f14; }
+    body { display: grid; place-items: center; }
+    img { display: block; width: 480px; max-width: 100vw; height: auto; aspect-ratio: 3 / 2;
+          cursor: pointer; border-radius: 6px; box-shadow: 0 0 0 1px #1c242d;
+          user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  </style>
+</head>
+<body>
+  {# A live view of the device: the same pygame Stage as the 3.5" panel,
+     streamed as MJPEG. Touch it like the touchscreen: tap = pet JIRI,
+     double tap = stop on this screen / spin on to the next. #}
+  <img id="device" src="{{ url_for('screen_live') }}" data-fallback-src="{{ png_url }}" draggable="false"
+       width="480" height="320"
+       alt="JIRI is {{ snapshot.face_state }}: {{ snapshot.face_reason }}"
+       data-face-state="{{ snapshot.face_state }}" data-width="{{ snapshot.width }}" data-height="{{ snapshot.height }}">
+  <script>
+    const img = document.getElementById("device");
+    const W = 480, H = 320;
+    const tapUrl = "{{ url_for('screen_tap') }}";
+    const csrf = "{{ csrf_token() if web_surface != 'screen' else '' }}";
+
+    function tap(clientX, clientY) {
+      const r = img.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      const x = Math.max(0, Math.min(W - 1, Math.round((clientX - r.left) * W / r.width)));
+      const y = Math.max(0, Math.min(H - 1, Math.round((clientY - r.top) * H / r.height)));
+      const headers = { "Content-Type": "application/json" };
+      if (csrf) headers["X-CSRF-Token"] = csrf;
+      fetch(tapUrl, { method: "POST", headers, body: JSON.stringify({ x, y }) }).catch(() => {});
+    }
+    // Every press is one device tap; the stage itself turns two quick ones
+    // into a double tap, exactly like the panel.
+    img.addEventListener("pointerdown", (e) => { e.preventDefault(); tap(e.clientX, e.clientY); });
+
+    // If the live stream fails, fall back to the still frame once a second.
+    let polling = false;
+    img.addEventListener("error", () => {
+      if (polling) return;
+      polling = true;
+      const still = img.dataset.fallbackSrc;
+      const refresh = () => { img.src = `${still}${still.includes("?") ? "&" : "?"}t=${Date.now()}`; };
+      refresh();
+      setInterval(refresh, 1000);
+    });
+  </script>
+</body>
+</html>

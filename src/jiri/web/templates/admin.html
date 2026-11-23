@@ -1,0 +1,254 @@
+{% from "macros/icons.html" import icon_todos, icon_notes, icon_weather, icon_focus, icon_system, icon_ai, icon_chevron_down, icon_chevron_up, icon_thermometer, icon_cloud_rain, icon_wind, icon_memory, icon_cpu, icon_globe, icon_monitor, icon_database, icon_check, icon_cloud, icon_cloud_fog, icon_cloud_lightning, icon_cloud_snow, icon_gear, icon_tag, icon_link, icon_play, icon_stop, icon_droplet, icon_refresh %}
+{% extends "base.html" %}
+
+{% block content %}
+<section class="dash-stats">
+  <article class="stat-card stat-datetime">
+    <strong class="stat-big" id="clock-time">{{ snapshot.now.strftime('%I:%M %p').lstrip('0').lower() if snapshot.now else '--:--' }}</strong>
+    <p id="clock-date">{{ snapshot.now.strftime('%a %b %d, %Y') if snapshot.now else '---' }}</p>
+  </article>
+
+  <article class="stat-card stat-water">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_droplet(14) }} Water</span>
+      <span class="stat-head-badge {{ 'badge-green' if snapshot.water.complete else 'badge-dim' }}">{{ snapshot.water.percent }}%</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.water.progress_ml }}ml</strong>
+    <p>{{ snapshot.water.remaining_ml }}ml left · goal {{ snapshot.water.goal_ml }}ml</p>
+  </article>
+
+  <article class="stat-card stat-focus">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_focus(14) }} Focus</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.focus.remaining_text if snapshot.focus.active else '--:--' }}</strong>
+    <p>{{ snapshot.focus.title if snapshot.focus.active else 'No active session' }}</p>
+  </article>
+
+  <article class="stat-card stat-notes">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_notes(14) }} Notes</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.notes|length }}</strong>
+    <p>{{ (snapshot.notes[0].title or '')[:30] if snapshot.notes else 'Empty' }}</p>
+  </article>
+
+  <article class="stat-card stat-todos">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_todos(14) }} Todos</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.screen.pending_count }}</strong>
+    <p>{{ snapshot.screen.overdue_count }} overdue &middot; {{ snapshot.todos|length }} total</p>
+  </article>
+  <article class="stat-card stat-ai">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_ai(14) }} AI Wording</span>
+      <span class="stat-head-badge {{ 'badge-green' if snapshot.ai.enabled else 'badge-dim' }}">{{ 'on' if snapshot.ai.enabled else 'off' }}</span>
+    </div>
+    <strong class="stat-big">{{ snapshot.ai.cache_total | default(0) }}</strong>
+    <p>cached lines &middot; {{ snapshot.ai.used_today | default(0) }}/{{ snapshot.ai.daily_cap | default(0) }} today</p>
+  </article>
+
+  <article class="stat-card stat-telegram">
+    <div class="stat-head">
+      <span class="stat-head-label">{{ icon_link(14) }} Telegram</span>
+      <span class="stat-head-badge badge-dim" id="telegram-card-badge">Setup</span>
+    </div>
+    <strong class="stat-big" id="telegram-card-count">--</strong>
+    <p id="telegram-card-copy">Checking binding...</p>
+  </article>
+</section>
+
+{% if not snapshot.todos and not snapshot.notes %}
+<section class="dash-welcome">
+  <div class="empty-state">
+    <span class="empty-face" aria-hidden="true">[ ^_^ ]</span>
+    <strong>Nothing on the desk yet</strong>
+    <span>No todos, no notes, no nagging. Give me something to remember and I will remind you about it far too often.</span>
+    <div class="inline-actions">
+      <a class="button" href="{{ url_for('todos_view') }}">{{ icon_todos(14) }} Add a todo</a>
+      <a class="button button-soft" href="{{ url_for('notes_view') }}">{{ icon_notes(14) }} Write a note</a>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="dash-hero">
+  <article class="dash-hero-card weather-hero">
+    <div class="hero-header">
+      <h2>{{ icon_weather(18) }} Weather</h2>
+      <span class="hero-status {{ 'status-dim' if not snapshot.weather.condition or snapshot.weather.condition|lower == 'unavailable' else '' }}">{{ snapshot.weather.condition if snapshot.weather.condition else 'Unavailable' }}</span>
+    </div>
+    <p class="hero-location">{{ snapshot.weather.location if snapshot.weather.location else 'No location selected' }}</p>
+    <div class="hero-metrics">
+      <div class="metric-tile metric-temp">
+        <span class="metric-icon">{{ icon_thermometer(14) }}</span>
+        <div class="metric-content">
+          <span class="metric-label">Temperature</span>
+          <strong>{{ snapshot.weather.temperature_c|round|int if snapshot.weather.temperature_c is not none else '--' }}&deg;C</strong>
+        </div>
+      </div>
+      <div class="metric-tile metric-feels">
+        <span class="metric-icon">{{ icon_thermometer(14) }}</span>
+        <div class="metric-content">
+          <span class="metric-label">Feels Like</span>
+          <strong>{{ snapshot.weather.feels_like_c|round|int if snapshot.weather.feels_like_c is not none else '--' }}&deg;C</strong>
+        </div>
+      </div>
+      <div class="metric-tile metric-rain">
+        <span class="metric-icon">{{ icon_cloud_rain(14) }}</span>
+        <div class="metric-content">
+          <span class="metric-label">Rain</span>
+          <strong>{{ snapshot.weather.rain_chance ~ '%' if snapshot.weather.rain_chance is not none else '--' }}</strong>
+        </div>
+      </div>
+      <div class="metric-tile metric-wind">
+        <span class="metric-icon">{{ icon_wind(14) }}</span>
+        <div class="metric-content">
+          <span class="metric-label">Wind</span>
+          <strong>{{ snapshot.weather.wind_kmh|round|int if snapshot.weather.wind_kmh is not none else '--' }} km/h</strong>
+        </div>
+      </div>
+    </div>
+    {% if snapshot.weather.hourly_forecast %}
+    <div class="forecast-panel">
+      <div class="forecast-head"><span>Next 12 Hours</span></div>
+      <div class="forecast-strip-scroll">
+        {% for hour in snapshot.weather.hourly_forecast[:12] %}
+        <div class="forecast-card">
+          <span class="forecast-icon forecast-icon-{{ hour.icon|default('cloud') }}">
+            {% if hour.icon == 'sun' %}{{ icon_weather(18) }}{% elif hour.icon == 'rain' %}{{ icon_cloud_rain(18) }}{% elif hour.icon == 'storm' %}{{ icon_cloud_lightning(18) }}{% elif hour.icon == 'snow' %}{{ icon_cloud_snow(18) }}{% elif hour.icon == 'fog' %}{{ icon_cloud_fog(18) }}{% else %}{{ icon_cloud(18) }}{% endif %}
+          </span>
+          <span class="forecast-time">{{ hour.time }}</span>
+          <strong>{{ hour.temperature_c|round|int if hour.temperature_c is not none else '-' }}&deg;</strong>
+          <small class="forecast-rain">{{ hour.rain_chance ~ '%' if hour.rain_chance is not none else '-' }} rain</small>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <p class="hero-empty">No forecast cached yet. I am staring out of the window, but I do not have a window.</p>
+    {% endif %}
+  </article>
+</section>
+
+<section class="dash-panel">
+  <article class="dash-panel-card">
+    <div class="panel-header">
+      <h3>{{ icon_system(16) }} System</h3>
+      <div class="panel-actions">
+        <span class="hero-status {{ '' if snapshot.health.database_writable else 'status-red' }}">{{ 'Healthy' if snapshot.health.database_writable else 'Issues' }}</span>
+        <form method="post" action="{{ url_for('update_check') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="collapse-toggle" type="submit">{{ icon_refresh(14) }} Updates</button>
+        </form>
+        <button class="collapse-toggle" id="system-toggle" type="button" onclick="toggleSystem()" aria-expanded="false" aria-controls="system-extra">
+          <span class="toggle-label">Details</span>
+          {{ icon_chevron_down(14) }}
+        </button>
+      </div>
+    </div>
+    <div class="system-grid">
+      <div class="system-tile">
+        <span class="system-tile-icon">{{ icon_memory(14) }}</span>
+        <span class="system-tile-label">Memory</span>
+        <strong>{{ snapshot.health.free_ram_mb if snapshot.health.free_ram_mb is not none else '?' }} MB free</strong>
+      </div>
+      <div class="system-tile">
+        <span class="system-tile-icon">{{ icon_cpu(14) }}</span>
+        <span class="system-tile-label">Temperature</span>
+        <strong>{{ snapshot.health.cpu_temperature_c ~ 'C' if snapshot.health.cpu_temperature_c is not none else '?' }}</strong>
+      </div>
+      <div class="system-tile">
+        <span class="system-tile-icon">{{ icon_globe(14) }}</span>
+        <span class="system-tile-label">Web</span>
+        <strong>{{ snapshot.health.web.host }}:{{ snapshot.health.web.port }}</strong>
+      </div>
+      <div class="system-tile">
+        <span class="system-tile-icon">{{ icon_monitor(14) }}</span>
+        <span class="system-tile-label">Display</span>
+        <strong>{{ snapshot.health.display.width }}x{{ snapshot.health.display.height }}</strong>
+      </div>
+    </div>
+    <div class="collapse-section" id="system-extra">
+      <div class="system-grid">
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_database(14) }}</span>
+          <span class="system-tile-label">Database</span>
+          <strong>{{ snapshot.health.database_path }}</strong>
+        </div>
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_check(14) }}</span>
+          <span class="system-tile-label">Writable</span>
+          <strong>{{ 'Yes' if snapshot.health.database_writable else 'No' }}</strong>
+        </div>
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_cloud(14) }}</span>
+          <span class="system-tile-label">Weather Cache</span>
+          <strong>{{ snapshot.health.weather_cache_status }}</strong>
+        </div>
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_gear(14) }}</span>
+          <span class="system-tile-label">Worker</span>
+          <strong>{{ snapshot.health.worker }}</strong>
+        </div>
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_tag(14) }}</span>
+          <span class="system-tile-label">Version</span>
+          <strong>{{ snapshot.health.app_version }}</strong>
+        </div>
+        <div class="system-tile">
+          <span class="system-tile-icon">{{ icon_link(14) }}</span>
+          <span class="system-tile-label">Display Mode</span>
+          <strong>{{ snapshot.health.display.driver }} @ {{ snapshot.health.display.fps }}fps</strong>
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+
+<script>
+function toggleSystem() {
+  var el = document.getElementById("system-extra");
+  var btn = document.getElementById("system-toggle");
+  if (!el || !btn) return;
+  var expanded = el.classList.toggle("panel-expanded");
+  btn.setAttribute("aria-expanded", expanded);
+  btn.querySelector(".toggle-label").textContent = expanded ? "Less" : "Details";
+  btn.querySelector(".icon").outerHTML = expanded ? '{{ icon_chevron_up(14)|safe }}' : '{{ icon_chevron_down(14)|safe }}';
+}
+
+(function(){
+  var timeEl = document.getElementById("clock-time");
+  var dateEl = document.getElementById("clock-date");
+  if(!timeEl || !dateEl) return;
+  setInterval(function(){
+    var d = new Date();
+    var hours = d.getHours();
+    var suffix = hours >= 12 ? 'pm' : 'am';
+    var displayHours = hours % 12 || 12;
+    timeEl.textContent = displayHours + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + suffix;
+    dateEl.textContent = d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'2-digit', year:'numeric'});
+  }, 1000);
+})();
+
+(function(){
+  var badge = document.getElementById("telegram-card-badge");
+  var count = document.getElementById("telegram-card-count");
+  var copy = document.getElementById("telegram-card-copy");
+  if(!badge || !count || !copy) return;
+  fetch("{{ url_for('api_telegram_status_light') }}", {credentials: "same-origin"})
+    .then(function(resp){ return resp.ok ? resp.json() : null; })
+    .then(function(data){
+      if(!data) throw new Error("no data");
+      count.textContent = data.allowed_chat_count;
+      badge.textContent = data.configured ? "Ready" : "Setup";
+      badge.className = "stat-head-badge " + (data.configured ? "badge-green" : "badge-dim");
+      copy.textContent = data.configured ? "chat(s) allowed" : "Token/chat allowlist needed";
+    })
+    .catch(function(){
+      count.textContent = "?";
+      copy.textContent = "Status unavailable";
+    });
+})();
+</script>
+{% endblock %}
