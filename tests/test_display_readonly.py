@@ -55,8 +55,11 @@ def _data_version(conn: sqlite3.Connection) -> int:
 
 
 @pytest.fixture()
-def busy_runtime(tmp_path):
+def busy_runtime(tmp_path, monkeypatch):
     """A world where every side effect *would* fire if the display allowed it."""
+    # CI sets JIRI_WEATHER_FAKE=true, which would stop the background tick from
+    # ever trying the network; this test is about that attempt.
+    monkeypatch.delenv("JIRI_WEATHER_FAKE", raising=False)
     db_path = str(tmp_path / "jiri.db")
     cfg = AppConfig(display=DisplayConfig(driver="mock", fullscreen=False, width=480, height=320))
     runtime = JiriRuntime.load(config=cfg, db_path=db_path)
