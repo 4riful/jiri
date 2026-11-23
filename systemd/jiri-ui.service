@@ -5,7 +5,7 @@ After=multi-user.target
 [Service]
 Type=simple
 User=pi
-SupplementaryGroups=video input
+SupplementaryGroups=video input spi gpio
 WorkingDirectory=/home/pi/jiri
 Environment=PYTHONPATH=src
 Environment=JIRI_DISPLAY_OUTPUT=fb

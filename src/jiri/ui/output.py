@@ -7,7 +7,9 @@ Two backends behind one tiny interface (`present(canvas)`, `taps()`):
   fbcon driver, so we render offscreen (SDL dummy driver) and write the panel's
   /dev/fbN ourselves. Only row bands that changed are written: on SPI a full
   480x320 RGB565 frame is ~2.4 Mbit, so an unchanged frame must cost nothing.
-  Touch comes straight from evdev (ads7846/XPT2046), calibrated in software.
+  Touch comes from evdev (ads7846/XPT2046), or — when the panel's PENIRQ line
+  is dead — from `SpiTouch` polling the XPT2046 over /dev/spidev0.1. Both are
+  calibrated in software.
 
 Everything about the real panel (fb number, bpp, touch axes) is a hardware
 unknown — see docs/PI_DISPLAY_CHECKLIST.md.
@@ -15,9 +17,12 @@ unknown — see docs/PI_DISPLAY_CHECKLIST.md.
 
 from __future__ import annotations
 
+import ctypes
 import fcntl
 import os
+import queue
 import struct
+import threading
 import time
 
 BAND_ROWS = 16
@@ -54,7 +59,7 @@ class FramebufferOutput:
         pygame,
         size: tuple[int, int],
         device: str,
-        touch: "EvdevTouch | None" = None,
+        touch: "EvdevTouch | SpiTouch | None" = None,
         sysfs_root: str = "/sys/class/graphics",
     ) -> None:
         self.pygame = pygame
@@ -130,38 +135,34 @@ def _eviocgabs(axis: int) -> int:
     return (2 << 30) | (_ABSINFO.size << 16) | (ord("E") << 8) | (0x40 + axis)
 
 
-class EvdevTouch:
-    """Single-touch resistive panel -> screen taps.
+class _TouchMapping:
+    """Raw resistive-panel coordinates -> screen pixels, shared by every touch
+    backend.
 
-    Calibration env `JIRI_TOUCH_CAL="xmin,xmax,ymin,ymax[,swap]"` overrides the
-    kernel's reported ranges; ads7846 ranges are rarely right out of the box.
+    Calibration `JIRI_TOUCH_CAL="xmin,xmax,ymin,ymax[,swap]"` (in the panel's
+    final, rotated orientation) overrides the default ranges. A reversed range
+    (xmin > xmax) inverts that axis; `swap` exchanges raw X and Y first.
     """
 
-    def __init__(self, device: str, size: tuple[int, int], calibration: str = "") -> None:
+    size: tuple[int, int]
+    xmin = xmax = ymin = ymax = 0
+    swap = False
+    calibrated = False
+
+    def _init_mapping(self, size, calibration: str, default_x, default_y) -> None:
+        """`default_x`/`default_y` are (lo, hi) or a zero-arg callable giving it,
+        only consulted when no calibration string is supplied."""
         self.size = size
-        self.device = device
-        self._retry_at = 0.0
-        self.fd = os.open(device, os.O_RDONLY | os.O_NONBLOCK)
-        self.x = self.y = 0
-        self.down = False
-        parts = [p.strip() for p in calibration.split(",") if p.strip()]
+        parts = [p.strip() for p in (calibration or "").split(",") if p.strip()]
         if len(parts) >= 4:
             self.xmin, self.xmax, self.ymin, self.ymax = (int(p) for p in parts[:4])
             self.swap = len(parts) > 4 and parts[4].lower() in {"1", "swap", "true"}
             self.calibrated = True
         else:
-            self.xmin, self.xmax = self._range(ABS_X, size[0])
-            self.ymin, self.ymax = self._range(ABS_Y, size[1])
+            self.xmin, self.xmax = default_x() if callable(default_x) else default_x
+            self.ymin, self.ymax = default_y() if callable(default_y) else default_y
             self.swap = False
             self.calibrated = False
-
-    def _range(self, axis: int, fallback: int) -> tuple[int, int]:
-        try:
-            buf = fcntl.ioctl(self.fd, _eviocgabs(axis), bytes(_ABSINFO.size))
-            _, lo, hi, *_ = _ABSINFO.unpack(buf)
-            return (lo, hi) if hi > lo else (0, fallback)
-        except OSError:
-            return 0, fallback
 
     def rotate_for(self, rotation: int) -> None:
         """Match a rotated panel: swap axes (and their ranges); 270 also flips.
@@ -183,6 +184,32 @@ class EvdevTouch:
         sx = int((rx - self.xmin) * (w - 1) / ((self.xmax - self.xmin) or 1))
         sy = int((ry - self.ymin) * (h - 1) / ((self.ymax - self.ymin) or 1))
         return max(0, min(w - 1, sx)), max(0, min(h - 1, sy))
+
+
+class EvdevTouch(_TouchMapping):
+    """Single-touch resistive panel -> screen taps, via the kernel's evdev node.
+
+    Calibration env `JIRI_TOUCH_CAL="xmin,xmax,ymin,ymax[,swap]"` overrides the
+    kernel's reported ranges; ads7846 ranges are rarely right out of the box.
+    """
+
+    def __init__(self, device: str, size: tuple[int, int], calibration: str = "") -> None:
+        self.device = device
+        self._retry_at = 0.0
+        self.fd = os.open(device, os.O_RDONLY | os.O_NONBLOCK)
+        self.x = self.y = 0
+        self.down = False
+        self._init_mapping(
+            size, calibration, lambda: self._range(ABS_X, size[0]), lambda: self._range(ABS_Y, size[1])
+        )
+
+    def _range(self, axis: int, fallback: int) -> tuple[int, int]:
+        try:
+            buf = fcntl.ioctl(self.fd, _eviocgabs(axis), bytes(_ABSINFO.size))
+            _, lo, hi, *_ = _ABSINFO.unpack(buf)
+            return (lo, hi) if hi > lo else (0, fallback)
+        except OSError:
+            return 0, fallback
 
     def poll(self) -> list[tuple[int, int]]:
         """Taps since the last call. Never raises: if the touch device goes
@@ -231,6 +258,263 @@ def _evdev_reopen(self) -> list:
 
 
 EvdevTouch._reopen = _evdev_reopen
+
+
+# --- polled SPI touch (XPT2046 / ADS7846 without a working PENIRQ) -----------
+#
+# On some boards the controller answers over SPI but its PENIRQ line is stuck,
+# so the kernel ads7846 driver never sees an interrupt. Then the driver is not
+# bound, /dev/spidev0.1 exists, and we poll the chip ourselves from a small
+# daemon thread. The frame loop only ever drains a queue.
+
+SPI_TOUCH_DEVICE = "/dev/spidev0.1"
+SPI_SPEED_HZ = 1_000_000
+
+# XPT2046 control bytes: start bit, channel, 12-bit, differential, PD=00.
+XPT_X, XPT_Y, XPT_Z1, XPT_Z2 = 0xD0, 0x90, 0xB0, 0xC0
+XPT_MIN, XPT_MAX = 50, 4045          # outside this the reading is an open/rail value
+DEFAULT_Z_MIN = 80
+AXIS_SAMPLES = 5
+Z_SAMPLES = 3
+TOUCH_MIN_SAMPLES = 2                # touched samples needed to count as a tap
+RELEASE_SAMPLES = 2                  # untouched samples needed to count as release
+MAX_HELD_SAMPLES = 64                # bound memory during a long press
+RETRY_S = 5.0
+
+
+def _ioc_write(nr: int, size: int) -> int:
+    # _IOW('k', nr, size) with the generic Linux layout: dir(2)|size(14)|type(8)|nr(8)
+    return (1 << 30) | (size << 16) | (ord("k") << 8) | nr
+
+
+class _SpiIocTransfer(ctypes.Structure):
+    """`struct spi_ioc_transfer` from <linux/spi/spidev.h> (32 bytes on every ABI)."""
+
+    _fields_ = [
+        ("tx_buf", ctypes.c_uint64),
+        ("rx_buf", ctypes.c_uint64),
+        ("len", ctypes.c_uint32),
+        ("speed_hz", ctypes.c_uint32),
+        ("delay_usecs", ctypes.c_uint16),
+        ("bits_per_word", ctypes.c_uint8),
+        ("cs_change", ctypes.c_uint8),
+        ("tx_nbits", ctypes.c_uint8),
+        ("rx_nbits", ctypes.c_uint8),
+        ("word_delay_usecs", ctypes.c_uint8),
+        ("pad", ctypes.c_uint8),
+    ]
+
+
+SPI_IOC_WR_MODE = _ioc_write(1, 1)
+SPI_IOC_WR_BITS_PER_WORD = _ioc_write(3, 1)
+SPI_IOC_WR_MAX_SPEED_HZ = _ioc_write(4, 4)
+SPI_IOC_MESSAGE_1 = _ioc_write(0, ctypes.sizeof(_SpiIocTransfer))
+
+
+class SpiDev:
+    """Minimal stdlib spidev: mode 0, 8-bit words, full-duplex transfers."""
+
+    def __init__(self, device: str, speed_hz: int = SPI_SPEED_HZ) -> None:
+        self.speed_hz = speed_hz
+        self.fd = os.open(device, os.O_RDWR)
+        try:
+            fcntl.ioctl(self.fd, SPI_IOC_WR_MODE, struct.pack("B", 0))
+            fcntl.ioctl(self.fd, SPI_IOC_WR_BITS_PER_WORD, struct.pack("B", 8))
+            fcntl.ioctl(self.fd, SPI_IOC_WR_MAX_SPEED_HZ, struct.pack("I", speed_hz))
+        except OSError:
+            os.close(self.fd)
+            raise
+
+    def transfer(self, data: bytes) -> bytes:
+        n = len(data)
+        tx = ctypes.create_string_buffer(bytes(data), n)
+        rx = ctypes.create_string_buffer(n)
+        xfer = _SpiIocTransfer(
+            tx_buf=ctypes.addressof(tx), rx_buf=ctypes.addressof(rx), len=n,
+            speed_hz=self.speed_hz, bits_per_word=8,
+        )
+        fcntl.ioctl(self.fd, SPI_IOC_MESSAGE_1, xfer)
+        return rx.raw
+
+    def close(self) -> None:
+        try:
+            os.close(self.fd)
+        except OSError:
+            pass
+
+
+def xpt_decode(rx: bytes) -> int:
+    """12-bit result from a 3-byte [cmd, 0, 0] exchange."""
+    return ((rx[1] << 8) | rx[2]) >> 3 & 0xFFF
+
+
+def _median(values) -> int:
+    ordered = sorted(values)
+    return ordered[len(ordered) // 2]
+
+
+class SpiTouch(_TouchMapping):
+    """Polled XPT2046 over spidev -> screen taps. Same interface as EvdevTouch.
+
+    A tap is emitted on release after >= 2 touched samples (release = 2
+    untouched samples in a row), at the median of the touched positions.
+    Env: `JIRI_TOUCH_CAL` (as evdev), `JIRI_TOUCH_Z_MIN` (pressure threshold,
+    default 80), `JIRI_TOUCH_R_MAX` (optional cap on the computed touch
+    resistance, unitless X/4096*(Z2/Z1-1); unset = no cap).
+    """
+
+    def __init__(
+        self,
+        device: str = SPI_TOUCH_DEVICE,
+        size: tuple[int, int] = (480, 320),
+        calibration: str = "",
+        *,
+        z_min: int | None = None,
+        r_max: float | None = None,
+        hz: float = 60.0,
+        spi_factory=None,
+        start: bool = True,
+    ) -> None:
+        self.device = device[4:] if device.startswith("spi:") else device
+        self._init_mapping(size, calibration, (0, 4095), (0, 4095))
+        self.z_min = z_min if z_min is not None else _env_int("JIRI_TOUCH_Z_MIN", DEFAULT_Z_MIN)
+        self.r_max = r_max if r_max is not None else _env_float("JIRI_TOUCH_R_MAX")
+        self.period = 1.0 / hz
+        self._spi_factory = spi_factory or SpiDev
+        self._spi = None
+        self._retry_at = 0.0
+        self._lock = threading.Lock()
+        self._taps: queue.SimpleQueue = queue.SimpleQueue()
+        self._held: list[tuple[int, int]] = []
+        self._released = 0
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        if start:
+            self.start()
+
+    # -- lifecycle ---------------------------------------------------------
+    def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._run, name="jiri-spi-touch", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=1.0)
+            self._thread = None
+        with self._lock:
+            self._close()
+
+    close = stop
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            try:
+                self.step()
+            except Exception:  # noqa: BLE001 - the sampler must never die loudly
+                pass
+            self._stop.wait(self.period)
+
+    # -- SPI ---------------------------------------------------------------
+    def _close(self) -> None:
+        if self._spi is not None:
+            try:
+                self._spi.close()
+            except Exception:  # noqa: BLE001
+                pass
+        self._spi = None
+
+    def _ensure_open(self):
+        if self._spi is None:
+            self._spi = self._spi_factory(self.device)
+        return self._spi
+
+    def _read(self, cmd: int, n: int) -> int:
+        spi = self._spi
+        return _median([xpt_decode(spi.transfer(bytes((cmd, 0, 0)))) for _ in range(n)])
+
+    def _sample(self, full: bool) -> tuple[int, int, int, int]:
+        self._ensure_open()
+        z1 = self._read(XPT_Z1, Z_SAMPLES)
+        z2 = self._read(XPT_Z2, Z_SAMPLES)
+        if not full and z1 <= self.z_min:
+            return 0, 0, z1, z2          # not pressed: skip the X/Y reads
+        return self._read(XPT_X, AXIS_SAMPLES), self._read(XPT_Y, AXIS_SAMPLES), z1, z2
+
+    def raw_sample(self) -> tuple[int, int, int, int]:
+        """One (x, y, z1, z2) reading for calibration/debug. Raises OSError if
+        the device can't be opened or read."""
+        with self._lock:
+            try:
+                return self._sample(full=True)
+            except OSError:
+                self._close()
+                raise
+
+    def is_touched(self, x: int, y: int, z1: int, z2: int) -> bool:
+        if z1 <= self.z_min or not (XPT_MIN < x < XPT_MAX and XPT_MIN < y < XPT_MAX):
+            return False
+        if self.r_max is not None and z2 > z1:
+            if x / 4096 * (z2 / z1 - 1) > self.r_max:
+                return False
+        return True
+
+    # -- sampling state machine (one call per tick) --------------------------
+    def step(self, now: float | None = None) -> None:
+        now = time.monotonic() if now is None else now
+        with self._lock:
+            if self._spi is None:
+                if now < self._retry_at:
+                    return
+                self._retry_at = now + RETRY_S
+            try:
+                sample = self._sample(full=False)
+            except Exception:  # noqa: BLE001 - device gone / ioctl failed
+                self._close()
+                self._retry_at = now + RETRY_S
+                self._held.clear()
+                self._released = 0
+                return
+        if self.is_touched(*sample):
+            self._released = 0
+            self._held.append((sample[0], sample[1]))
+            if len(self._held) > MAX_HELD_SAMPLES:
+                del self._held[0]
+        elif self._held:
+            self._released += 1
+            if self._released >= RELEASE_SAMPLES:
+                if len(self._held) >= TOUCH_MIN_SAMPLES:
+                    self._taps.put((_median(p[0] for p in self._held), _median(p[1] for p in self._held)))
+                self._held = []
+                self._released = 0
+
+    def poll(self) -> list[tuple[int, int]]:
+        """Taps since the last call, mapped to screen pixels. Never raises."""
+        taps = []
+        while True:
+            try:
+                rx, ry = self._taps.get_nowait()
+            except queue.Empty:
+                return taps
+            taps.append(self.map(rx, ry))
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, "") or default)
+    except ValueError:
+        return default
+
+
+def _env_float(name: str) -> float | None:
+    try:
+        raw = os.environ.get(name, "")
+        return float(raw) if raw else None
+    except ValueError:
+        return None
 
 
 def find_touch_device() -> str | None:

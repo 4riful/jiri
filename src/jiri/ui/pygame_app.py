@@ -182,13 +182,35 @@ def _make_output(pygame, kind: str, size, cfg):
 
     if kind == "fb":
         device = os.environ.get("JIRI_FB_DEVICE") or output.find_panel_framebuffer()
-        touch_dev = os.environ.get("JIRI_TOUCH_DEVICE") or output.find_touch_device()
-        touch = output.EvdevTouch(touch_dev, size, os.environ.get("JIRI_TOUCH_CAL", "")) if touch_dev else None
+        touch = _make_touch(output, size)
         fb = output.FramebufferOutput(pygame, size, device, touch)
         if touch is not None and fb.rotation:
             touch.rotate_for(fb.rotation)
         return fb
     return output.SdlOutput(pygame, size, cfg.display.fullscreen, cfg.assistant.name)
+
+
+def _make_touch(output, size):
+    """Pick the touch backend.
+
+    `JIRI_TOUCH_DEVICE=spi:/dev/spidev0.1` polls the XPT2046 directly (dead
+    PENIRQ line); any other value is an evdev node. Unset: an evdev touchscreen
+    if the kernel exposes one, else the SPI chip if spidev0.1 exists, else none.
+    """
+    cal = os.environ.get("JIRI_TOUCH_CAL", "")
+    dev = os.environ.get("JIRI_TOUCH_DEVICE", "").strip()
+    if not dev:
+        dev = output.find_touch_device() or ""
+        if not dev and os.path.exists(output.SPI_TOUCH_DEVICE):
+            dev = "spi:" + output.SPI_TOUCH_DEVICE
+    if not dev:
+        return None
+    try:
+        if dev.startswith("spi:"):
+            return output.SpiTouch(dev[4:] or output.SPI_TOUCH_DEVICE, size, cal)
+        return output.EvdevTouch(dev, size, cal)
+    except OSError:  # no touch beats no face
+        return None
 
 
 if __name__ == "__main__":
